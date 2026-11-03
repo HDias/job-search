@@ -1,0 +1,31 @@
+{
+  "name": "job-search-v2",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Job Search Assistant v2 — React + API + SQLite (repositórios preparados para nuvem)",
+  "scripts": {
+    "dev": "tsx watch src/api/server.ts",
+    "start": "tsx src/api/server.ts",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:import": "tsx src/migrations/from-json.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.4.1",
+    "drizzle-orm": "^0.44.7",
+    "express": "^5.2.1",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.5",
+    "@types/node": "^24.10.1",
+    "drizzle-kit": "^0.31.6",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.8"
+  }
+}

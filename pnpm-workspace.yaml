@@ -1,0 +1,5 @@
+# Configuração do pnpm 11 (o campo "pnpm" do package.json não é mais lido).
+# Necessário para compilar o better-sqlite3 e o esbuild.
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
