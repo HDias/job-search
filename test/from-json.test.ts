@@ -43,6 +43,7 @@ function writeFixtures(): {
       company: 'Andela',
       role: 'Senior Backend Software Engineer',
       language: 'en',
+      languageConfirmation: 'user-confirmed',
       stack: 'ruby',
       channel: 'linkedin',
       fitRating: 77.5,
@@ -90,6 +91,7 @@ function writeFixtures(): {
       applicationId: 'app_1',
       stage: 'done',
       url: 'https://example.com/job/1',
+      stack: 'ruby',
       hasRawText: true,
       hasExtraQuestions: true,
       hasRecruiterMessage: true,
@@ -106,6 +108,17 @@ function writeFixtures(): {
         url: 'https://example.com/job/1',
         applyUrl: 'https://example.com/job/1/apply',
         detectedLanguage: 'en',
+      },
+      jobSnapshot: {
+        title: 'Senior Backend Software Engineer',
+        company: 'Andela',
+        location: 'Remote',
+        url: 'https://example.com/job/1',
+        applyUrl: 'https://example.com/job/1/apply',
+        detectedLanguage: 'en',
+        content: 'Texto completo da vaga.',
+        extraQuestions: 'Você tem disponibilidade?',
+        recruiterMessage: 'Mensagem do recrutador.',
       },
       fit: {
         fitRating: 80,
@@ -206,6 +219,7 @@ describe('importFromJson', () => {
       expect(job).not.toBeNull();
       expect(job?.company).toBe('Andela');
       expect(job?.language).toBe('en');
+      expect(job?.languageConfirmation).toBe('user-confirmed');
       expect(job?.stack).toBe('ruby');
       expect(job?.status).toBe('applied');
       expect(job?.appliedAt).toBe('2026-10-28T12:00:00.000Z');
@@ -247,8 +261,13 @@ describe('importFromJson', () => {
       expect(linked?.stage).toBe('done');
       expect(linked?.fit?.rating).toBe(80);
       expect(linked?.fit?.dimensions?.skillsMatch).toBe(90);
+      expect(linked?.stack).toBe('ruby');
+      expect(linked?.job?.title).toBe('Senior Backend Software Engineer');
       expect(linked?.jobSnapshot?.title).toBe('Senior Backend Software Engineer');
       expect(linked?.jobSnapshot?.location).toBe('Remote');
+      expect(linked?.jobSnapshot?.content).toBe('Texto completo da vaga.');
+      expect(linked?.jobSnapshot?.extraQuestions).toBe('Você tem disponibilidade?');
+      expect(linked?.jobSnapshot?.recruiterMessage).toBe('Mensagem do recrutador.');
 
       const orphan = runs.find((run) => run.id === 'proc_2');
       expect(orphan?.jobId).toBeNull();

@@ -60,6 +60,7 @@ describe('SqliteJobRepository', () => {
 
     expect(job.language).toBe('pt-br');
     expect(job.stack).toBe('ruby');
+    expect(job.languageConfirmation).toBeNull();
     expect(job.status).toBe('drafted');
     expect(job.appliedAt).toBeNull();
     expect(job.fit).toBeNull();
@@ -197,20 +198,34 @@ describe('SqliteRunRepository', () => {
       jobId: job.id,
       stage: 'fit-checked',
       url: 'https://example.com/job/1',
+      stack: 'ruby',
       languagePreference: 'en',
       fit: { ...fullFit, rating: 91 },
-      jobSnapshot: {
+      job: {
         title: 'Senior Backend',
         company: 'Acme',
         location: 'Remote',
         url: 'https://example.com/job/1',
         detectedLanguage: 'en',
       },
+      jobSnapshot: {
+        title: 'Senior Backend',
+        company: 'Acme',
+        location: 'Remote',
+        url: 'https://example.com/job/1',
+        detectedLanguage: 'en',
+        content: 'Descrição completa da vaga.',
+        extraQuestions: 'Pergunta extra?',
+      },
     });
 
     expect(run.id).toMatch(/^proc_/);
     expect(run.fit?.rating).toBe(91);
+    expect(run.stack).toBe('ruby');
+    expect(run.job?.title).toBe('Senior Backend');
     expect(run.jobSnapshot?.title).toBe('Senior Backend');
+    expect(run.jobSnapshot?.content).toBe('Descrição completa da vaga.');
+    expect(run.jobSnapshot?.extraQuestions).toBe('Pergunta extra?');
     expect(store.runs.list({ jobId: job.id })).toHaveLength(1);
     expect(store.runs.list({ stage: 'fit-checked' })).toHaveLength(1);
     expect(store.runs.list({ stage: 'done' })).toHaveLength(0);

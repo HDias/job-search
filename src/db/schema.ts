@@ -26,6 +26,7 @@ export const jobs = sqliteTable(
     language: text('language').notNull().default('pt-br'),
     stack: text('stack').notNull().default('ruby'),
     channel: text('channel'),
+    languageConfirmation: text('language_confirmation'),
     status: text('status').notNull().default('drafted'),
     /** ISO 8601 (a data dd/mm/yyyy do v1 é convertida na importação). */
     appliedAt: text('applied_at'),
@@ -62,6 +63,7 @@ export const runs = sqliteTable(
     jobId: text('job_id').references(() => jobs.id, { onDelete: 'set null' }),
     stage: text('stage').notNull().default('draft'),
     url: text('url'),
+    stack: text('stack'),
     languagePreference: text('language_preference'),
     detectedLanguage: text('detected_language'),
     suggestedLanguage: text('suggested_language'),
@@ -87,6 +89,9 @@ export const runs = sqliteTable(
       .default(false),
     error: text('error'),
     fitJson: text('fit_json', { mode: 'json' }).$type<Fit>(),
+    /** Metadados da vaga no momento do processamento (v1: `job`). */
+    jobJson: text('job_json', { mode: 'json' }).$type<JobSnapshot>(),
+    /** Snapshot completo, incluindo `content` (v1: `jobSnapshot`). */
     jobSnapshot: text('job_snapshot', { mode: 'json' }).$type<JobSnapshot>(),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),

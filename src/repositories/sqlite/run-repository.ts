@@ -42,6 +42,7 @@ export class SqliteRunRepository implements RunRepository {
       jobId: input.jobId ?? null,
       stage: input.stage ?? 'draft',
       url: input.url ?? null,
+      stack: input.stack ?? null,
       languagePreference: input.languagePreference ?? null,
       detectedLanguage: input.detectedLanguage ?? null,
       suggestedLanguage: input.suggestedLanguage ?? null,
@@ -53,6 +54,7 @@ export class SqliteRunRepository implements RunRepository {
       hasRecruiterMessage: input.hasRecruiterMessage ?? false,
       error: input.error ?? null,
       fit: parseFit(input.fit),
+      job: parseJobSnapshot(input.job),
       jobSnapshot: parseJobSnapshot(input.jobSnapshot),
       createdAt,
       updatedAt: input.updatedAt ?? createdAt,
@@ -70,6 +72,7 @@ export class SqliteRunRepository implements RunRepository {
       ...current,
       ...patch,
       fit: patch.fit === undefined ? current.fit : parseFit(patch.fit),
+      job: patch.job === undefined ? current.job : parseJobSnapshot(patch.job),
       jobSnapshot:
         patch.jobSnapshot === undefined
           ? current.jobSnapshot

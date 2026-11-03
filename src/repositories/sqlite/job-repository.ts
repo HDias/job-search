@@ -82,6 +82,7 @@ export class SqliteJobRepository implements JobRepository {
       language: input.language ?? 'pt-br',
       stack: input.stack ?? 'ruby',
       channel: input.channel ?? null,
+      languageConfirmation: input.languageConfirmation ?? null,
       status: input.status ?? 'drafted',
       appliedAt: input.appliedAt ?? null,
       fit: normalizeFit(input.fit),

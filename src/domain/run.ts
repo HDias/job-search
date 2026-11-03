@@ -19,6 +19,10 @@ export interface JobSnapshot {
   url?: string;
   applyUrl?: string;
   detectedLanguage?: string;
+  /** Texto raspado da vaga (pode ser grande). */
+  content?: string;
+  extraQuestions?: string;
+  recruiterMessage?: string;
 }
 
 export interface Run {
@@ -26,6 +30,7 @@ export interface Run {
   jobId: string | null;
   stage: RunStage;
   url: string | null;
+  stack: string | null;
   languagePreference: string | null;
   detectedLanguage: string | null;
   suggestedLanguage: string | null;
@@ -37,6 +42,9 @@ export interface Run {
   hasRecruiterMessage: boolean;
   error: string | null;
   fit: Fit | null;
+  /** Metadados da vaga (v1: `job`). */
+  job: JobSnapshot | null;
+  /** Snapshot completo, com `content` (v1: `jobSnapshot`). */
   jobSnapshot: JobSnapshot | null;
   createdAt: string;
   updatedAt: string;
@@ -47,6 +55,7 @@ const newRunBaseSchema = z.object({
   jobId: z.string().min(1).nullable().optional(),
   stage: z.string().min(1).default('draft'),
   url: z.string().nullable().optional(),
+  stack: z.string().nullable().optional(),
   languagePreference: z.string().nullable().optional(),
   detectedLanguage: z.string().nullable().optional(),
   suggestedLanguage: z.string().nullable().optional(),
@@ -58,6 +67,7 @@ const newRunBaseSchema = z.object({
   hasRecruiterMessage: z.boolean().default(false),
   error: z.string().nullable().optional(),
   fit: z.unknown().nullable().optional(),
+  job: z.unknown().nullable().optional(),
   jobSnapshot: z.unknown().nullable().optional(),
 });
 export const newRunSchema = newRunBaseSchema;

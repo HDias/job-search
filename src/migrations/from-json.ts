@@ -10,6 +10,7 @@ import {
   type NewJob,
 } from '../domain/job.js';
 import type { JobSnapshot, NewRun } from '../domain/run.js';
+import { parseLegacyDate } from '../domain/dates.js';
 import { defaultDbFile } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
 import type { NewArtifact } from '../repositories/types.js';
@@ -25,6 +26,7 @@ interface LegacyJob {
   company?: string;
   role?: string;
   language?: string;
+  languageConfirmation?: string;
   stack?: string;
   channel?: string;
   appliedEmails?: string[];
@@ -71,19 +73,27 @@ interface LegacyRun {
   needsFitConfirmation?: boolean;
   eligibilityBlocked?: boolean;
   error?: string | null;
-  job?: {
-    title?: string;
-    company?: string;
-    location?: string;
-    url?: string;
-    applyUrl?: string;
-    detectedLanguage?: string;
-  };
+  job?: LegacyJobSnapshot;
+  jobSnapshot?: LegacyJobSnapshot;
   fit?: LegacyJob;
   createdAt?: string;
   updatedAt?: string;
   [key: string]: unknown;
 }
+
+interface LegacyJobSnapshot {
+  title?: string;
+  company?: string;
+  location?: string;
+  url?: string;
+  applyUrl?: string;
+  detectedLanguage?: string;
+  content?: string;
+  extraQuestions?: string;
+  recruiterMessage?: string;
+}
+
+export { parseLegacyDate };
 
 export interface ImportOptions {
   trackerFile: string;
@@ -164,30 +174,6 @@ function stringOrNull(value: unknown): string | null {
 
 function numberOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
-/** Converte "28/10/2026" em ISO, ancorando ao meio-dia UTC para não deslocar o dia. */
-export function parseLegacyDate(value: unknown): string | null {
-  const raw = stringOrNull(value);
-  if (!raw) return null;
-
-  const br = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(raw);
-  if (br) {
-    const day = Number(br[1]);
-    const month = Number(br[2]);
-    const year = Number(br[3]);
-    const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-
-    const isRealDate =
-      date.getUTCFullYear() === year &&
-      date.getUTCMonth() === month - 1 &&
-      date.getUTCDate() === day;
-
-    return isRealDate ? date.toISOString() : null;
-  }
-
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
 function normalizeStatus(value: unknown, warnings: string[]): JobStatus {
@@ -284,6 +270,36 @@ function compactObject<T extends Record<string, unknown>>(value: T): T {
   ) as T;
 }
 
+function toJobSnapshot(
+  source: LegacyJobSnapshot | undefined | null,
+): JobSnapshot | null {
+  if (!source) return null;
+
+  const snapshot = compactObject({
+    title: stringOrNull(source.title) ?? undefined,
+    company: stringOrNull(source.company) ?? undefined,
+    location: stringOrNull(source.location) ?? undefined,
+    url: stringOrNull(source.url) ?? undefined,
+    applyUrl: stringOrNull(source.applyUrl) ?? undefined,
+    detectedLanguage: stringOrNull(source.detectedLanguage) ?? undefined,
+    content:
+      typeof source.content === 'string' && source.content.length > 0
+        ? source.content
+        : undefined,
+    extraQuestions:
+      typeof source.extraQuestions === 'string' && source.extraQuestions.length > 0
+        ? source.extraQuestions
+        : undefined,
+    recruiterMessage:
+      typeof source.recruiterMessage === 'string' &&
+      source.recruiterMessage.length > 0
+        ? source.recruiterMessage
+        : undefined,
+  });
+
+  return Object.keys(snapshot).length > 0 ? snapshot : null;
+}
+
 /* ------------------------------------------------------------------ */
 /* Importação                                                         */
 /* ------------------------------------------------------------------ */
@@ -348,6 +364,7 @@ export function importFromJson(options: ImportOptions): ImportReport {
           language: legacy.language === 'en' ? 'en' : 'pt-br',
           stack: stringOrNull(legacy.stack)?.toLowerCase() ?? 'ruby',
           channel: stringOrNull(legacy.channel),
+          languageConfirmation: stringOrNull(legacy.languageConfirmation),
           status: normalizeStatus(legacy.status, warnings),
           appliedAt,
           fit: normalizeFit(legacy),
@@ -427,22 +444,15 @@ export function importFromJson(options: ImportOptions): ImportReport {
 
         if (!jobId) runsWithoutJob += 1;
 
-        const snapshot: JobSnapshot | null = legacy.job
-          ? compactObject({
-              title: legacy.job.title,
-              company: legacy.job.company,
-              location: legacy.job.location,
-              url: legacy.job.url,
-              applyUrl: legacy.job.applyUrl,
-              detectedLanguage: legacy.job.detectedLanguage,
-            })
-          : null;
+        const jobSnapshot = toJobSnapshot(legacy.jobSnapshot);
+        const jobMetadata = toJobSnapshot(legacy.job);
 
         const run: NewRun = {
           id: legacy.id,
           jobId,
           stage: stringOrNull(legacy.stage) ?? 'draft',
           url,
+          stack: stringOrNull(legacy.stack)?.toLowerCase() ?? null,
           languagePreference: stringOrNull(legacy.languagePreference),
           detectedLanguage: stringOrNull(legacy.detectedLanguage),
           suggestedLanguage: stringOrNull(legacy.suggestedLanguage),
@@ -456,7 +466,8 @@ export function importFromJson(options: ImportOptions): ImportReport {
           hasRecruiterMessage: Boolean(legacy.hasRecruiterMessage),
           error: stringOrNull(legacy.error),
           fit: normalizeFit(legacy.fit),
-          jobSnapshot: snapshot,
+          job: jobMetadata,
+          jobSnapshot: jobSnapshot ?? jobMetadata,
           createdAt: legacy.createdAt,
           updatedAt: legacy.updatedAt,
         };

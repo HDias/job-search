@@ -6,8 +6,8 @@ O v1 continua intacto; esta pasta é o novo backend.
 ## Status
 
 - [x] Fase 0 — modelo de dados, normalização e script de importação dos JSONs
-- [x] Fase 1 (parcial) — SQLite + Drizzle, repositórios e testes de contrato
-- [ ] Fase 1 (restante) — rotas HTTP compatíveis com a UI atual
+- [x] Fase 1 — SQLite + Drizzle, repositórios, rotas HTTP e compatibilidade com a UI v1
+- [x] Testes — 34 testes de repositório, importação, API e compatibilidade
 - [ ] Fase 2 — frontend React (Vite + TS + TanStack Query)
 - [ ] Fase 3 — adaptador Turso/Supabase/Firestore
 
@@ -25,6 +25,7 @@ O v1 continua intacto; esta pasta é o novo backend.
 
 ```bash
 pnpm install
+pnpm dev                 # API em http://localhost:3344
 pnpm typecheck
 pnpm test
 pnpm db:migrate          # aplica as migrations em data/job-search.db
@@ -48,12 +49,13 @@ pnpm db:import \
 
 ```
 src/
+  api/             Express, rotas REST, compatibilidade v1 e visualizadores
   domain/          tipos + schemas Zod (Job, Run, Fit, Artifact…)
   db/              schema Drizzle, cliente SQLite, migrator
   repositories/    interfaces + implementação SQLite
   migrations/      importador one-off JSON → SQLite
 drizzle/           SQL de migração gerado pelo drizzle-kit
-test/              testes de repositório e de importação
+test/              repositórios, importação, API e compatibilidade
 ```
 
 ## Modelo de dados
@@ -76,6 +78,33 @@ test/              testes de repositório e de importação
 - Acesso a dados só via interfaces em `src/repositories/types.ts`. Trocar SQLite por Turso,
   Supabase ou Firestore é implementar outra classe, sem tocar na UI.
 
+## API
+
+REST principal (formato novo):
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/health` | health check |
+| GET | `/api/stats` | totais por status, fit médio, aplicações em 30 dias |
+| GET | `/api/jobs?status=&q=&limit=&offset=` | lista paginada |
+| GET | `/api/jobs/:id` | vaga + runs + artefatos |
+| POST/PATCH/DELETE | `/api/jobs` e `/api/jobs/:id` | CRUD |
+| GET | `/api/runs?jobId=&stage=` | checkpoints |
+| GET/POST/PATCH/DELETE | `/api/runs` e `/api/runs/:id` | CRUD |
+| GET/PUT | `/api/profiles/:stack/:language` | currículos base |
+| GET/PUT | `/api/settings/:key` | settings genéricos |
+
+Compatibilidade com o `public/index.html` do v1:
+
+- `GET/PUT/DELETE /api/applications[/:id]` — DTO legado (date `dd/mm/yyyy`, `fitRating`,
+  `cvPdfFile`, `fitDimensions`, `languageConfirmation`…).
+- `GET/PUT/DELETE /api/processes[/:id]` — checkpoints no formato legado (`job`, `jobSnapshot`,
+  `applicationId`, fit achatado).
+- `GET/PUT /api/base-resumes`, `/api/pdf-theme`, `/api/candidate-data`.
+- `/applications/*` (estáticos), `/cv/:id` e `/extras/:id/:view`.
+- Rotas de processamento pesado (Playwright/LLM: `/api/process-job`, `/api/fit-check`, etc.)
+  continuam no v1 por enquanto.
+
 ## Resultado da importação real do v1
 
 ```
@@ -91,6 +120,6 @@ preservados com `job_id = null` e o snapshot da vaga.
 
 ## Próximos passos
 
-1. Rotas HTTP (`/api/jobs`, `/api/runs`, `/api/stats`) + aliases `/api/applications` para a UI antiga.
-2. Migrar as telas do `public/index.html` para React, uma por vez, atrás da mesma API.
+1. Migrar as telas do `public/index.html` para React, uma por vez, atrás da mesma API.
+2. Portar o pipeline pesado (Playwright/LLM/PDF) como serviços do v2.
 3. Manter os testes de repositório como contrato ao trocar o adaptador de banco.

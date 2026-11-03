@@ -59,6 +59,7 @@ export interface Job {
   language: Language;
   stack: string;
   channel: string | null;
+  languageConfirmation: string | null;
   status: JobStatus;
   appliedAt: string | null;
   fit: Fit | null;
@@ -90,6 +91,7 @@ const newJobBaseSchema = z.object({
   language: z.enum(LANGUAGES).default('pt-br'),
   stack: z.string().trim().min(1).default('ruby'),
   channel: z.string().trim().min(1).nullable().optional(),
+  languageConfirmation: z.string().trim().min(1).nullable().optional(),
   status: z.enum(JOB_STATUSES).default('drafted'),
   appliedAt: z.string().datetime().nullable().optional(),
   fit: fitSchema.nullable().optional(),
