@@ -3,8 +3,8 @@
 ## 1. Visão geral
 
 ```text
-Test Files  3 passed (3)
-Tests      34 passed (34)
+Test Files  4 passed (4)
+Tests      63 passed (63)
 ```
 
 | Arquivo | Testes | Cobre |
@@ -12,6 +12,7 @@ Tests      34 passed (34)
 | `test/repositories.test.ts` | 13 | Contrato dos repositórios, CRUD, filtros, stats, cascatas |
 | `test/from-json.test.ts` | 6 | Importador, normalização de datas/status/fit, campos legados |
 | `test/api.test.ts` | 15 | Rotas REST, compatibilidade v1, visualizadores, erros |
+| `test/requests.test.ts` | 29 | Todas as rotas HTTP, paginação, validação, 404, transporte |
 
 Runner: **Vitest 4**. HTTP: **Supertest 7**. Cada teste usa um banco SQLite temporário próprio.
 
@@ -82,6 +83,24 @@ paralelo sem colisão de arquivo.
 - `/extras/:id/:view` para e-mail, recrutador e visão inválida.
 - `base-resumes`, `pdf-theme` (incluindo cor inválida → `400`), `candidate-data`.
 - Profiles, settings genéricos e `404` de rota desconhecida.
+
+### Requests (`requests.test.ts`)
+
+Suíte dedicada a exercitar **cada rota HTTP** e os casos de borda que a UI vai encontrar:
+
+- Lista vazia e `stats` zerados em banco novo.
+- Busca textual, filtro por status, paginação e `limit` inválido.
+- Criação mínima com defaults (`ownerId`, `language`, `stack`, `status`, `appliedEmails`).
+- Datas fora do ISO e campos vazios → `400`.
+- CRUD de runs (criar, atualizar, remover) e filtros `jobId`/`stage`.
+- `base-resumes` sem perfis; `pdf-theme` com merge parcial; `candidate-data` parcial.
+- Upsert de perfis e settings, incluindo corpo sem `value` → `400`.
+- Compatibilidade v1: listas vazias, campos de artefato, status desconhecido ignorado,
+  desvinculação de run e `404` em recursos ausentes.
+- Visualizadores: CV sem arquivo → `404` com página amigável, extras em texto/JSON escapado,
+  material ausente → `200` com aviso.
+- **Transporte**: JSON malformado → `400`, corpo acima de 4 MB → `413`, path traversal bloqueado,
+  formulário sem campos obrigatórios → `400`, rota desconhecida → `404`.
 
 ## 5. O que não está testado
 

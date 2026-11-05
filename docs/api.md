@@ -37,8 +37,9 @@ Em erro de validação, `details` traz a lista de `issues` do Zod:
 | `200` | Leitura ou atualização bem-sucedida |
 | `201` | Criação |
 | `204` | Remoção sem corpo |
-| `400` | Corpo ou query inválidos |
+| `400` | Corpo ou query inválidos, JSON malformado |
 | `404` | Recurso ou rota inexistente |
+| `413` | Corpo acima de 4 MB |
 | `500` | Erro não tratado (logado no servidor) |
 
 ## 2. Saúde e estatísticas
@@ -283,8 +284,8 @@ Chaves conhecidas: `pdf_theme`, `candidate_form`. Chaves de API **não** são ar
 
 Renderiza o HTML do currículo com uma barra fixa contendo empresa, cargo, fit, botão de download
 do PDF e botão de impressão. Se o HTML não existir mas o PDF sim, tenta o `.html` de mesmo nome.
-Se nenhum dos dois existir, devolve `200` com uma página de aviso — não é `404`, para o usuário
-entender que o registro existe mas o arquivo sumiu.
+Se nenhum dos dois existir, devolve `404` com uma página de aviso — o registro existe, mas o
+arquivo sumiu do disco.
 
 ### `GET /extras/:id/:view`
 

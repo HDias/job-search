@@ -7,7 +7,7 @@ O v1 continua intacto; esta pasta é o novo backend.
 
 - [x] Fase 0 — modelo de dados, normalização e script de importação dos JSONs
 - [x] Fase 1 — SQLite + Drizzle, repositórios, rotas HTTP e compatibilidade com a UI v1
-- [x] Testes — 34 testes de repositório, importação, API e compatibilidade
+- [x] Testes — 63 testes de repositório, importação, API, compatibilidade e requests
 - [ ] Fase 2 — frontend React (Vite + TS + TanStack Query)
 - [ ] Fase 3 — adaptador Turso/Supabase/Firestore
 

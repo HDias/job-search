@@ -29,7 +29,7 @@ flowchart LR
 - Repositórios com contratos.
 - API REST (`/api/jobs`, `/api/runs`, `/api/stats`, profiles, settings).
 - Compatibilidade com a UI v1 (`/api/applications`, `/api/processes`, visualizadores).
-- 34 testes; smoke test com dados reais.
+- 63 testes; smoke test com dados reais.
 
 ### Fase 2 — React 🚧
 

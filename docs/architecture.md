@@ -230,7 +230,7 @@ IDs estáveis e `owner_id` desde o início. Os detalhes estão no
 |---|---|---|
 | Simplicidade | Um processo Node, um arquivo SQLite, sem infraestrutura | Não escala para múltiplos usuários simultâneos |
 | Portabilidade | Repositórios + JSON columns + ISO + `owner_id` | DTO legado ainda acopla a UI v1 |
-| Testabilidade | 34 testes, banco temporário por teste, Supertest | Pipeline pesado não testado no v2 |
+| Testabilidade | 63 testes, banco temporário por teste, Supertest | Pipeline pesado não testado no v2 |
 | Segurança | Validação Zod, path traversal bloqueado, segredos fora do banco | Sem autenticação; assume uso local |
 | Performance | Índices em status, data, empresa e job_id; WAL | Sem cache; N+1 na listagem de artefatos por vaga |
 | Observabilidade | Logs de erro no handler global; health check | Sem métricas ou tracing |

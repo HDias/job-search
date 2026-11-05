@@ -13,7 +13,7 @@ API, migração do v1 e próximos passos.
 | 3 | Adaptador de nuvem (Turso, Supabase ou Firestore) | ⏳ Planejada |
 
 **Números atuais:** 16 vagas, 34 runs (17 órfãos), 97 artefatos, 4 perfis e 2 settings importados;
-34 testes automatizados; API na porta `3344` e v1 intacto na `3333`.
+63 testes automatizados; API na porta `3344` e v1 intacto na `3333`.
 
 ## Por onde começar
 
