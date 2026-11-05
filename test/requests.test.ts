@@ -447,6 +447,48 @@ describe('requests: visualizadores e estáticos', () => {
   });
 });
 
+describe('requests: SPA', () => {
+  it('serve o build do React sem engolir 404 da API e dos artefatos', async () => {
+    const dist = path.join(ctx.dir, 'web');
+    mkdirSync(path.join(dist, 'assets'), { recursive: true });
+    writeFileSync(
+      path.join(dist, 'index.html'),
+      '<!doctype html><html><body>SPA React</body></html>',
+    );
+    writeFileSync(path.join(dist, 'assets', 'app.js'), 'console.log("app");');
+
+    const spaApp = createApp({
+      store: ctx.store,
+      applicationsDir,
+      webDist: dist,
+    });
+
+    const root = await request(spaApp).get('/').set('Accept', 'text/html');
+    expect(root.status).toBe(200);
+    expect(root.text).toContain('SPA React');
+
+    const navigation = await request(spaApp)
+      .get('/jobs/app_req')
+      .set('Accept', 'text/html');
+    expect(navigation.status).toBe(200);
+    expect(navigation.text).toContain('SPA React');
+
+    const asset = await request(spaApp).get('/assets/app.js');
+    expect(asset.status).toBe(200);
+    expect(asset.text).toContain('console.log');
+
+    const api = await request(spaApp).get('/api/nao-existe');
+    expect(api.status).toBe(404);
+    expect(api.body.error).toBe('Rota não encontrada');
+
+    const missingArtifact = await request(spaApp)
+      .get('/applications/nao-existe.pdf')
+      .set('Accept', 'text/html');
+    expect(missingArtifact.status).toBe(404);
+    expect(missingArtifact.text).not.toContain('SPA React');
+  });
+});
+
 describe('requests: erros de transporte', () => {
   it('responde 404 em rota desconhecida', async () => {
     const res = await request(app).get('/api/nao-existe');

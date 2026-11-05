@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import express, { type Express } from 'express';
 import type { Store } from '../repositories/types.js';
 import { errorHandler, notFoundHandler } from './http.js';
@@ -11,10 +13,14 @@ export interface CreateAppOptions {
   store: Store;
   applicationsDir?: string;
   baseProfileDir?: string;
+  /** Build do React; quando presente, o Express serve a SPA. */
+  webDist?: string;
 }
 
+const RESERVED_PREFIX = /^\/(api|applications|base_profile|cv|extras)(\/|$)/;
+
 export function createApp(options: CreateAppOptions): Express {
-  const { store, applicationsDir, baseProfileDir } = options;
+  const { store, applicationsDir, baseProfileDir, webDist } = options;
   const app = express();
 
   app.disable('x-powered-by');
@@ -45,6 +51,27 @@ export function createApp(options: CreateAppOptions): Express {
 
   if (baseProfileDir) {
     app.use('/base_profile', express.static(baseProfileDir));
+  }
+
+  if (webDist) {
+    const indexFile = path.join(webDist, 'index.html');
+    if (fs.existsSync(indexFile)) {
+      app.use(express.static(webDist));
+
+      // Fallback da SPA: qualquer rota de navegação devolve o index.
+      // Prefixos da API, artefatos e visualizadores continuam dando 404.
+      app.use((req, res, next) => {
+        const isNavigation =
+          req.method === 'GET' &&
+          !RESERVED_PREFIX.test(req.path) &&
+          Boolean(req.accepts('html'));
+        if (!isNavigation) {
+          next();
+          return;
+        }
+        res.sendFile(indexFile);
+      });
+    }
   }
 
   app.use(notFoundHandler);

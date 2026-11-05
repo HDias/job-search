@@ -7,6 +7,10 @@
   "scripts": {
     "dev": "tsx watch src/api/server.ts",
     "start": "tsx src/api/server.ts",
+    "dev:web": "pnpm --filter job-search-v2-web dev",
+    "build:web": "pnpm --filter job-search-v2-web build",
+    "typecheck:web": "pnpm --filter job-search-v2-web typecheck",
+    "test:web": "pnpm --filter job-search-v2-web test",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:import": "tsx src/migrations/from-json.ts",
     "typecheck": "tsc --noEmit",

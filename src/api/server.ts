@@ -11,12 +11,14 @@ const app = createApp({
   store,
   applicationsDir: config.applicationsDir,
   baseProfileDir: config.baseProfileDir,
+  webDist: config.webDist,
 });
 
 const server = app.listen(config.port, () => {
   console.log(`[job-search-v2] API em http://localhost:${config.port}`);
   console.log(`[job-search-v2] banco: ${config.dbFile}`);
   console.log(`[job-search-v2] artefatos: ${config.applicationsDir}`);
+  console.log(`[job-search-v2] web: ${config.webDist}`);
 });
 
 function shutdown(signal: string): void {

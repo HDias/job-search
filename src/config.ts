@@ -5,6 +5,7 @@ export interface AppConfig {
   dbFile: string;
   applicationsDir: string;
   baseProfileDir: string;
+  webDist: string;
 }
 
 /**
@@ -19,5 +20,6 @@ export function loadConfig(): AppConfig {
       process.env.APPLICATIONS_DIR ?? path.resolve('..', 'job-search', 'applications'),
     baseProfileDir:
       process.env.BASE_PROFILE_DIR ?? path.resolve('..', 'job-search', 'base_profile'),
+    webDist: process.env.WEB_DIST ?? path.resolve('web', 'dist'),
   };
 }
