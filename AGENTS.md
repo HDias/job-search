@@ -93,6 +93,7 @@ Não há lint, formatter, CI nem pre-commit configurados. Os comandos acima são
 
 - Pipeline pesado (`/api/process-job`, `/api/fit-check`, upload/regenerate, checkpoints
   interativos) existe **só no v1**.
-- Fase 2 incompleta: polling de runs em `processing` e filtros na URL.
+- Fase 2 incompleta: responder checkpoint dentro do v2 (depende do pipeline).
+- `useJob` faz polling a cada 4 s enquanto houver run ativo; filtros/página do dashboard ficam na URL.
 - Admin edita currículo como texto (`.txt`/`.md`/`.html` ou colado); extração de PDF ainda depende
   do v1. Não há upload de PDF no v2.

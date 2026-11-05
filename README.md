@@ -7,8 +7,8 @@ O v1 continua intacto como fallback. A documentação completa está em [`docs/`
 
 - [x] Fase 0 — modelo de dados, normalização e script de importação dos JSONs
 - [x] Fase 1 — SQLite + Drizzle, repositórios, rotas HTTP e compatibilidade com a UI v1
-- [x] Testes — 64 de backend + 17 de frontend
-- [ ] Fase 2 — React: dashboard, detalhe e admin prontos; faltam polling e filtros na URL
+- [x] Testes — 64 de backend + 23 de frontend
+- [ ] Fase 2 — React: dashboard, detalhe e admin prontos; falta resposta de checkpoint
 - [ ] Fase 3 — adaptador Turso/Supabase/Firestore
 
 ## Stack
@@ -121,7 +121,7 @@ Compatibilidade com o `public/index.html` do v1:
 
 | Rota | Tela |
 |---|---|
-| `/` | Dashboard com stats, busca, filtro por status e tabela |
+| `/` | Dashboard com stats, busca, filtro por status e paginação (estado na URL) |
 | `/jobs/:id` | Fit, processamentos, artefatos, resumo e troca de status |
 | `/admin` | Currículos base, aparência do PDF e dados do formulário |
 | `*` | Página de não encontrado |
@@ -147,6 +147,5 @@ preservados com `job_id = null` e o snapshot da vaga.
 
 ## Próximos passos
 
-1. Polling de runs em `processing` e filtros na URL.
-2. Portar o pipeline pesado (Playwright/LLM/PDF) como serviços do v2.
-3. Manter os testes de repositório como contrato ao trocar o adaptador de banco.
+1. Portar o pipeline pesado (Playwright/LLM/PDF) e a resposta de checkpoint para o v2.
+2. Manter os testes de repositório como contrato ao trocar o adaptador de banco.

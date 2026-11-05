@@ -1,5 +1,5 @@
-import { useDeferredValue, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useDeferredValue, useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useJobs, useStats } from '../api/hooks';
 import { JOB_STATUSES, type JobStatus } from '../api/types';
 import { StatCard } from '../components/StatCard';
@@ -7,23 +7,83 @@ import { StatusBadge } from '../components/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateMessage';
 import { STATUS_LABELS, fitTone, formatDate, formatFit } from '../lib/format';
 
+const PAGE_SIZE = 25;
+
+function parseStatus(value: string | null): JobStatus | '' {
+  return JOB_STATUSES.includes(value as JobStatus) ? (value as JobStatus) : '';
+}
+
+function parsePage(value: string | null): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+}
+
 export function Dashboard() {
-  const [query, setQuery] = useState('');
-  const [status, setStatus] = useState<JobStatus | ''>('');
-  const deferredQuery = useDeferredValue(query.trim());
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = searchParams.get('q') ?? '';
+  const status = parseStatus(searchParams.get('status'));
+  const page = parsePage(searchParams.get('page'));
+  const offset = (page - 1) * PAGE_SIZE;
+
+  const [queryInput, setQueryInput] = useState(query);
+  const deferredQuery = useDeferredValue(queryInput.trim());
+
+  // Mantém o input em sincronia com voltar/avançar do navegador.
+  useEffect(() => {
+    setQueryInput(query);
+  }, [query]);
+
+  // Reflete a busca na URL sem empilhar histórico a cada tecla.
+  useEffect(() => {
+    if (deferredQuery === query) return;
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (deferredQuery) next.set('q', deferredQuery);
+        else next.delete('q');
+        next.delete('page');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [deferredQuery, query, setSearchParams]);
 
   const stats = useStats();
   const jobs = useJobs({
     q: deferredQuery || undefined,
     status: status || undefined,
-    limit: 100,
+    limit: PAGE_SIZE,
+    offset: offset || undefined,
   });
 
-  const hasFilters = query.trim().length > 0 || status !== '';
+  const hasFilters = queryInput.trim().length > 0 || status !== '';
+  const total = jobs.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  function updateParams(patch: Record<string, string | null>, resetPage = true) {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === null || value === '') next.delete(key);
+        else next.set(key, value);
+      }
+      if (resetPage) next.delete('page');
+      return next;
+    });
+  }
 
   function clearFilters() {
-    setQuery('');
-    setStatus('');
+    setQueryInput('');
+    setSearchParams({});
+  }
+
+  function goToPage(nextPage: number) {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (nextPage <= 1) next.delete('page');
+      else next.set('page', String(nextPage));
+      return next;
+    });
   }
 
   const average = stats.data?.averageFitRating;
@@ -79,8 +139,8 @@ export function Dashboard() {
             <span>Buscar</span>
             <input
               type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              value={queryInput}
+              onChange={(event) => setQueryInput(event.target.value)}
               placeholder="Empresa, cargo ou análise"
             />
           </label>
@@ -89,7 +149,7 @@ export function Dashboard() {
             <span>Status</span>
             <select
               value={status}
-              onChange={(event) => setStatus(event.target.value as JobStatus | '')}
+              onChange={(event) => updateParams({ status: event.target.value })}
             >
               <option value="">Todos</option>
               {JOB_STATUSES.map((value) => (
@@ -175,6 +235,30 @@ export function Dashboard() {
               </tbody>
             </table>
           </div>
+        ) : null}
+
+        {jobs.data && jobs.data.items.length > 0 && totalPages > 1 ? (
+          <nav className="pagination" aria-label="Paginação">
+            <button
+              type="button"
+              className="button ghost"
+              disabled={page <= 1}
+              onClick={() => goToPage(page - 1)}
+            >
+              ← Anterior
+            </button>
+            <span className="muted">
+              Página {page} de {totalPages}
+            </span>
+            <button
+              type="button"
+              className="button ghost"
+              disabled={page >= totalPages}
+              onClick={() => goToPage(page + 1)}
+            >
+              Próxima →
+            </button>
+          </nav>
         ) : null}
       </section>
     </div>

@@ -38,13 +38,15 @@ web/
 
 | Rota | Página | Fonte |
 |---|---|---|
-| `/` | Dashboard | `GET /api/stats` + `GET /api/jobs` |
+| `/` | Dashboard | `GET /api/stats` + `GET /api/jobs` (filtros na query string) |
 | `/jobs/:id` | Detalhe da vaga | `GET /api/jobs/:id` |
 | `/admin` | Currículos base, tema e dados | `GET/PUT` de profiles, pdf-theme e candidate-data |
 | `*` | Não encontrado | — |
 
-Filtros do dashboard (`q`, `status`) são estado local por enquanto. A URL ainda não os reflete;
-isso entra quando houver necessidade de compartilhar links filtrados.
+Filtros e paginação do dashboard ficam na URL (`?q=`, `?status=`, `?page=`), então links
+filtrados são compartilháveis e o botão voltar do navegador funciona. A busca é escrita na URL
+com `replace` para não empilhar histórico a cada tecla; `page` é resetado ao mudar `q` ou `status`.
+A lista usa 25 itens por página.
 
 ## 4. Fluxo de dados
 
@@ -59,7 +61,8 @@ flowchart LR
 
 - `useStats` → chave `['stats']`
 - `useJobs(filters)` → chave `['jobs', filters]`, com `keepPreviousData` para não piscar ao filtrar
-- `useJob(id)` → chave `['job', id]`
+- `useJob(id)` → chave `['job', id]`; refaz a consulta a cada **4 s** enquanto houver run ativo
+  (stage diferente de `done`/`error`) ou confirmação pendente
 - `useUpdateJob` → `PATCH /api/jobs/:id`; no sucesso atualiza o cache do detalhe e invalida
   `['jobs']` e `['stats']`
 - `useBaseResumes` / `useProfiles` / `useSaveProfile` → `GET /api/base-resumes`,
@@ -75,7 +78,7 @@ Erros HTTP viram `ApiError` com `status` e a mensagem do backend. A página de d
 | Componente | Responsabilidade |
 |---|---|
 | `Layout` | Topbar, navegação e rodapé |
-| `Dashboard` | Stats, busca, filtro e tabela |
+| `Dashboard` | Stats, busca, filtro, tabela e paginação |
 | `JobDetail` | Cabeçalho, troca de status, fit, runs, artefatos e resumo |
 | `FitPanel` | Rating, análise, dimensões, forças, gaps e elegibilidade |
 | `RunList` | Checkpoints com estágio, flags e snapshot expansível |
@@ -125,7 +128,7 @@ no fallback, então um artefato ausente continua `404` em vez de devolver HTML.
 ## 8. Testes
 
 ```bash
-pnpm test:web          # 17 testes
+pnpm test:web          # 23 testes
 pnpm typecheck:web
 pnpm build:web
 ```
@@ -133,8 +136,10 @@ pnpm build:web
 Cobrem:
 
 - Formatação de datas, fit, bytes, labels e URL de artefato.
-- Dashboard: stats, tabela, filtro de status, busca, vazio e erro com retry.
-- Detalhe: fit, runs, artefatos, troca de status via `PATCH` e `404`.
+- Dashboard: stats, tabela, filtro de status, busca, vazio, erro com retry, filtros/página da URL
+  e navegação de paginação.
+- Runs: detecção de run ativo e confirmação pendente (usada pelo polling).
+- Detalhe: fit, runs, artefatos, troca de status via `PATCH`, indicador de atualização e `404`.
 - Admin: status dos quatro currículos base, salvar texto via `PUT /api/profiles`, salvar cores do
   PDF e salvar dados do formulário.
 
@@ -145,7 +150,8 @@ O `fetch` é mockado por teste; não é preciso subir a API. Ver [testing.md](./
 - **Sem Redux/Zustand.** O cache do TanStack Query cobre o estado do servidor; o resto é local.
 - **Sem biblioteca de UI.** CSS próprio para manter o bundle pequeno e o visual próximo do v1.
 - **Sem `dangerouslySetInnerHTML`.** Conteúdo de vaga e mensagens são renderizados como texto.
-- **Filtros fora da URL por enquanto.** Simplicidade agora; URL state entra se necessário.
+- **Filtros e página na URL.** Links filtrados são compartilháveis; a busca usa `replace` para
+  não poluir o histórico.
 - **Um pacote de workspace.** `web/` tem scripts e dependências isolados.
 - **Admin edita texto, não PDF.** O upload com extração de PDF depende do pipeline do v1; no v2 a
   página aceita `.txt`, `.md` e `.html` (lidos no navegador) ou texto colado, e salva em
@@ -153,8 +159,7 @@ O `fetch` é mockado por teste; não é preciso subir a API. Ver [testing.md](./
 
 ## 10. Próximos passos
 
-1. Polling de runs em `processing` e ação de responder checkpoint.
-2. Filtros na URL e paginação visível.
-3. Atualização otimista de status.
-4. Upload de currículo com extração de PDF (depende do pipeline).
-5. Substituir de vez o `public/index.html` do v1 e remover as rotas de compatibilidade.
+1. Resposta de checkpoint dentro do v2 (depende de portar o pipeline).
+2. Atualização otimista de status.
+3. Upload de currículo com extração de PDF (depende do pipeline).
+4. Substituir de vez o `public/index.html` do v1 e remover as rotas de compatibilidade.

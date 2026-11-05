@@ -434,6 +434,19 @@ a:focus-visible {
   color: var(--accent);
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.pagination .button {
+  padding: 6px 12px;
+  font-size: 0.82rem;
+}
+
 /* ------------------------------ badges ------------------------------- */
 
 .badge {
@@ -849,6 +862,32 @@ a:focus-visible {
   color: var(--muted);
   font-size: 0.74rem;
   white-space: nowrap;
+}
+
+.chip-live {
+  color: var(--accent);
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 11px;
+  background: rgba(251, 191, 36, 0.07);
+  font-size: 0.88rem;
+}
+
+.notice strong {
+  color: var(--warn);
+}
+
+.notice p {
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .run-url {

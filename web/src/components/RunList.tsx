@@ -50,6 +50,8 @@ export function RunList({ runs }: { runs: Run[] }) {
                 <Flag active={run.hasRawText}>texto bruto</Flag>
                 <Flag active={run.hasExtraQuestions}>perguntas</Flag>
                 <Flag active={run.hasRecruiterMessage}>recrutador</Flag>
+                <Flag active={run.needsLanguageConfirmation}>confirmação de idioma</Flag>
+                <Flag active={run.needsFitConfirmation}>confirmação de fit</Flag>
                 <Flag active={run.eligibilityBlocked}>bloqueado</Flag>
               </div>
 

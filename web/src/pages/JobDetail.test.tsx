@@ -145,6 +145,7 @@ describe('JobDetail', () => {
 
     expect(screen.getByText('Processando')).toBeInTheDocument();
     expect(screen.getByText('Ver snapshot da vaga')).toBeInTheDocument();
+    expect(screen.getByText('atualizando…')).toBeInTheDocument();
 
     const cv = screen.getByRole('link', { name: /Currículo \(PDF\)/ });
     expect(cv).toHaveAttribute('href', '/cv/app_1');

@@ -8,6 +8,7 @@ import { RunList } from '../components/RunList';
 import { StatusBadge } from '../components/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateMessage';
 import { STATUS_LABELS, formatDate } from '../lib/format';
+import { hasActiveRuns, pendingConfirmation } from '../lib/runs';
 
 export function JobDetail() {
   const { id } = useParams<{ id: string }>();
@@ -45,6 +46,8 @@ export function JobDetail() {
   if (!jobQuery.data) return null;
 
   const { job, runs, artifacts } = jobQuery.data;
+  const live = hasActiveRuns(runs);
+  const pending = pendingConfirmation(runs);
 
   return (
     <div className="page">
@@ -62,6 +65,7 @@ export function JobDetail() {
             <span className="chip">idioma: {job.language}</span>
             <span className="muted">aplicada em {formatDate(job.appliedAt)}</span>
             {job.channel ? <span className="muted">canal: {job.channel}</span> : null}
+            {live ? <span className="chip chip-live">atualizando…</span> : null}
           </div>
         </div>
 
@@ -109,6 +113,18 @@ export function JobDetail() {
           {updateJob.isSuccess ? <p className="inline-ok">Status atualizado.</p> : null}
         </div>
       </header>
+
+      {pending ? (
+        <div className="notice" role="status">
+          <strong>
+            Aguardando confirmação de {pending === 'language' ? 'idioma' : 'fit'}
+          </strong>
+          <p>
+            O pipeline parou neste checkpoint. A retomada ainda é feita pela interface do v1; o
+            v2 acompanha o estado e atualiza a página a cada 4 segundos.
+          </p>
+        </div>
+      ) : null}
 
       <div className="detail-grid">
         <div className="detail-main">

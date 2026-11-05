@@ -13,7 +13,7 @@ Frontend (`web/`):
 
 ```text
 Test Files  3 passed (3)
-Tests      17 passed (17)
+Tests      23 passed (23)
 ```
 
 | Arquivo | Testes | Cobre |
@@ -125,12 +125,14 @@ Suíte dedicada a exercitar **cada rota HTTP** e os casos de borda que a UI vai 
 | Arquivo | Testes | Cobre |
 |---|---:|---|
 | `web/src/lib/format.test.ts` | 5 | Datas, fit, bytes, labels e URL de artefatos |
-| `web/src/pages/Dashboard.test.tsx` | 5 | Stats, tabela, filtro, busca, vazio e erro com retry |
+| `web/src/lib/runs.test.ts` | 4 | Run ativo, confirmação pendente e prioridade idioma/fit |
+| `web/src/pages/Dashboard.test.tsx` | 7 | Stats, tabela, filtros, URL, paginação, vazio e erro |
 | `web/src/pages/JobDetail.test.tsx` | 3 | Fit, runs, artefatos, PATCH de status e 404 |
 | `web/src/pages/Admin.test.tsx` | 4 | Currículos base, tema do PDF e dados do formulário |
 
 O `fetch` é mockado com respostas no formato da API. Os testes usam `MemoryRouter` e um
-`QueryClient` sem retry.
+`QueryClient` sem retry. O polling de 4 s não é exercitado com timers: a regra de “run ativo” é
+testada isoladamente em `runs.test.ts`.
 
 ## 5. O que não está testado
 
@@ -140,7 +142,7 @@ O `fetch` é mockado com respostas no formato da API. Os testes usam `MemoryRout
 | Autenticação | Alto quando houver nuvem | Não existe hoje |
 | Concorrência de escrita | Médio | Uso local single-user |
 | Migração de banco real | Médio | Smoke test manual, não automatizado |
-| Polling de runs em processamento | Médio | Ainda não implementado |
+| Resposta de checkpoint no v2 | Médio | Depende do pipeline portado |
 | Upload de currículo em PDF | Médio | Extração ainda depende do v1 |
 | Performance com volume | Baixo hoje | 16 vagas; N+1 tolerado |
 

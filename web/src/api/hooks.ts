@@ -5,7 +5,15 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { api } from './client';
-import type { CandidateData, Job, JobFilters, PdfTheme, ProfileContent } from './types';
+import type {
+  CandidateData,
+  Job,
+  JobDetailResponse,
+  JobFilters,
+  PdfTheme,
+  ProfileContent,
+} from './types';
+import { hasActiveRuns } from '../lib/runs';
 
 export function useStats() {
   return useQuery({
@@ -27,6 +35,11 @@ export function useJob(id: string | undefined) {
     queryKey: ['job', id],
     queryFn: () => api.job(id as string),
     enabled: Boolean(id),
+    // Enquanto houver run ativo ou confirmação pendente, acompanha o pipeline.
+    refetchInterval: (query) => {
+      const data = query.state.data as JobDetailResponse | undefined;
+      return hasActiveRuns(data?.runs) ? 4000 : false;
+    },
   });
 }
 

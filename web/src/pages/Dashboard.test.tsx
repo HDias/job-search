@@ -61,12 +61,12 @@ const jobs: Job[] = [
   }),
 ];
 
-function stubApi(items: Job[] = jobs) {
+function stubApi(items: Job[] = jobs, total = items.length) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.startsWith('/api/stats')) return jsonResponse(stats);
     if (url.startsWith('/api/jobs')) {
-      return jsonResponse({ items, total: items.length });
+      return jsonResponse({ items, total });
     }
     throw new Error(`URL inesperada: ${url}`);
   });
@@ -135,6 +135,40 @@ describe('Dashboard', () => {
 
     expect(await screen.findByText('Nenhuma vaga encontrada')).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('lê filtros e página da URL', async () => {
+    const fetchMock = stubApi(jobs, 60);
+    renderWithProviders(<App />, ['/?status=interview&page=2']);
+
+    await screen.findByText('Acme');
+    expect(screen.getByLabelText('Status')).toHaveValue('interview');
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(([input]) =>
+        String(input).includes('/api/jobs'),
+      );
+      expect(String(call?.[0])).toContain('status=interview');
+      expect(String(call?.[0])).toContain('limit=25');
+      expect(String(call?.[0])).toContain('offset=25');
+    });
+  });
+
+  it('pagina e atualiza a URL', async () => {
+    const user = userEvent.setup();
+    const fetchMock = stubApi(jobs, 60);
+    renderWithProviders(<App />, ['/?page=2']);
+
+    expect(await screen.findByText('Página 2 de 3')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Próxima →' }));
+
+    expect(await screen.findByText('Página 3 de 3')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([input]) => String(input).includes('offset=50')),
+      ).toBe(true);
+    });
   });
 
   it('mostra erro e permite tentar novamente', async () => {
