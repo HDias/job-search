@@ -9,17 +9,19 @@ API, migração do v1 e próximos passos.
 |---|---|---|
 | 0 | Modelo de dados, normalização e importação dos JSONs do v1 | ✅ Concluída |
 | 1 | SQLite + Drizzle, repositórios, API REST e compatibilidade com a UI v1 | ✅ Concluída |
-| 2 | Frontend React (Vite + TS + TanStack Query) | 🚧 Em andamento |
+| 2 | Frontend React (Vite + TS + TanStack Query) | 🚧 Dashboard e detalhe prontos |
 | 3 | Adaptador de nuvem (Turso, Supabase ou Firestore) | ⏳ Planejada |
 
 **Números atuais:** 16 vagas, 34 runs (17 órfãos), 97 artefatos, 4 perfis e 2 settings importados;
-63 testes automatizados; API na porta `3344` e v1 intacto na `3333`.
+64 testes de backend + 13 de frontend; API e SPA na porta `3344`, Vite em `5173` e v1 intacto na
+`3333`.
 
 ## Por onde começar
 
 | Se você quer… | Leia |
 |---|---|
 | Entender a arquitetura em 10 minutos | [architecture.md](./architecture.md) |
+| Conhecer o app React | [frontend.md](./frontend.md) |
 | Ver tabelas, colunas e relações | [data-model.md](./data-model.md) |
 | Consumir ou evoluir a API | [api.md](./api.md) |
 | Entender como os dados do v1 foram migrados | [migration-v1-v2.md](./migration-v1-v2.md) |
@@ -36,6 +38,7 @@ API, migração do v1 e próximos passos.
 flowchart TB
   IDX["docs/README.md"]
   ARCH["architecture.md"]
+  FRONT["frontend.md"]
   DATA["data-model.md"]
   API["api.md"]
   MIG["migration-v1-v2.md"]
@@ -47,6 +50,7 @@ flowchart TB
   GLO["glossary.md"]
 
   IDX --> ARCH
+  IDX --> FRONT
   IDX --> DATA
   IDX --> API
   IDX --> MIG
@@ -59,6 +63,7 @@ flowchart TB
 
   ARCH --> DATA
   ARCH --> API
+  FRONT --> API
   API --> DATA
   MIG --> DATA
   TEST --> API

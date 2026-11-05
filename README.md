@@ -1,14 +1,14 @@
 # Job Search Assistant v2
 
-Reescrita incremental do app v1 (`../job-search`): **API + SQLite agora, React em seguida, nuvem depois**.
-O v1 continua intacto; esta pasta é o novo backend.
+Reescrita incremental do app v1 (`../job-search`): **API + SQLite + React agora, nuvem depois**.
+O v1 continua intacto como fallback. A documentação completa está em [`docs/`](./docs/README.md).
 
 ## Status
 
 - [x] Fase 0 — modelo de dados, normalização e script de importação dos JSONs
 - [x] Fase 1 — SQLite + Drizzle, repositórios, rotas HTTP e compatibilidade com a UI v1
-- [x] Testes — 63 testes de repositório, importação, API, compatibilidade e requests
-- [ ] Fase 2 — frontend React (Vite + TS + TanStack Query)
+- [x] Testes — 64 de backend + 13 de frontend
+- [ ] Fase 2 — React: dashboard e detalhe prontos; admin pendente
 - [ ] Fase 3 — adaptador Turso/Supabase/Firestore
 
 ## Stack
@@ -18,7 +18,9 @@ O v1 continua intacto; esta pasta é o novo backend.
 | Runtime | Node.js 24 |
 | Banco | SQLite (`better-sqlite3`) + Drizzle ORM |
 | Validação | Zod |
-| Testes | Vitest |
+| Backend | Express 5 + TypeScript |
+| Frontend | React 19 + Vite 6 + TanStack Query + React Router |
+| Testes | Vitest + Supertest + Testing Library |
 | Execução TS | `tsx` |
 
 ## Comandos
@@ -26,8 +28,13 @@ O v1 continua intacto; esta pasta é o novo backend.
 ```bash
 pnpm install
 pnpm dev                 # API em http://localhost:3344
-pnpm typecheck
-pnpm test
+pnpm dev:web             # React em http://localhost:5173 (proxy para a API)
+pnpm build:web           # build em web/dist
+pnpm start               # API + SPA em http://localhost:3344
+pnpm typecheck           # backend
+pnpm typecheck:web       # frontend
+pnpm test                # backend
+pnpm test:web            # frontend
 pnpm db:migrate          # aplica as migrations em data/job-search.db
 pnpm db:import           # importa os JSONs do v1 (padrão: ../job-search)
 pnpm db:import --reset   # limpa e reimporta
@@ -54,8 +61,13 @@ src/
   db/              schema Drizzle, cliente SQLite, migrator
   repositories/    interfaces + implementação SQLite
   migrations/      importador one-off JSON → SQLite
+web/
+  src/api/         client, tipos e hooks TanStack Query
+  src/pages/       dashboard e detalhe da vaga
+  src/components/  layout, fit, runs, artefatos e estados
 drizzle/           SQL de migração gerado pelo drizzle-kit
-test/              repositórios, importação, API e compatibilidade
+test/              repositórios, importação, API, requests e SPA
+docs/              arquitetura, ADRs, API, modelo e guias
 ```
 
 ## Modelo de dados
@@ -105,6 +117,20 @@ Compatibilidade com o `public/index.html` do v1:
 - Rotas de processamento pesado (Playwright/LLM: `/api/process-job`, `/api/fit-check`, etc.)
   continuam no v1 por enquanto.
 
+## Frontend
+
+| Rota | Tela |
+|---|---|
+| `/` | Dashboard com stats, busca, filtro por status e tabela |
+| `/jobs/:id` | Fit, processamentos, artefatos, resumo e troca de status |
+| `*` | Página de não encontrado |
+
+Em desenvolvimento, rode `pnpm dev` e `pnpm dev:web` em terminais separados. O Vite faz proxy de
+`/api`, `/applications`, `/cv`, `/extras` e `/base_profile` para a `3344`.
+
+Em produção, `pnpm build:web && pnpm start` serve a SPA na mesma porta da API, com fallback para
+`index.html` sem engolir os 404 de `/api` e dos artefatos.
+
 ## Resultado da importação real do v1
 
 ```
@@ -120,6 +146,6 @@ preservados com `job_id = null` e o snapshot da vaga.
 
 ## Próximos passos
 
-1. Migrar as telas do `public/index.html` para React, uma por vez, atrás da mesma API.
+1. Migrar a página de admin (perfis, tema de PDF, dados do formulário) para React.
 2. Portar o pipeline pesado (Playwright/LLM/PDF) como serviços do v2.
 3. Manter os testes de repositório como contrato ao trocar o adaptador de banco.

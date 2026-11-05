@@ -2,9 +2,18 @@
 
 ## 1. Visão geral
 
+Backend (raiz):
+
 ```text
 Test Files  4 passed (4)
-Tests      63 passed (63)
+Tests      64 passed (64)
+```
+
+Frontend (`web/`):
+
+```text
+Test Files  3 passed (3)
+Tests      13 passed (13)
 ```
 
 | Arquivo | Testes | Cobre |
@@ -12,21 +21,30 @@ Tests      63 passed (63)
 | `test/repositories.test.ts` | 13 | Contrato dos repositórios, CRUD, filtros, stats, cascatas |
 | `test/from-json.test.ts` | 6 | Importador, normalização de datas/status/fit, campos legados |
 | `test/api.test.ts` | 15 | Rotas REST, compatibilidade v1, visualizadores, erros |
-| `test/requests.test.ts` | 29 | Todas as rotas HTTP, paginação, validação, 404, transporte |
+| `test/requests.test.ts` | 30 | Todas as rotas HTTP, paginação, validação, 404, transporte e SPA |
 
 Runner: **Vitest 4**. HTTP: **Supertest 7**. Cada teste usa um banco SQLite temporário próprio.
 
 ## 2. Como rodar
 
 ```bash
-pnpm test            # uma execução
-pnpm test:watch      # watch
-pnpm test -- api     # filtra por nome de arquivo
-pnpm test -- -t "stats"  # filtra por nome de teste
+pnpm test            # backend (Vitest, ambiente Node)
+pnpm test:watch      # backend em watch
+pnpm test:web        # frontend (Vitest, ambiente jsdom)
+pnpm typecheck
+pnpm typecheck:web
 ```
 
-Não é preciso subir a API nem popular o banco real: os testes criam tudo em memória/arquivo
-temporário.
+Filtros:
+
+```bash
+pnpm test -- api
+pnpm test -- -t "stats"
+pnpm test:web -- Dashboard
+```
+
+Não é preciso subir a API nem popular o banco real: os testes de backend criam SQLite temporário e
+os de frontend mockam `fetch`.
 
 ## 3. Isolamento
 
@@ -102,6 +120,17 @@ Suíte dedicada a exercitar **cada rota HTTP** e os casos de borda que a UI vai 
 - **Transporte**: JSON malformado → `400`, corpo acima de 4 MB → `413`, path traversal bloqueado,
   formulário sem campos obrigatórios → `400`, rota desconhecida → `404`.
 
+### Frontend (`web/src/**/*.test.tsx`)
+
+| Arquivo | Testes | Cobre |
+|---|---:|---|
+| `web/src/lib/format.test.ts` | 5 | Datas, fit, bytes, labels e URL de artefatos |
+| `web/src/pages/Dashboard.test.tsx` | 5 | Stats, tabela, filtro, busca, vazio e erro com retry |
+| `web/src/pages/JobDetail.test.tsx` | 3 | Fit, runs, artefatos, PATCH de status e 404 |
+
+O `fetch` é mockado com respostas no formato da API. Os testes usam `MemoryRouter` e um
+`QueryClient` sem retry.
+
 ## 5. O que não está testado
 
 | Área | Risco | Motivo |
@@ -110,7 +139,8 @@ Suíte dedicada a exercitar **cada rota HTTP** e os casos de borda que a UI vai 
 | Autenticação | Alto quando houver nuvem | Não existe hoje |
 | Concorrência de escrita | Médio | Uso local single-user |
 | Migração de banco real | Médio | Smoke test manual, não automatizado |
-| Frontend React | — | Ainda não existe |
+| Página de admin do React | Médio | Ainda não implementada |
+| Polling de runs em processamento | Médio | Ainda não implementado |
 | Performance com volume | Baixo hoje | 16 vagas; N+1 tolerado |
 
 ## 6. Adicionando testes

@@ -299,6 +299,13 @@ arquivo original. `404` para visão desconhecida; `200` com aviso quando não h�
 
 Caminhos são resolvidos e validados contra *path traversal* (ver [security.md](./security.md)).
 
+### SPA em produção
+
+Quando `web/dist` existe, o Express serve os assets do React e devolve `index.html` nas rotas de
+navegação (`/`, `/jobs/:id`). Os prefixos `/api`, `/applications`, `/base_profile`, `/cv` e
+`/extras` ficam **fora** do fallback, para que um artefato ausente continue `404` em vez de virar
+HTML. O diretório pode ser trocado por `WEB_DIST`.
+
 ## 8. Exemplos com `curl`
 
 ```bash

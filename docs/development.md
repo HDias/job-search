@@ -26,12 +26,16 @@ Na primeira instalação, o pnpm compila `better-sqlite3` e `esbuild` do código
 liberado em `pnpm-workspace.yaml`:
 
 ```yaml
+packages:
+  - web
+
 allowBuilds:
   better-sqlite3: true
   esbuild: true
 ```
 
-Sem esse bloco, o `better-sqlite3` falha com erro de binário nativo.
+Sem esse bloco, o `better-sqlite3` falha com erro de binário nativo. `packages` registra `web/`
+como pacote do workspace.
 
 ## 3. pnpm 11
 
@@ -71,20 +75,49 @@ Copie `.env.example` para `.env` se quiser sobrescrever os defaults. O projeto *
 | `DB_FILE` | `./data/job-search.db` | Caminho do SQLite |
 | `APPLICATIONS_DIR` | `../job-search/applications` | Artefatos gerados |
 | `BASE_PROFILE_DIR` | `../job-search/base_profile` | Perfis base |
+| `WEB_DIST` | `./web/dist` | Build do React servido pelo Express |
 
 Defaults são resolvidos com `path.resolve` a partir da raiz do projeto (`src/config.ts`).
 
 ## 6. Comandos
 
 ```bash
-pnpm dev          # API com watch em http://localhost:3344
-pnpm start        # API sem watch
-pnpm typecheck    # tsc --noEmit
-pnpm test         # Vitest, uma execução
-pnpm test:watch   # Vitest em watch
-pnpm db:migrate   # aplica migrations
-pnpm db:import    # importa o v1
+pnpm dev            # API com watch em http://localhost:3344
+pnpm start          # API sem watch (serve web/dist se existir)
+pnpm dev:web        # Vite em http://localhost:5173
+pnpm build:web      # build de produção em web/dist
+pnpm typecheck      # backend: tsc --noEmit
+pnpm typecheck:web  # frontend: tsc --noEmit
+pnpm test           # backend: Vitest (ambiente Node)
+pnpm test:web       # frontend: Vitest (jsdom)
+pnpm db:migrate     # aplica migrations
+pnpm db:import      # importa o v1
 ```
+
+### Rodando o frontend
+
+Em desenvolvimento, dois terminais:
+
+```bash
+# terminal 1
+pnpm dev
+
+# terminal 2
+pnpm dev:web
+```
+
+O Vite faz proxy de `/api`, `/applications`, `/base_profile`, `/cv` e `/extras` para a API na
+`3344`. Não é preciso configurar CORS.
+
+Em produção:
+
+```bash
+pnpm build:web
+pnpm start
+```
+
+Tudo fica em `http://localhost:3344`: API, artefatos e SPA. Detalhes em
+[frontend.md](./frontend.md).
 
 ## 7. Rodando ao lado do v1
 
@@ -110,7 +143,17 @@ não conhece o schema novo.
 4. Exponha na rota em `src/api/routes/`.
 5. Cubra com teste em `test/`.
 6. `pnpm typecheck && pnpm test`.
-7. Atualize a doc e, se for decisão estrutural, escreva um ADR.
+7. Se mudou a UI, rode `pnpm typecheck:web && pnpm test:web`.
+8. Atualize a doc e, se for decisão estrutural, escreva um ADR.
+
+### Alterando o frontend
+
+- Páginas em `web/src/pages/`, componentes em `web/src/components/`.
+- Chamadas de API em `web/src/api/client.ts`; hooks em `web/src/api/hooks.ts`.
+- Tipos espelham `src/domain/` em `web/src/api/types.ts`. Ao mudar um campo no backend, atualize os
+  dois lados.
+- Estilo único em `web/src/styles.css`.
+- Testes ao lado do código (`*.test.tsx`).
 
 ### Criando uma migration
 
@@ -157,7 +200,8 @@ convertidos pelo `errorHandler` central.
 | `banco já contém dados` no import | Importação sem `--reset` | `pnpm db:import -- --reset` |
 | Artefato 404 | Caminho errado em `APPLICATIONS_DIR` | Confira a variável e o `relativePath` no banco |
 | `status inválido` | Enum diferente do domínio | Veja a lista em [data-model.md](./data-model.md) |
-| Porta ocupada | v1 ou instância antiga | `lsof -i :3344` |
+| Porta ocupada | v1 ou instância antiga | `lsof -i :3344` ou `lsof -i :5173` |
+| SPA devolve 404 em produção | `web/dist` não existe | `pnpm build:web` |
 
 ## 10. Estilo
 

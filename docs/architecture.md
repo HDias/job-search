@@ -89,6 +89,13 @@ flowchart TB
 
 ```text
 job-search-v2/
+├── web/                        # frontend React (Vite + TanStack Query)
+│   ├── src/
+│   │   ├── api/                # client, tipos e hooks
+│   │   ├── components/         # layout, fit, runs, artefatos
+│   │   ├── pages/              # dashboard e detalhe
+│   │   └── lib/                # formatação e labels
+│   └── dist/                   # build servido pelo Express
 ├── src/
 │   ├── api/
 │   │   ├── app.ts              # monta Express e middlewares
@@ -230,7 +237,7 @@ IDs estáveis e `owner_id` desde o início. Os detalhes estão no
 |---|---|---|
 | Simplicidade | Um processo Node, um arquivo SQLite, sem infraestrutura | Não escala para múltiplos usuários simultâneos |
 | Portabilidade | Repositórios + JSON columns + ISO + `owner_id` | DTO legado ainda acopla a UI v1 |
-| Testabilidade | 63 testes, banco temporário por teste, Supertest | Pipeline pesado não testado no v2 |
+| Testabilidade | 64 testes de backend + 13 de frontend; banco temporário e Supertest | Pipeline pesado não testado no v2 |
 | Segurança | Validação Zod, path traversal bloqueado, segredos fora do banco | Sem autenticação; assume uso local |
 | Performance | Índices em status, data, empresa e job_id; WAL | Sem cache; N+1 na listagem de artefatos por vaga |
 | Observabilidade | Logs de erro no handler global; health check | Sem métricas ou tracing |
@@ -242,6 +249,8 @@ IDs estáveis e `owner_id` desde o início. Os detalhes estão no
 - A listagem de `/api/applications` faz uma consulta de artefatos por vaga (N+1). Para 16 vagas é
   irrelevante; será resolvido no React com um endpoint agregado ou `IN (...)`.
 - A UI v1 ainda chama rotas de processamento que só existem no servidor antigo.
+- O React cobre dashboard e detalhe; admin (perfis, tema, formulário) ainda não foi migrado.
+- Filtros do dashboard não estão na URL.
 
 ## 12. Decisões relacionadas
 
