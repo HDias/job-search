@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { api } from './client';
-import type { Job, JobFilters } from './types';
+import type { CandidateData, Job, JobFilters, PdfTheme, ProfileContent } from './types';
 
 export function useStats() {
   return useQuery({
@@ -44,6 +44,76 @@ export function useUpdateJob() {
       );
       void queryClient.invalidateQueries({ queryKey: ['jobs'] });
       void queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
+  });
+}
+
+export function useBaseResumes() {
+  return useQuery({
+    queryKey: ['base-resumes'],
+    queryFn: api.baseResumes,
+  });
+}
+
+export function useProfiles() {
+  return useQuery({
+    queryKey: ['profiles'],
+    queryFn: api.profiles,
+  });
+}
+
+export function useSaveProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      stack,
+      language,
+      content,
+    }: {
+      stack: string;
+      language: string;
+      content: ProfileContent;
+    }) => api.saveProfile(stack, language, content),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      void queryClient.invalidateQueries({ queryKey: ['base-resumes'] });
+    },
+  });
+}
+
+export function usePdfTheme() {
+  return useQuery({
+    queryKey: ['pdf-theme'],
+    queryFn: api.pdfTheme,
+  });
+}
+
+export function useSavePdfTheme() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (theme: PdfTheme) => api.savePdfTheme(theme),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['pdf-theme'], data);
+    },
+  });
+}
+
+export function useCandidateData() {
+  return useQuery({
+    queryKey: ['candidate-data'],
+    queryFn: api.candidateData,
+  });
+}
+
+export function useSaveCandidateData() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (candidate: CandidateData) => api.saveCandidateData(candidate),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['candidate-data'], data);
     },
   });
 }

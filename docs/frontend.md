@@ -29,7 +29,7 @@ web/
 │   │   └── hooks.ts        # useStats, useJobs, useJob, useUpdateJob
 │   ├── components/         # Layout, badges, fit, runs, artefatos, estados
 │   ├── lib/format.ts       # datas, fit, bytes, labels e URLs
-│   ├── pages/              # Dashboard, JobDetail, NotFound
+│   ├── pages/              # Dashboard, JobDetail, Admin, NotFound
 │   └── test/               # setup e renderWithProviders
 └── dist/                   # build (gitignored)
 ```
@@ -40,6 +40,7 @@ web/
 |---|---|---|
 | `/` | Dashboard | `GET /api/stats` + `GET /api/jobs` |
 | `/jobs/:id` | Detalhe da vaga | `GET /api/jobs/:id` |
+| `/admin` | Currículos base, tema e dados | `GET/PUT` de profiles, pdf-theme e candidate-data |
 | `*` | Não encontrado | — |
 
 Filtros do dashboard (`q`, `status`) são estado local por enquanto. A URL ainda não os reflete;
@@ -61,6 +62,10 @@ flowchart LR
 - `useJob(id)` → chave `['job', id]`
 - `useUpdateJob` → `PATCH /api/jobs/:id`; no sucesso atualiza o cache do detalhe e invalida
   `['jobs']` e `['stats']`
+- `useBaseResumes` / `useProfiles` / `useSaveProfile` → `GET /api/base-resumes`,
+  `GET /api/profiles` e `PUT /api/profiles/:stack/:language` (invalida as duas listas)
+- `usePdfTheme` / `useSavePdfTheme` → `GET/PUT /api/pdf-theme`
+- `useCandidateData` / `useSaveCandidateData` → `GET/PUT /api/candidate-data`
 
 Erros HTTP viram `ApiError` com `status` e a mensagem do backend. A página de detalhe usa o status
 `404` para distinguir “vaga não encontrada” de falha genérica.
@@ -77,6 +82,8 @@ Erros HTTP viram `ApiError` com `status` e a mensagem do backend. A página de d
 | `ArtifactList` | Um link por tipo, apontando para o visualizador correto |
 | `StatusBadge` | Cores e rótulos por status |
 | `StateMessage` | Loading, erro com retry e vazio |
+| `Admin` | Currículos base, aparência do PDF e dados do formulário |
+| `BaseResumeCard` | Edição de texto de um currículo base por stack/idioma |
 
 `ArtifactList` deduplica por `kind` (fica o mais recente) e ordena por relevância. Os links usam os
 visualizadores do backend:
@@ -118,7 +125,7 @@ no fallback, então um artefato ausente continua `404` em vez de devolver HTML.
 ## 8. Testes
 
 ```bash
-pnpm test:web          # 13 testes
+pnpm test:web          # 17 testes
 pnpm typecheck:web
 pnpm build:web
 ```
@@ -128,6 +135,8 @@ Cobrem:
 - Formatação de datas, fit, bytes, labels e URL de artefato.
 - Dashboard: stats, tabela, filtro de status, busca, vazio e erro com retry.
 - Detalhe: fit, runs, artefatos, troca de status via `PATCH` e `404`.
+- Admin: status dos quatro currículos base, salvar texto via `PUT /api/profiles`, salvar cores do
+  PDF e salvar dados do formulário.
 
 O `fetch` é mockado por teste; não é preciso subir a API. Ver [testing.md](./testing.md).
 
@@ -138,11 +147,14 @@ O `fetch` é mockado por teste; não é preciso subir a API. Ver [testing.md](./
 - **Sem `dangerouslySetInnerHTML`.** Conteúdo de vaga e mensagens são renderizados como texto.
 - **Filtros fora da URL por enquanto.** Simplicidade agora; URL state entra se necessário.
 - **Um pacote de workspace.** `web/` tem scripts e dependências isolados.
+- **Admin edita texto, não PDF.** O upload com extração de PDF depende do pipeline do v1; no v2 a
+  página aceita `.txt`, `.md` e `.html` (lidos no navegador) ou texto colado, e salva em
+  `PUT /api/profiles/:stack/:language`.
 
 ## 10. Próximos passos
 
-1. Página de admin (perfis base, tema de PDF, dados do formulário).
-2. Polling de runs em `processing` e ação de responder checkpoint.
-3. Filtros na URL e paginação visível.
-4. Atualização otimista de status.
+1. Polling de runs em `processing` e ação de responder checkpoint.
+2. Filtros na URL e paginação visível.
+3. Atualização otimista de status.
+4. Upload de currículo com extração de PDF (depende do pipeline).
 5. Substituir de vez o `public/index.html` do v1 e remover as rotas de compatibilidade.

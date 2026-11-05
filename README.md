@@ -7,8 +7,8 @@ O v1 continua intacto como fallback. A documentação completa está em [`docs/`
 
 - [x] Fase 0 — modelo de dados, normalização e script de importação dos JSONs
 - [x] Fase 1 — SQLite + Drizzle, repositórios, rotas HTTP e compatibilidade com a UI v1
-- [x] Testes — 64 de backend + 13 de frontend
-- [ ] Fase 2 — React: dashboard e detalhe prontos; admin pendente
+- [x] Testes — 64 de backend + 17 de frontend
+- [ ] Fase 2 — React: dashboard, detalhe e admin prontos; faltam polling e filtros na URL
 - [ ] Fase 3 — adaptador Turso/Supabase/Firestore
 
 ## Stack
@@ -123,6 +123,7 @@ Compatibilidade com o `public/index.html` do v1:
 |---|---|
 | `/` | Dashboard com stats, busca, filtro por status e tabela |
 | `/jobs/:id` | Fit, processamentos, artefatos, resumo e troca de status |
+| `/admin` | Currículos base, aparência do PDF e dados do formulário |
 | `*` | Página de não encontrado |
 
 Em desenvolvimento, rode `pnpm dev` e `pnpm dev:web` em terminais separados. O Vite faz proxy de
@@ -146,6 +147,6 @@ preservados com `job_id = null` e o snapshot da vaga.
 
 ## Próximos passos
 
-1. Migrar a página de admin (perfis, tema de PDF, dados do formulário) para React.
+1. Polling de runs em `processing` e filtros na URL.
 2. Portar o pipeline pesado (Playwright/LLM/PDF) como serviços do v2.
 3. Manter os testes de repositório como contrato ao trocar o adaptador de banco.

@@ -51,17 +51,17 @@ Objetivo: substituir `public/index.html` por uma SPA mantendo a API como única 
 - [x] Dashboard: stats + lista de vagas com filtros de status e busca.
 - [x] Detalhe da vaga: fit (rating, dimensões, forças, gaps), runs e artefatos.
 - [x] Visualização de currículo/carta via visualizadores do backend.
-- [x] Testes de componente e de integração (13 testes).
+- [x] Testes de componente e de integração (17 testes).
 - [x] Scripts de workspace (`dev:web`, `build:web`, `test:web`, `typecheck:web`).
 - [x] Build servido pelo Express com fallback de SPA.
-- [ ] Página de admin: perfis base, tema de PDF, dados do formulário.
+- [x] Página de admin: perfis base (texto), tema de PDF, dados do formulário.
 - [ ] Polling de runs em `processing` e resposta de checkpoint.
 - [ ] Filtros na URL e paginação visível.
 
 **Decisões pendentes**
 
-- Editor de status inline vs. modal (hoje é um `select` no cabeçalho).
 - Estratégia de polling para runs em `processing`.
+- Upload de PDF no admin: porta o extrator do v1 ou mantém só texto/arquivos leves.
 
 ### Fase 3 — Nuvem e pipeline ⏳
 
@@ -111,9 +111,9 @@ puras não atendem Playwright + Chromium para PDF.
 - [x] Detalhe mostra fit, runs e artefatos.
 - [x] Status pode ser alterado pela UI.
 - [x] Currículo e extras abrem em nova aba via visualizadores.
-- [ ] Admin lê/escreve perfis, tema e dados do formulário.
-- [ ] Nenhuma tela depende de `/api/applications`.
-- [x] Testes de frontend passando (13).
+- [x] Admin lê/escreve perfis, tema e dados do formulário.
+- [x] Nenhuma tela depende de `/api/applications`.
+- [x] Testes de frontend passando (17).
 - [ ] `public/index.html` do v1 pode ser aposentado.
 
 ## 4. Riscos

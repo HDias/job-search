@@ -20,6 +20,12 @@ export function Layout() {
             >
               Dashboard
             </NavLink>
+            <NavLink
+              to="/admin"
+              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+            >
+              Admin
+            </NavLink>
             <a className="nav-link" href="/api/health" target="_blank" rel="noreferrer">
               API
             </a>

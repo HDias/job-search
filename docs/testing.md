@@ -13,7 +13,7 @@ Frontend (`web/`):
 
 ```text
 Test Files  3 passed (3)
-Tests      13 passed (13)
+Tests      17 passed (17)
 ```
 
 | Arquivo | Testes | Cobre |
@@ -127,6 +127,7 @@ Suíte dedicada a exercitar **cada rota HTTP** e os casos de borda que a UI vai 
 | `web/src/lib/format.test.ts` | 5 | Datas, fit, bytes, labels e URL de artefatos |
 | `web/src/pages/Dashboard.test.tsx` | 5 | Stats, tabela, filtro, busca, vazio e erro com retry |
 | `web/src/pages/JobDetail.test.tsx` | 3 | Fit, runs, artefatos, PATCH de status e 404 |
+| `web/src/pages/Admin.test.tsx` | 4 | Currículos base, tema do PDF e dados do formulário |
 
 O `fetch` é mockado com respostas no formato da API. Os testes usam `MemoryRouter` e um
 `QueryClient` sem retry.
@@ -139,8 +140,8 @@ O `fetch` é mockado com respostas no formato da API. Os testes usam `MemoryRout
 | Autenticação | Alto quando houver nuvem | Não existe hoje |
 | Concorrência de escrita | Médio | Uso local single-user |
 | Migração de banco real | Médio | Smoke test manual, não automatizado |
-| Página de admin do React | Médio | Ainda não implementada |
 | Polling de runs em processamento | Médio | Ainda não implementado |
+| Upload de currículo em PDF | Médio | Extração ainda depende do v1 |
 | Performance com volume | Baixo hoje | 16 vagas; N+1 tolerado |
 
 ## 6. Adicionando testes

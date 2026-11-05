@@ -9,11 +9,11 @@ API, migração do v1 e próximos passos.
 |---|---|---|
 | 0 | Modelo de dados, normalização e importação dos JSONs do v1 | ✅ Concluída |
 | 1 | SQLite + Drizzle, repositórios, API REST e compatibilidade com a UI v1 | ✅ Concluída |
-| 2 | Frontend React (Vite + TS + TanStack Query) | 🚧 Dashboard e detalhe prontos |
+| 2 | Frontend React (Vite + TS + TanStack Query) | 🚧 Dashboard, detalhe e admin prontos |
 | 3 | Adaptador de nuvem (Turso, Supabase ou Firestore) | ⏳ Planejada |
 
 **Números atuais:** 16 vagas, 34 runs (17 órfãos), 97 artefatos, 4 perfis e 2 settings importados;
-64 testes de backend + 13 de frontend; API e SPA na porta `3344`, Vite em `5173` e v1 intacto na
+64 testes de backend + 17 de frontend; API e SPA na porta `3344`, Vite em `5173` e v1 intacto na
 `3333`.
 
 ## Por onde começar

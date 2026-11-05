@@ -134,3 +134,60 @@ export interface JobFilters {
   limit?: number;
   offset?: number;
 }
+
+export interface BaseResumeInfo {
+  exists: boolean;
+  language: string;
+  sourceFile?: string;
+  updatedAt?: string;
+  charCount?: number;
+  preview?: string;
+}
+
+export type BaseResumeKey = 'pt-br' | 'en' | 'php-pt-br' | 'php-en';
+
+export type BaseResumeMap = Record<BaseResumeKey, BaseResumeInfo>;
+
+export interface ProfileContent {
+  rawText?: string;
+  rawLength?: number;
+  sourceFile?: string;
+  extractedAt?: string;
+  language?: string;
+  stack?: string;
+  [key: string]: unknown;
+}
+
+export interface Profile {
+  stack: string;
+  language: string;
+  content: ProfileContent;
+  updatedAt: string;
+}
+
+export interface PdfThemeStack {
+  accent?: string;
+  accentDark?: string;
+  label?: string;
+  [key: string]: unknown;
+}
+
+export interface PdfTheme {
+  ruby?: PdfThemeStack;
+  php?: PdfThemeStack;
+  cssVersion?: string;
+  [key: string]: unknown;
+}
+
+export interface CandidateData {
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+}

@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { Admin } from './pages/Admin';
 import { Dashboard } from './pages/Dashboard';
 import { JobDetail } from './pages/JobDetail';
 import { NotFound } from './pages/NotFound';
@@ -10,6 +11,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<Dashboard />} />
         <Route path="jobs/:id" element={<JobDetail />} />
+        <Route path="admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

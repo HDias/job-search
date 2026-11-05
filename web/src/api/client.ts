@@ -1,9 +1,14 @@
 import type {
+  BaseResumeMap,
+  CandidateData,
   Job,
   JobDetailResponse,
   JobFilters,
   JobList,
   JobStats,
+  PdfTheme,
+  Profile,
+  ProfileContent,
 } from './types';
 
 export class ApiError extends Error {
@@ -60,5 +65,35 @@ export const api = {
     request<Job>(`/api/jobs/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
+    }),
+
+  baseResumes: () => request<BaseResumeMap>('/api/base-resumes'),
+
+  profiles: () => request<Profile[]>('/api/profiles'),
+
+  saveProfile: (stack: string, language: string, content: ProfileContent) =>
+    request<Profile>(
+      `/api/profiles/${encodeURIComponent(stack)}/${encodeURIComponent(language)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ content }),
+      },
+    ),
+
+  pdfTheme: () => request<{ success: boolean; theme: PdfTheme }>('/api/pdf-theme'),
+
+  savePdfTheme: (theme: PdfTheme) =>
+    request<{ success: boolean; theme: PdfTheme }>('/api/pdf-theme', {
+      method: 'PUT',
+      body: JSON.stringify(theme),
+    }),
+
+  candidateData: () =>
+    request<{ success: boolean; candidate: CandidateData }>('/api/candidate-data'),
+
+  saveCandidateData: (candidate: CandidateData) =>
+    request<{ success: boolean; candidate: CandidateData }>('/api/candidate-data', {
+      method: 'PUT',
+      body: JSON.stringify(candidate),
     }),
 };
