@@ -15,6 +15,13 @@
       "when": 1793671079251,
       "tag": "0001_compat_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794019902750,
+      "tag": "0002_profile_targets",
+      "breakpoints": true
     }
   ]
 }

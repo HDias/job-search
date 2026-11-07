@@ -1,12 +1,73 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { LANGUAGES } from '../../domain/job.js';
+import { EXTRA_PROMPT_MAX_LENGTH } from '../../domain/profile.js';
 import type { Store } from '../../repositories/types.js';
 import { HttpError, parseBody } from '../http.js';
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+const STACK_PATTERN = /^[a-z][a-z0-9-]{0,31}$/;
 
 const settingBodySchema = z.object({ value: z.unknown() });
-const profileBodySchema = z.object({ content: z.unknown() });
+
+const extraPromptSchema = z
+  .string()
+  .max(EXTRA_PROMPT_MAX_LENGTH, 'Texto extra muito longo')
+  .nullable()
+  .optional();
+
+const newProfileSchema = z.object({
+  stack: z.string().trim().min(1),
+  language: z.enum(LANGUAGES),
+  content: z.unknown().optional(),
+  enabled: z.boolean().optional(),
+  extraPrompt: extraPromptSchema,
+});
+
+const profilePatchSchema = z
+  .object({
+    content: z.unknown().optional(),
+    enabled: z.boolean().optional(),
+    extraPrompt: extraPromptSchema,
+  })
+  .refine(
+    (value) =>
+      value.content !== undefined ||
+      value.enabled !== undefined ||
+      value.extraPrompt !== undefined,
+    { message: 'Informe ao menos um campo: content, enabled ou extraPrompt' },
+  );
+
+function normalizeStack(raw: unknown): string {
+  const stack = String(raw ?? '').trim().toLowerCase();
+  if (!STACK_PATTERN.test(stack)) {
+    throw new HttpError(
+      400,
+      'Stack inválida: use letras minúsculas, números e hífen, começando por letra',
+    );
+  }
+  return stack;
+}
+
+function normalizeLanguage(raw: unknown): string {
+  const language = String(raw ?? '').trim().toLowerCase();
+  if (!(LANGUAGES as readonly string[]).includes(language)) {
+    throw new HttpError(
+      400,
+      `Idioma inválido: use ${LANGUAGES.join(' ou ')}`,
+    );
+  }
+  return language;
+}
+
+/** Aceita `undefined` (não mexe), `null` e string; vazio/só espaços vira `null`. */
+function normalizeExtraPrompt(
+  value: string | null | undefined,
+): string | null | undefined {
+  if (value === undefined || value === null) return value;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 const CANDIDATE_FIELDS = [
   'fullName',
@@ -141,8 +202,30 @@ export function createMetaRouter(store: Store): Router {
     res.json({ success: true, candidate: next });
   });
 
-  router.get('/profiles', (_req, res) => {
-    res.json(store.profiles.list());
+  router.get('/profiles', (req, res) => {
+    const rawEnabled = req.query.enabled;
+    let enabled: boolean | undefined;
+
+    if (rawEnabled !== undefined) {
+      if (rawEnabled !== 'true' && rawEnabled !== 'false') {
+        throw new HttpError(
+          400,
+          'Parâmetro enabled inválido (use true ou false)',
+        );
+      }
+      enabled = rawEnabled === 'true';
+    }
+
+    const profiles = store.profiles
+      .list()
+      .filter((profile) => enabled === undefined || profile.enabled === enabled)
+      .sort(
+        (a, b) =>
+          a.stack.localeCompare(b.stack) ||
+          a.language.localeCompare(b.language),
+      );
+
+    res.json(profiles);
   });
 
   router.get('/profiles/:stack/:language', (req, res) => {
@@ -154,15 +237,51 @@ export function createMetaRouter(store: Store): Router {
     res.json(profile);
   });
 
+  router.post('/profiles', (req, res) => {
+    const body = parseBody(newProfileSchema, req.body);
+    const stack = normalizeStack(body.stack);
+    const language = normalizeLanguage(body.language);
+
+    if (store.profiles.get(stack, language)) {
+      throw new HttpError(409, 'Essa combinação já existe');
+    }
+
+    const profile = store.profiles.upsert({
+      stack,
+      language,
+      content: body.content,
+      enabled: body.enabled,
+      extraPrompt: normalizeExtraPrompt(body.extraPrompt),
+    });
+
+    res.status(201).json(profile);
+  });
+
   router.put('/profiles/:stack/:language', (req, res) => {
-    const input = parseBody(profileBodySchema, req.body);
+    const stack = normalizeStack(req.params.stack);
+    const language = normalizeLanguage(req.params.language);
+    const patch = parseBody(profilePatchSchema, req.body);
+
     res.json(
       store.profiles.upsert({
-        stack: req.params.stack,
-        language: req.params.language,
-        content: input.content,
+        stack,
+        language,
+        content: patch.content,
+        enabled: patch.enabled,
+        extraPrompt: normalizeExtraPrompt(patch.extraPrompt),
       }),
     );
+  });
+
+  router.delete('/profiles/:stack/:language', (req, res) => {
+    const stack = normalizeStack(req.params.stack);
+    const language = normalizeLanguage(req.params.language);
+
+    if (!store.profiles.delete(stack, language)) {
+      throw new HttpError(404, 'Perfil não encontrado');
+    }
+
+    res.status(204).end();
   });
 
   router.get('/settings', (_req, res) => {

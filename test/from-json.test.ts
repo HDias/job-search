@@ -276,6 +276,8 @@ describe('importFromJson', () => {
       expect(store.profiles.get('ruby', 'pt-br')?.content).toEqual({
         name: 'Horecio',
       });
+      expect(store.profiles.get('ruby', 'pt-br')?.enabled).toBe(true);
+      expect(store.profiles.get('ruby', 'pt-br')?.extraPrompt).toBeNull();
       expect(store.settings.get('pdf_theme')).toEqual({ accent: '#0af' });
       // config.json (com apiKey) não deve ser importado
       expect(store.settings.get('config')).toBeNull();

@@ -134,6 +134,10 @@ export const profiles = sqliteTable(
     stack: text('stack').notNull(),
     language: text('language').notNull(),
     content: text('content', { mode: 'json' }).$type<unknown>(),
+    /** Alvo ativo: o pipeline considera apenas alvos habilitados. */
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    /** Instruções extras do usuário, injetadas nos prompts de fit e tailor. */
+    extraPrompt: text('extra_prompt'),
     updatedAt: text('updated_at').notNull(),
   },
   (table) => [primaryKey({ columns: [table.stack, table.language] })],

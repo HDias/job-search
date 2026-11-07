@@ -323,6 +323,53 @@ describe('SqliteProfileRepository e SqliteSettingsRepository', () => {
     expect(store.profiles.get('ruby', 'en')).toBeNull();
   });
 
+  it('insere perfil com defaults e preserva campos no upsert parcial', () => {
+    const { store } = ctx;
+
+    const created = store.profiles.upsert({ stack: 'rust', language: 'en' });
+    expect(created.enabled).toBe(true);
+    expect(created.extraPrompt).toBeNull();
+    expect(created.content).toBeNull();
+
+    store.profiles.upsert({
+      stack: 'rust',
+      language: 'en',
+      content: { rawText: 'Currículo Rust' },
+    });
+
+    const disabled = store.profiles.upsert({
+      stack: 'rust',
+      language: 'en',
+      enabled: false,
+    });
+    expect(disabled.enabled).toBe(false);
+    expect(disabled.content).toEqual({ rawText: 'Currículo Rust' });
+    expect(disabled.extraPrompt).toBeNull();
+
+    const withExtra = store.profiles.upsert({
+      stack: 'rust',
+      language: 'en',
+      extraPrompt: 'Priorizar APIs REST.',
+    });
+    expect(withExtra.extraPrompt).toBe('Priorizar APIs REST.');
+    expect(withExtra.enabled).toBe(false);
+    expect(withExtra.content).toEqual({ rawText: 'Currículo Rust' });
+  });
+
+  it('remove o perfil e passa a devolver null', () => {
+    const { store } = ctx;
+
+    store.profiles.upsert({
+      stack: 'ruby',
+      language: 'en',
+      content: { rawText: 'Ruby EN' },
+    });
+
+    expect(store.profiles.delete('ruby', 'en')).toBe(true);
+    expect(store.profiles.get('ruby', 'en')).toBeNull();
+    expect(store.profiles.delete('ruby', 'en')).toBe(false);
+  });
+
   it('faz upsert, leitura tipada e remoção de settings', () => {
     const { store } = ctx;
 

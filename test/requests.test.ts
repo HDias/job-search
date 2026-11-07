@@ -305,7 +305,7 @@ describe('requests: metadados', () => {
     expect(partial.body.candidate.phone).toBe('123');
   });
 
-  it('faz upsert de perfis e valida o corpo', async () => {
+  it('faz upsert parcial de perfis e valida o corpo', async () => {
     expect((await request(app).get('/api/profiles/php/en')).status).toBe(404);
 
     const put = await request(app)
@@ -314,15 +314,119 @@ describe('requests: metadados', () => {
     expect(put.status).toBe(200);
     expect(put.body.stack).toBe('php');
     expect(put.body.language).toBe('en');
+    expect(put.body.enabled).toBe(true);
+    expect(put.body.extraPrompt).toBeNull();
 
     const get = await request(app).get('/api/profiles/php/en');
     expect(get.status).toBe(200);
     expect(get.body.content.rawText).toBe('PHP profile');
+    expect(get.body.enabled).toBe(true);
+
+    const extra = await request(app)
+      .put('/api/profiles/php/en')
+      .send({ extraPrompt: '  Priorizar Laravel e APIs REST.  ' });
+    expect(extra.status).toBe(200);
+    expect(extra.body.extraPrompt).toBe('Priorizar Laravel e APIs REST.');
+    expect(extra.body.content.rawText).toBe('PHP profile');
+    expect(extra.body.enabled).toBe(true);
+
+    const disabled = await request(app)
+      .put('/api/profiles/php/en')
+      .send({ enabled: false });
+    expect(disabled.status).toBe(200);
+    expect(disabled.body.enabled).toBe(false);
+    expect(disabled.body.content.rawText).toBe('PHP profile');
+    expect(disabled.body.extraPrompt).toBe('Priorizar Laravel e APIs REST.');
+
+    const cleared = await request(app)
+      .put('/api/profiles/php/en')
+      .send({ extraPrompt: '   ' });
+    expect(cleared.body.extraPrompt).toBeNull();
 
     expect((await request(app).put('/api/profiles/php/en').send({})).status).toBe(400);
 
     const list = await request(app).get('/api/profiles');
     expect(list.body).toHaveLength(1);
+  });
+
+  it('cria alvo com defaults e responde 409 em duplicado', async () => {
+    const created = await request(app)
+      .post('/api/profiles')
+      .send({ stack: 'Elixir', language: 'en' });
+
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({
+      stack: 'elixir',
+      language: 'en',
+      content: null,
+      enabled: true,
+      extraPrompt: null,
+    });
+
+    const duplicate = await request(app)
+      .post('/api/profiles')
+      .send({ stack: 'elixir', language: 'en' });
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body.error).toMatch(/já existe/);
+  });
+
+  it('rejeita POST com stack ou idioma inválidos', async () => {
+    expect(
+      (await request(app).post('/api/profiles').send({ stack: '1php', language: 'en' }))
+        .status,
+    ).toBe(400);
+    expect(
+      (await request(app).post('/api/profiles').send({ stack: 'php', language: 'es' }))
+        .status,
+    ).toBe(400);
+    expect(
+      (await request(app).post('/api/profiles').send({ language: 'en' })).status,
+    ).toBe(400);
+  });
+
+  it('filtra perfis por enabled', async () => {
+    await request(app).post('/api/profiles').send({ stack: 'ruby', language: 'en' });
+    await request(app).post('/api/profiles').send({ stack: 'ruby', language: 'pt-br' });
+    await request(app).put('/api/profiles/ruby/en').send({ enabled: false });
+
+    const enabled = await request(app).get('/api/profiles?enabled=true');
+    expect(enabled.status).toBe(200);
+    expect(enabled.body).toHaveLength(1);
+    expect(enabled.body[0].language).toBe('pt-br');
+
+    const disabled = await request(app).get('/api/profiles?enabled=false');
+    expect(disabled.body).toHaveLength(1);
+    expect(disabled.body[0].language).toBe('en');
+
+    expect((await request(app).get('/api/profiles?enabled=talvez')).status).toBe(400);
+  });
+
+  it('remove alvo e passa a responder 404', async () => {
+    await request(app).post('/api/profiles').send({ stack: 'ruby', language: 'en' });
+
+    expect((await request(app).delete('/api/profiles/ruby/en')).status).toBe(204);
+    expect((await request(app).get('/api/profiles/ruby/en')).status).toBe(404);
+    expect((await request(app).delete('/api/profiles/ruby/en')).status).toBe(404);
+  });
+
+  it('mantém o formato legado de /api/base-resumes', async () => {
+    await request(app)
+      .put('/api/profiles/php/en')
+      .send({ content: { rawText: 'PHP EN' } });
+
+    const res = await request(app).get('/api/base-resumes');
+    expect(Object.keys(res.body).sort()).toEqual([
+      'en',
+      'php-en',
+      'php-pt-br',
+      'pt-br',
+    ]);
+    expect(res.body['php-en']).toMatchObject({
+      exists: true,
+      language: 'en',
+      charCount: 6,
+      preview: 'PHP EN...',
+    });
   });
 
   it('gerencia settings genéricos e rejeita corpo sem value', async () => {

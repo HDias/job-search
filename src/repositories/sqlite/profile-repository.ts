@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { profiles } from '../../db/schema.js';
 import { nowIso } from '../../domain/ids.js';
-import type { Profile } from '../../domain/profile.js';
+import type { Profile, UpsertProfileInput } from '../../domain/profile.js';
 import type { ProfileRepository } from '../types.js';
 
 function rowToProfile(row: typeof profiles.$inferSelect): Profile {
@@ -10,6 +10,8 @@ function rowToProfile(row: typeof profiles.$inferSelect): Profile {
     stack: row.stack,
     language: row.language,
     content: row.content,
+    enabled: row.enabled,
+    extraPrompt: row.extraPrompt,
     updatedAt: row.updatedAt,
   };
 }
@@ -30,29 +32,40 @@ export class SqliteProfileRepository implements ProfileRepository {
     return row ? rowToProfile(row) : null;
   }
 
-  upsert(
-    profile: Omit<Profile, 'updatedAt'> & { updatedAt?: string },
-  ): Profile {
-    const updatedAt = profile.updatedAt ?? nowIso();
+  upsert(input: UpsertProfileInput): Profile {
+    const updatedAt = input.updatedAt ?? nowIso();
+    const insertValues = {
+      stack: input.stack,
+      language: input.language,
+      content: input.content ?? null,
+      enabled: input.enabled ?? true,
+      extraPrompt: input.extraPrompt ?? null,
+      updatedAt,
+    };
+
+    // Só sobrescreve o que foi enviado (semântica de PATCH).
+    const set: Record<string, unknown> = { updatedAt };
+    if (input.content !== undefined) set.content = input.content;
+    if (input.enabled !== undefined) set.enabled = input.enabled;
+    if (input.extraPrompt !== undefined) set.extraPrompt = input.extraPrompt;
+
     this.db
       .insert(profiles)
-      .values({
-        stack: profile.stack,
-        language: profile.language,
-        content: profile.content,
-        updatedAt,
-      })
+      .values(insertValues)
       .onConflictDoUpdate({
         target: [profiles.stack, profiles.language],
-        set: { content: profile.content, updatedAt },
+        set,
       })
       .run();
 
-    return {
-      stack: profile.stack,
-      language: profile.language,
-      content: profile.content,
-      updatedAt,
-    };
+    return this.get(input.stack, input.language) as Profile;
+  }
+
+  delete(stack: string, language: string): boolean {
+    const result = this.db
+      .delete(profiles)
+      .where(and(eq(profiles.stack, stack), eq(profiles.language, language)))
+      .run();
+    return result.changes > 0;
   }
 }

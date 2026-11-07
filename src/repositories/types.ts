@@ -7,7 +7,11 @@ import type {
   JobStats,
   NewJob,
 } from '../domain/job.js';
-import type { Profile, SettingsEntry } from '../domain/profile.js';
+import type {
+  Profile,
+  SettingsEntry,
+  UpsertProfileInput,
+} from '../domain/profile.js';
 import type { NewRun, Run, RunFilter, RunPatch } from '../domain/run.js';
 
 export interface JobRepository {
@@ -47,7 +51,12 @@ export interface ArtifactRepository {
 export interface ProfileRepository {
   list(): Profile[];
   get(stack: string, language: string): Profile | null;
-  upsert(profile: Omit<Profile, 'updatedAt'> & { updatedAt?: string }): Profile;
+  /**
+   * Insere ou atualiza parcialmente. Campos `undefined` não sobrescrevem o
+   * valor atual. Na inserção: enabled = true, extraPrompt = null, content = null.
+   */
+  upsert(input: UpsertProfileInput): Profile;
+  delete(stack: string, language: string): boolean;
 }
 
 export interface SettingsRepository {
