@@ -5,7 +5,7 @@ route families:
 
 | Family | Prefix | Audience |
 |---|---|---|
-| New REST | `/api/jobs`, `/api/runs`, `/api/profiles`, `/api/settings`, `/api/stats` | React UI (Phase 2) and integrations |
+| New REST | `/api/jobs`, `/api/runs`, `/api/profiles`, `/api/settings`, `/api/stats`, `/api/llm-config` | React UI (Phase 2) and integrations |
 | v1 compatibility | `/api/applications`, `/api/processes`, `/api/base-resumes`, `/api/pdf-theme`, `/api/candidate-data` | the v1 UI |
 | Viewers | `/applications/*`, `/cv/:id`, `/extras/:id/:view` | Links opened by the user |
 
@@ -311,7 +311,25 @@ Rules:
 - **`/api/base-resumes`** keeps the legacy format (4 fixed keys) for v1; the new screen uses
   `/api/profiles`.
 
-Known settings keys: `pdf_theme`, `candidate_form`. API keys are **not** stored here.
+### LLM configuration — `/api/llm-config`
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/api/llm-config` | `{ provider, model, baseUrl, temperature, top_p, maxTokens, hasKey, maskedKey }` — the key itself is never returned |
+| PUT/POST | `/api/llm-config` | Partial update; returns `{ success, message }`. `POST` is an alias for the v1 UI |
+
+- Stored in `settings` under the key `llm_config`. The local database keeps the saved key; the API
+  exposes it only masked (`ABCDEF...WXYZ`).
+- Partial semantics: missing fields keep their current value; `null` clears a sampling field;
+  `apiKey: ""` keeps the current key (parity with the v1 UI, which resends an empty field when the
+  user did not change the key).
+- Changing `provider` without `model` falls back to the new provider's default model
+  (`gemini-2.5-flash`, `gpt-4o`, `gpt-4o-mini`, `openai/gpt-oss-20b`, `claude-3-5-sonnet-20241022`).
+- With no saved key and provider `gemini`, the client uses `GEMINI_API_KEY` from the environment.
+- Validation: provider ∈ `gemini, openai, openai-compatible, nvidia, anthropic`; `temperature`
+  0–2; `top_p` 0–1; `maxTokens` 1–32000; empty body → `400`.
+
+Known settings keys: `pdf_theme`, `candidate_form`, `llm_config`.
 
 ## 7. Viewers
 
@@ -372,5 +390,7 @@ Heavy pipeline routes still live only in v1:
 - kit regeneration (`/api/applications/:id/regenerate`)
 - interactive queue (`/api/processes/:id/question`, `/respond`)
 
-They depend on Playwright, LLM and PDF generation, which will be ported as services in Phase 3
-(see [roadmap.md](./roadmap.md)).
+They depend on Playwright, LLM and PDF generation and are being ported slice by slice; the LLM
+client, the skill prompt loader and `/api/llm-config` already live in v2
+(`src/pipeline/`). The step plan is in `.plans/pipeline-port-v1-v2.md` and the phase goals in
+[roadmap.md](./roadmap.md).
