@@ -1,0 +1,235 @@
+/* Resume stylesheet — estilo hdias.github.io: clean, single-column, ATS-friendly */
+@page {
+  size: A4;
+  margin: 12mm 15mm;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #111;
+  background-color: #ffffff;
+  line-height: 1.6;
+  font-size: 10pt;
+}
+
+.resume-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+/* Header — nome + título à esquerda, contato à direita */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  border-bottom: 2px solid #e6e6e6;
+  padding-bottom: 12px;
+  margin-bottom: 18px;
+}
+
+h1.candidate-name {
+  font-size: 21pt;
+  font-weight: 600;
+  color: #111;
+  margin: 0 0 2px;
+}
+
+.target-title,
+.headline {
+  font-size: 10.5pt;
+  color: #333;
+  margin: 2px 0;
+}
+
+.location-line,
+.lead {
+  color: #333;
+  font-size: 9.5pt;
+  margin-top: 2px;
+}
+
+.contact-info,
+.contact {
+  font-size: 9pt;
+  text-align: right;
+  line-height: 1.6;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: flex-end;
+  white-space: nowrap;
+}
+
+.contact-info a,
+.contact a {
+  color: #2563eb;
+}
+
+/* Sections */
+section,
+.section {
+  margin-bottom: 18px;
+}
+
+h2.section-title {
+  font-size: 13pt;
+  font-weight: 600;
+  color: #1a1a1a;
+  border-bottom: 1px solid #e6e6e6;
+  padding-bottom: 3px;
+  margin: 18px 0 10px;
+}
+
+/* Summary */
+.summary-text {
+  font-size: 9.5pt;
+  color: #333;
+}
+
+/* Highlights — skills como pills */
+.skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.skill {
+  background: #f3f3f3;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 8.5pt;
+  color: #333;
+}
+
+.skills-group {
+  margin-bottom: 3px;
+  font-size: 9pt;
+  color: #333;
+}
+
+.skills-group strong {
+  color: #111;
+}
+
+/* Experience */
+.job-entry,
+.job {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.job-entry:last-child,
+.job:last-child {
+  border-bottom: none;
+}
+
+.job-header {
+  margin-bottom: 2px;
+}
+
+.job-title,
+.job h3 {
+  font-weight: 600;
+  font-size: 10.5pt;
+  color: #1a1a1a;
+  margin: 0 0 2px;
+}
+
+.job-company {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.job-meta,
+.meta {
+  color: #666;
+  font-size: 8.5pt;
+  font-style: italic;
+  margin-bottom: 6px;
+}
+
+.bullet-list,
+ul.clean {
+  padding-left: 18px;
+  margin: 6px 0;
+  line-height: 1.6;
+  list-style-type: disc;
+}
+
+.bullet-list li,
+ul.clean li {
+  margin-bottom: 4px;
+  font-size: 9pt;
+  color: #333;
+}
+
+.bullet-list li strong {
+  color: #111;
+}
+
+/* Education & Certs */
+.edu-entry {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3px;
+  font-size: 9pt;
+}
+
+.edu-degree {
+  font-weight: 600;
+  color: #111;
+}
+
+.edu-school,
+.edu-meta {
+  color: #555;
+}
+
+/* Footer */
+footer.languages {
+  border-top: 1px solid #eee;
+  padding-top: 8px;
+  margin-top: 16px;
+  color: #666;
+  font-size: 8.5pt;
+}
+
+@media (max-width: 600px) {
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .contact-info,
+  .contact {
+    text-align: left;
+    align-items: flex-start;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+  header {
+    border-bottom-color: #000;
+  }
+  h2.section-title {
+    border-bottom-color: #000;
+  }
+}
