@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.3.0",
   "description": "Job Search Assistant v2 — React + API + SQLite (repositórios preparados para nuvem)",
   "scripts": {
     "dev": "tsx watch src/api/server.ts",
