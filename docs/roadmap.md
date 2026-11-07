@@ -29,7 +29,7 @@ flowchart LR
 - Repositórios com contratos.
 - API REST (`/api/jobs`, `/api/runs`, `/api/stats`, profiles, settings).
 - Compatibilidade com a UI v1 (`/api/applications`, `/api/processes`, visualizadores).
-- 64 testes de backend; smoke test com dados reais.
+- 71 testes de backend; smoke test com dados reais.
 
 ### Fase 2 — React 🚧
 
@@ -51,10 +51,12 @@ Objetivo: substituir `public/index.html` por uma SPA mantendo a API como única 
 - [x] Dashboard: stats + lista de vagas com filtros de status e busca.
 - [x] Detalhe da vaga: fit (rating, dimensões, forças, gaps), runs e artefatos.
 - [x] Visualização de currículo/carta via visualizadores do backend.
-- [x] Testes de componente e de integração (23 testes).
+- [x] Testes de componente e de integração (28 testes).
 - [x] Scripts de workspace (`dev:web`, `build:web`, `test:web`, `typecheck:web`).
 - [x] Build servido pelo Express com fallback de SPA.
-- [x] Página de admin: perfis base (texto), tema de PDF, dados do formulário.
+- [x] Página de admin: tema de PDF e dados do formulário.
+- [x] App Settings: alvos configuráveis (stack × idioma), currículo base e instruções extras por
+  alvo, com ativar/desativar e remover.
 - [x] Polling de runs ativos (4 s). Resposta de checkpoint ainda depende do pipeline.
 - [x] Filtros na URL e paginação visível (25 por página).
 
@@ -111,9 +113,10 @@ puras não atendem Playwright + Chromium para PDF.
 - [x] Detalhe mostra fit, runs e artefatos.
 - [x] Status pode ser alterado pela UI.
 - [x] Currículo e extras abrem em nova aba via visualizadores.
-- [x] Admin lê/escreve perfis, tema e dados do formulário.
+- [x] Admin lê/escreve tema e dados do formulário.
+- [x] App Settings gerencia alvos, currículos base e instruções extras.
 - [x] Nenhuma tela depende de `/api/applications`.
-- [x] Testes de frontend passando (23).
+- [x] Testes de frontend passando (28).
 - [ ] `public/index.html` do v1 pode ser aposentado.
 
 ## 4. Riscos

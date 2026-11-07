@@ -1,6 +1,6 @@
 # Plano — App Settings: alvos configuráveis + instruções extras de prompt
 
-> Status: **em implementação** (retomar na próxima sessão pelo checklist abaixo).
+> Status: **implementado** (backend, frontend, testes e docs concluídos).
 > Escopo confirmado: **somente v2** (persistência + UI). O pipeline pesado continua no v1 e
 > consumirá essa configuração quando for portado (Fase 3).
 
@@ -18,63 +18,62 @@ Legenda: `[x]` feito · `[ ]` pendente · `[~]` parcial (explicado ao lado).
 - [x] `src/repositories/types.ts`: `ProfileRepository.upsert` parcial + `delete`.
 - [x] `src/repositories/sqlite/profile-repository.ts`: mapear `enabled`/`extraPrompt`,
       `upsert` parcial e `delete`.
-- [ ] `src/api/routes/meta.ts`: `POST`/`PUT`/`DELETE /api/profiles`, validação de stack/idioma,
+- [x] `src/api/routes/meta.ts`: `POST`/`PUT`/`DELETE /api/profiles`, validação de stack/idioma,
       `409` para duplicado, filtro `?enabled=`.
 - [x] Confirmar que `src/migrations/from-json.ts` importa com defaults (`enabled=true`,
       `extraPrompt=null`) sem mudanças (typecheck + 64 testes passando).
 
 ### Backend — testes
 
-- [ ] `test/repositories.test.ts`: upsert parcial, defaults e `delete`.
-- [ ] `test/requests.test.ts` (ou novo `test/profiles.test.ts`): `POST`/`PUT`/`DELETE`,
+- [x] `test/repositories.test.ts`: upsert parcial, defaults e `delete`.
+- [x] `test/requests.test.ts` (ou novo `test/profiles.test.ts`): `POST`/`PUT`/`DELETE`,
       `409`, `400`, `?enabled=`, compat de `/api/base-resumes`.
-- [ ] `test/from-json.test.ts`: perfis importados com `enabled=true`.
+- [x] `test/from-json.test.ts`: perfis importados com `enabled=true`.
 
 ### Frontend
 
-- [ ] `web/src/api/types.ts`: `Profile` com `enabled`/`extraPrompt`, `ProfilePatch`, `NewProfile`.
-- [ ] `web/src/api/client.ts`: `saveProfile(stack, language, patch)`, `createProfile`,
+- [x] `web/src/api/types.ts`: `Profile` com `enabled`/`extraPrompt`, `ProfilePatch`, `NewProfile`.
+- [x] `web/src/api/client.ts`: `saveProfile(stack, language, patch)`, `createProfile`,
       `deleteProfile`.
-- [ ] `web/src/api/hooks.ts`: ajustar `useSaveProfile`; criar `useCreateProfile`/`useDeleteProfile`.
-- [ ] `web/src/components/BaseResumeCard.tsx` → `TargetCard.tsx`: card dinâmico por `Profile`,
+- [x] `web/src/api/hooks.ts`: ajustar `useSaveProfile`; criar `useCreateProfile`/`useDeleteProfile`.
+- [x] `web/src/components/BaseResumeCard.tsx` → `TargetCard.tsx`: card dinâmico por `Profile`,
       textarea de currículo + textarea de instruções extras + ativar/remover.
-- [ ] `web/src/pages/AppSettings.tsx`: formulário de adicionar alvo + lista + estados vazio/erro.
-- [ ] `web/src/App.tsx`: rota `admin/settings`.
-- [ ] `web/src/components/Layout.tsx`: link "App Settings".
-- [ ] `web/src/pages/Admin.tsx`: remover seção de currículos base e linkar para App Settings.
-- [ ] `web/src/styles.css`: ajustes visuais mínimos, se necessário.
+- [x] `web/src/pages/AppSettings.tsx`: formulário de adicionar alvo + lista + estados vazio/erro.
+- [x] `web/src/App.tsx`: rota `admin/settings`.
+- [x] `web/src/components/Layout.tsx`: link "App Settings".
+- [x] `web/src/pages/Admin.tsx`: remover seção de currículos base e linkar para App Settings.
+- [x] `web/src/styles.css`: ajustes visuais mínimos, se necessário.
 
 ### Frontend — testes
 
-- [ ] `web/src/pages/AppSettings.test.tsx`: listar, adicionar, salvar, desativar, remover, `409`.
-- [ ] `web/src/pages/Admin.test.tsx`: remover asserções dos 4 currículos fixos; manter tema/dados;
+- [x] `web/src/pages/AppSettings.test.tsx`: listar, adicionar, salvar, desativar, remover, `409`.
+- [x] `web/src/pages/Admin.test.tsx`: remover asserções dos 4 currículos fixos; manter tema/dados;
       verificar link para App Settings.
 
 ### Documentação
 
-- [ ] `docs/api.md`: campos novos + endpoints de `profiles`.
-- [ ] `docs/data-model.md`: colunas `enabled` e `extra_prompt` em `PROFILES`.
-- [ ] `docs/frontend.md`: página App Settings.
-- [ ] `docs/roadmap.md`: item da Fase 2.
-- [ ] `docs/adr/0009-alvos-configuraveis.md`: decisão (alvo = linha em `profiles`).
+- [x] `docs/api.md`: campos novos + endpoints de `profiles`.
+- [x] `docs/data-model.md`: colunas `enabled` e `extra_prompt` em `PROFILES`.
+- [x] `docs/frontend.md`: página App Settings.
+- [x] `docs/roadmap.md`: item da Fase 2.
+- [x] `docs/adr/0009-alvos-configuraveis.md`: decisão (alvo = linha em `profiles`).
 
 ### Verificação final
 
-- [ ] `pnpm typecheck && pnpm test`
-- [ ] `pnpm typecheck:web && pnpm test:web`
-- [ ] `pnpm build:web`
+- [x] `pnpm typecheck && pnpm test`
+- [x] `pnpm typecheck:web && pnpm test:web`
+- [x] `pnpm build:web`
 
 ### Notas de retomada
 
-- **Próximo passo:** implementar `src/api/routes/meta.ts` (endpoints de `profiles`). A base de
-  dados/domínio/repositório já está pronta e a migration `0002_profile_targets.sql` existe.
-- Estado atual do repositório: `pnpm typecheck` ✅ e `pnpm test` ✅ (64 testes).
-- Alterações já aplicadas: `src/db/schema.ts`, `src/domain/profile.ts`,
-  `src/repositories/types.ts`, `src/repositories/sqlite/profile-repository.ts`,
-  `drizzle/0002_profile_targets.sql` (+ `drizzle/meta/0002_snapshot.json`).
-- Nada de frontend/rotas/testes novos/docs foi iniciado ainda.
-- Premissas pendentes de confirmação: idioma natural só `pt-br`/`en`; rota `/admin/settings`
+- **Estado:** plano concluído. Backend (schema, repositório, rotas), frontend (App Settings,
+  `TargetCard`, rota e navegação), testes e docs foram implementados.
+- Gates executados: `pnpm typecheck && pnpm test` (71 testes), `pnpm typecheck:web && pnpm test:web`
+  (28 testes) e `pnpm build:web`.
+- Premissas confirmadas na implementação: idioma natural só `pt-br`/`en`; rota `/admin/settings`
   separada; remover alvo apaga o currículo (com confirmação); v1 intacto.
+- Follow-ups registrados na seção 13 (consumo do `extraPrompt` pelo pipeline na Fase 3,
+  outros idiomas, upload de PDF).
 
 ## 0. Objetivo
 
@@ -500,17 +499,17 @@ Sem `COMBOS`/`TITLES`/`BaseResumeKey` fixos.
 1. [x] **Domínio**: `Profile`, `UpsertProfileInput`, `EXTRA_PROMPT_MAX_LENGTH`.
 2. [x] **Schema**: colunas `enabled` e `extra_prompt` em `profiles`.
 3. [x] **Schema + migration**: `drizzle/0002_profile_targets.sql`.
-4. [~] **Repositório**: contrato, `rowToProfile`, `upsert` parcial, `delete` implementados;
+4. [x] **Repositório**: contrato, `rowToProfile`, `upsert` parcial, `delete` implementados;
    faltam os testes novos de repositório.
-5. [ ] **API**: schemas Zod, `POST`/`PUT`/`DELETE`, filtro `?enabled=`, validações; testes de request.
-6. [ ] **Frontend tipos/client/hooks**: `Profile`, `ProfilePatch`, `NewProfile`, métodos e mutations.
-7. [ ] **`TargetCard`**: refatorar o card atual (dinâmico + extra prompt + ativar/remover).
-8. [ ] **`AppSettings`**: página, formulário de adicionar, lista, estados.
-9. [ ] **Rotas/nav/Admin**: nova rota, link, limpeza da seção antiga.
-10. [ ] **Testes de frontend**: `AppSettings.test.tsx`; atualizar `Admin.test.tsx`.
-11. [ ] **Docs/ADR**: atualizar `docs/api.md`, `docs/data-model.md`, `docs/frontend.md`,
+5. [x] **API**: schemas Zod, `POST`/`PUT`/`DELETE`, filtro `?enabled=`, validações; testes de request.
+6. [x] **Frontend tipos/client/hooks**: `Profile`, `ProfilePatch`, `NewProfile`, métodos e mutations.
+7. [x] **`TargetCard`**: refatorar o card atual (dinâmico + extra prompt + ativar/remover).
+8. [x] **`AppSettings`**: página, formulário de adicionar, lista, estados.
+9. [x] **Rotas/nav/Admin**: nova rota, link, limpeza da seção antiga.
+10. [x] **Testes de frontend**: `AppSettings.test.tsx`; atualizar `Admin.test.tsx`.
+11. [x] **Docs/ADR**: atualizar `docs/api.md`, `docs/data-model.md`, `docs/frontend.md`,
     `docs/roadmap.md`; criar `docs/adr/0009-alvos-configuraveis.md`.
-12. [ ] **Gates** (ver seção 12).
+12. [x] **Gates** (ver seção 12).
 
 ## 12. Verificação
 

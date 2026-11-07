@@ -13,6 +13,7 @@ e **não é reescrito** — quando uma decisão muda, cria-se outro ADR que a su
 | [0006](./0006-artefatos-no-filesystem.md) | Artefatos no filesystem, metadados no banco | Aceita |
 | [0007](./0007-zod-na-borda.md) | Zod na borda HTTP | Aceita |
 | [0008](./0008-vitest-supertest.md) | Vitest + Supertest | Aceita |
+| [0009](./0009-alvos-configuraveis.md) | Alvos configuráveis em `profiles` | Aceita |
 
 ## Formato
 

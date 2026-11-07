@@ -29,7 +29,7 @@ web/
 │   │   └── hooks.ts        # useStats, useJobs, useJob, useUpdateJob
 │   ├── components/         # Layout, badges, fit, runs, artefatos, estados
 │   ├── lib/format.ts       # datas, fit, bytes, labels e URLs
-│   ├── pages/              # Dashboard, JobDetail, Admin, NotFound
+│   ├── pages/              # Dashboard, JobDetail, Admin, AppSettings, NotFound
 │   └── test/               # setup e renderWithProviders
 └── dist/                   # build (gitignored)
 ```
@@ -40,7 +40,8 @@ web/
 |---|---|---|
 | `/` | Dashboard | `GET /api/stats` + `GET /api/jobs` (filtros na query string) |
 | `/jobs/:id` | Detalhe da vaga | `GET /api/jobs/:id` |
-| `/admin` | Currículos base, tema e dados | `GET/PUT` de profiles, pdf-theme e candidate-data |
+| `/admin` | Aparência do PDF e dados do formulário | `GET/PUT` de pdf-theme e candidate-data |
+| `/admin/settings` | App Settings (alvos e currículos base) | `GET/POST/PUT/DELETE` de profiles |
 | `*` | Não encontrado | — |
 
 Filtros e paginação do dashboard ficam na URL (`?q=`, `?status=`, `?page=`), então links
@@ -65,8 +66,10 @@ flowchart LR
   (stage diferente de `done`/`error`) ou confirmação pendente
 - `useUpdateJob` → `PATCH /api/jobs/:id`; no sucesso atualiza o cache do detalhe e invalida
   `['jobs']` e `['stats']`
-- `useBaseResumes` / `useProfiles` / `useSaveProfile` → `GET /api/base-resumes`,
-  `GET /api/profiles` e `PUT /api/profiles/:stack/:language` (invalida as duas listas)
+- `useProfiles` → `GET /api/profiles` (alvos, incluindo `enabled` e `extraPrompt`)
+- `useSaveProfile` → `PUT /api/profiles/:stack/:language` com patch parcial
+- `useCreateProfile` → `POST /api/profiles`; `useDeleteProfile` → `DELETE /api/profiles/:stack/:language`
+  (as três mutações invalidam `['profiles']` e `['base-resumes']`)
 - `usePdfTheme` / `useSavePdfTheme` → `GET/PUT /api/pdf-theme`
 - `useCandidateData` / `useSaveCandidateData` → `GET/PUT /api/candidate-data`
 
@@ -85,8 +88,9 @@ Erros HTTP viram `ApiError` com `status` e a mensagem do backend. A página de d
 | `ArtifactList` | Um link por tipo, apontando para o visualizador correto |
 | `StatusBadge` | Cores e rótulos por status |
 | `StateMessage` | Loading, erro com retry e vazio |
-| `Admin` | Currículos base, aparência do PDF e dados do formulário |
-| `BaseResumeCard` | Edição de texto de um currículo base por stack/idioma |
+| `Admin` | Aparência do PDF, dados do formulário e link para App Settings |
+| `AppSettings` | Formulário de novo alvo e lista de cards por stack × idioma |
+| `TargetCard` | Currículo base, instruções extras, ativação e remoção de um alvo |
 
 `ArtifactList` deduplica por `kind` (fica o mais recente) e ordena por relevância. Os links usam os
 visualizadores do backend:
@@ -128,7 +132,7 @@ no fallback, então um artefato ausente continua `404` em vez de devolver HTML.
 ## 8. Testes
 
 ```bash
-pnpm test:web          # 23 testes
+pnpm test:web          # 28 testes
 pnpm typecheck:web
 pnpm build:web
 ```
@@ -140,8 +144,9 @@ Cobrem:
   e navegação de paginação.
 - Runs: detecção de run ativo e confirmação pendente (usada pelo polling).
 - Detalhe: fit, runs, artefatos, troca de status via `PATCH`, indicador de atualização e `404`.
-- Admin: status dos quatro currículos base, salvar texto via `PUT /api/profiles`, salvar cores do
-  PDF e salvar dados do formulário.
+- App Settings: listagem, criação (`POST`), salvamento de currículo + `extraPrompt` em um único
+  `PUT`, desativação, remoção (`DELETE`) e erro de duplicado (`409`).
+- Admin: link para App Settings, salvar cores do PDF e salvar dados do formulário.
 
 O `fetch` é mockado por teste; não é preciso subir a API. Ver [testing.md](./testing.md).
 
@@ -153,6 +158,9 @@ O `fetch` é mockado por teste; não é preciso subir a API. Ver [testing.md](./
 - **Filtros e página na URL.** Links filtrados são compartilháveis; a busca usa `replace` para
   não poluir o histórico.
 - **Um pacote de workspace.** `web/` tem scripts e dependências isolados.
+- **Alvos configuráveis no App Settings.** Cada alvo é uma linha em `profiles` (`stack × idioma`),
+  editável na UI: currículo base, instruções extras, ativar/desativar e remover. Descrição completa
+  em [ADR-0009](./adr/0009-alvos-configuraveis.md).
 - **Admin edita texto, não PDF.** O upload com extração de PDF depende do pipeline do v1; no v2 a
   página aceita `.txt`, `.md` e `.html` (lidos no navegador) ou texto colado, e salva em
   `PUT /api/profiles/:stack/:language`.

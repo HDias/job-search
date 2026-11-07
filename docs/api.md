@@ -39,6 +39,7 @@ Em erro de validação, `details` traz a lista de `issues` do Zod:
 | `204` | Remoção sem corpo |
 | `400` | Corpo ou query inválidos, JSON malformado |
 | `404` | Recurso ou rota inexistente |
+| `409` | Conflito (ex.: alvo `stack × idioma` já existe) |
 | `413` | Corpo acima de 4 MB |
 | `500` | Erro não tratado (logado no servidor) |
 
@@ -265,18 +266,51 @@ Responde `{ "success": true }`.
 | GET | `/api/candidate-data` | `{ success, candidate }` |
 | PUT | `/api/candidate-data` | deriva `firstName`/`lastName` de `fullName` |
 
-## 6. Perfis e settings
+## 6. Perfis (alvos) e settings
+
+Um **alvo** é uma linha em `profiles`, identificada por `(stack, language)`. Cada alvo guarda o
+currículo base (`content`), um flag `enabled` e instruções extras de prompt (`extraPrompt`).
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/profiles` | Lista perfis base |
-| GET | `/api/profiles/:stack/:language` | Um perfil; `404` se ausente |
-| PUT | `/api/profiles/:stack/:language` | `{ "content": {...} }` faz upsert |
+| GET | `/api/profiles` | Lista alvos. Query opcional `?enabled=true\|false` |
+| GET | `/api/profiles/:stack/:language` | Um alvo; `404` se ausente |
+| POST | `/api/profiles` | Cria alvo; `201`; `409` se a combinação já existe |
+| PUT | `/api/profiles/:stack/:language` | Atualização parcial de `content`, `enabled`, `extraPrompt` |
+| DELETE | `/api/profiles/:stack/:language` | `204`; `404` se ausente |
 | GET | `/api/settings` | Lista `{ key, value, updatedAt }` |
 | GET | `/api/settings/:key` | `404` se ausente |
 | PUT | `/api/settings/:key` | `{ "value": ... }` |
 
-Chaves conhecidas: `pdf_theme`, `candidate_form`. Chaves de API **não** são armazenadas aqui.
+Exemplo de `Profile`:
+
+```json
+{
+  "stack": "php",
+  "language": "en",
+  "content": { "rawText": "...", "rawLength": 1234, "sourceFile": "curriculo.html" },
+  "enabled": true,
+  "extraPrompt": "Priorizar Laravel e APIs REST; evitar tom acadêmico.",
+  "updatedAt": "2026-11-07T12:00:00.000Z"
+}
+```
+
+Regras:
+
+- **Stack**: `trim` + minúsculas; slug `^[a-z][a-z0-9-]{0,31}$`; inválida → `400`.
+- **Idioma**: `pt-br` ou `en`; qualquer outro → `400`.
+- **`POST` duplicado**: `409` (`Essa combinação já existe`), sem sobrescrever.
+- **`PUT` parcial**: campos ausentes preservam o valor atual; `{}` → `400`. O `PUT` também cria o
+  alvo se ele não existir (upsert).
+- **`extraPrompt`**: máximo de 8000 caracteres; string vazia/só espaços vira `null`.
+- **`DELETE`** apaga a linha e, portanto, o currículo salvo. Para pausar sem perder dados, use
+  `PUT { "enabled": false }`.
+- **`enabled = false`**: o alvo continua editável e visível na API; o pipeline futuro deve ignorá-lo.
+- **`/api/base-resumes`** continua com o formato legado (4 chaves fixas) para o v1; a tela nova usa
+  `/api/profiles`.
+
+Chaves de settings conhecidas: `pdf_theme`, `candidate_form`. Chaves de API **não** são armazenadas
+aqui.
 
 ## 7. Visualizadores
 

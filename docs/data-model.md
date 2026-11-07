@@ -74,6 +74,8 @@ erDiagram
     text stack PK
     text language PK
     text content
+    integer enabled
+    text extra_prompt
     text updated_at
   }
 
@@ -161,7 +163,20 @@ Metadados dos arquivos gerados. **O conteúdo não fica no banco.**
 
 ### `profiles`
 
-Currículos base por stack e idioma. `content` guarda o JSON original do v1.
+Alvos de candidatura por stack e idioma. Cada linha combina `(stack, language)` e guarda o
+currículo base em `content` (JSON original do v1 + `rawText` editado no v2).
+
+| Coluna | Tipo | Observação |
+|---|---|---|
+| `stack` | TEXT PK | Slug (`ruby`, `php`, `elixir`…); `^[a-z][a-z0-9-]{0,31}$` |
+| `language` | TEXT PK | `pt-br` ou `en` |
+| `content` | TEXT JSON | Currículo base; `null` enquanto não houver texto |
+| `enabled` | INTEGER bool | Default `true`; alvos importados do v1 continuam ativos |
+| `extra_prompt` | TEXT | Instruções extras para os prompts de fit/tailor; `null` se vazio |
+| `updated_at` | TEXT | ISO 8601 UTC |
+
+O texto extra é **instrução de estilo/ênfase**, nunca fonte de fatos: o grounding continua no
+currículo base. O pipeline (Fase 3) deve considerar apenas alvos com `enabled = true`.
 
 ### `settings`
 
@@ -280,3 +295,4 @@ referências no documento do job, se a leitura for sempre junto).
 |---|---|
 | `0000_init.sql` | Cria as cinco tabelas e índices |
 | `0001_compat_fields.sql` | Adiciona `language_confirmation`, `runs.stack` e `runs.job_json` |
+| `0002_profile_targets.sql` | Adiciona `profiles.enabled` e `profiles.extra_prompt` |
