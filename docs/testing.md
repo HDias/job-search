@@ -1,8 +1,8 @@
-# Testes
+# Testing
 
-## 1. Visão geral
+## 1. Overview
 
-Backend (raiz):
+Backend (root):
 
 ```text
 Test Files  4 passed (4)
@@ -16,26 +16,26 @@ Test Files  3 passed (3)
 Tests      23 passed (23)
 ```
 
-| Arquivo | Testes | Cobre |
+| File | Tests | Covers |
 |---|---:|---|
-| `test/repositories.test.ts` | 13 | Contrato dos repositórios, CRUD, filtros, stats, cascatas |
-| `test/from-json.test.ts` | 6 | Importador, normalização de datas/status/fit, campos legados |
-| `test/api.test.ts` | 15 | Rotas REST, compatibilidade v1, visualizadores, erros |
-| `test/requests.test.ts` | 30 | Todas as rotas HTTP, paginação, validação, 404, transporte e SPA |
+| `test/repositories.test.ts` | 13 | Repository contracts, CRUD, filters, stats, cascades |
+| `test/from-json.test.ts` | 6 | Importer, normalization of dates/status/fit, legacy fields |
+| `test/api.test.ts` | 15 | REST routes, v1 compatibility, viewers, errors |
+| `test/requests.test.ts` | 30 | All HTTP routes, pagination, validation, 404, transport and SPA |
 
-Runner: **Vitest 4**. HTTP: **Supertest 7**. Cada teste usa um banco SQLite temporário próprio.
+Runner: **Vitest 4**. HTTP: **Supertest 7**. Each test uses its own temporary SQLite database.
 
-## 2. Como rodar
+## 2. How to run
 
 ```bash
-pnpm test            # backend (Vitest, ambiente Node)
-pnpm test:watch      # backend em watch
-pnpm test:web        # frontend (Vitest, ambiente jsdom)
+pnpm test            # backend (Vitest, Node environment)
+pnpm test:watch      # backend in watch mode
+pnpm test:web        # frontend (Vitest, jsdom environment)
 pnpm typecheck
 pnpm typecheck:web
 ```
 
-Filtros:
+Filters:
 
 ```bash
 pnpm test -- api
@@ -43,112 +43,112 @@ pnpm test -- -t "stats"
 pnpm test:web -- Dashboard
 ```
 
-Não é preciso subir a API nem popular o banco real: os testes de backend criam SQLite temporário e
-os de frontend mockam `fetch`.
+There is no need to run the API or populate the real database: the backend tests create temporary
+SQLite and the frontend tests mock `fetch`.
 
-## 3. Isolamento
+## 3. Isolation
 
-`test/helpers.ts` expõe `createTestStore()`:
+`test/helpers.ts` exposes `createTestStore()`:
 
 ```ts
 const ctx = createTestStore();
-// ctx.store  → Store com repositórios
-// ctx.dir    → diretório temporário (artefatos, perfis)
-// ctx.cleanup() → fecha o banco e remove o diretório
+// ctx.store  → Store with repositories
+// ctx.dir    → temporary directory (artifacts, profiles)
+// ctx.cleanup() → closes the database and removes the directory
 ```
 
-Cada `beforeEach` cria um store novo; cada `afterEach` chama `cleanup()`. Isso permite rodar em
-paralelo sem colisão de arquivo.
+Each `beforeEach` creates a fresh store; each `afterEach` calls `cleanup()`. This allows running in
+parallel without file collisions.
 
-## 4. O que os testes garantem
+## 4. What the tests guarantee
 
-### Repositórios (`repositories.test.ts`)
+### Repositories (`repositories.test.ts`)
 
-- Criação de job com defaults corretos (`stack: ruby`, `status: drafted`,
+- Job creation with correct defaults (`stack: ruby`, `status: drafted`,
   `languageConfirmation: null`).
-- `list` com filtro de status, busca textual e paginação.
-- `update` parcial preserva campos não enviados.
-- `delete` remove o job e cascateia artefatos; runs ficam com `job_id = NULL`.
-- `stats` conta por status, média de fit e últimos 30 dias.
-- Runs guardam `stack`, `job` e `jobSnapshot` completo (`content`, `extraQuestions`,
+- `list` with status filter, text search and pagination.
+- Partial `update` preserves fields that were not sent.
+- `delete` removes the job and cascades artifacts; runs are left with `job_id = NULL`.
+- `stats` counts by status, averages fit and counts the last 30 days.
+- Runs store `stack`, `job` and the full `jobSnapshot` (`content`, `extraQuestions`,
   `recruiterMessage`).
-- Profiles e settings fazem upsert e leitura.
-- Índice único de artefatos evita duplicata em `(jobId, kind, relativePath)`.
+- Profiles and settings do upsert and read.
+- The artifacts unique index prevents duplicates on `(jobId, kind, relativePath)`.
 
-### Importação (`from-json.test.ts`)
+### Import (`from-json.test.ts`)
 
-- `28/10/2026` vira ISO 8601 UTC.
-- Status legado (`encerrado`, `aplicado`…) vira enum novo.
-- Fit achatado vira objeto `Fit`.
-- `languageConfirmation` é preservado.
-- Snapshot completo do run é importado, não só título/empresa.
-- Datas inválidas viram `null` com aviso, sem quebrar a importação.
+- `28/10/2026` becomes ISO 8601 UTC.
+- Legacy status values (`encerrado`, `aplicado`…) become the new enum.
+- The flattened fit becomes a `Fit` object.
+- `languageConfirmation` is preserved.
+- The run's full snapshot is imported, not just title/company.
+- Invalid dates become `null` with a warning, without breaking the import.
 
 ### API (`api.test.ts`)
 
-- `GET /api/health` e `/api/stats`.
-- `GET /api/jobs` com filtro válido; `400` para status inválido.
-- `GET /api/jobs/:id` devolve job + runs + artefatos; `404` quando não existe.
-- CRUD completo de jobs, incluindo body inválido → `400`.
-- `PATCH /api/runs/:id` preserva o snapshot.
-- `GET /api/applications` no DTO legado: data `dd/mm/yyyy`, `fitRating`, `fitDimensions`,
-  caminhos de arquivo e fallback LinkedIn ↔ recrutador.
-- `PUT /api/applications/:id` converte status legado e faz merge do fit sem apagar o resto.
-- `GET /api/processes` esconde runs `done`.
-- `PUT /api/processes/:id` desvincula vaga (`applicationId: null`).
-- `DELETE` de applications e processes.
-- PDF estático e `/cv/:id` com barra de download.
-- `/extras/:id/:view` para e-mail, recrutador e visão inválida.
-- `base-resumes`, `pdf-theme` (incluindo cor inválida → `400`), `candidate-data`.
-- Profiles, settings genéricos e `404` de rota desconhecida.
+- `GET /api/health` and `/api/stats`.
+- `GET /api/jobs` with a valid filter; `400` for invalid status.
+- `GET /api/jobs/:id` returns job + runs + artifacts; `404` when it doesn't exist.
+- Full job CRUD, including invalid body → `400`.
+- `PATCH /api/runs/:id` preserves the snapshot.
+- `GET /api/applications` in the legacy DTO: `dd/mm/yyyy` date, `fitRating`, `fitDimensions`,
+  file paths and LinkedIn ↔ recruiter fallback.
+- `PUT /api/applications/:id` converts legacy status and merges the fit without erasing the rest.
+- `GET /api/processes` hides `done` runs.
+- `PUT /api/processes/:id` detaches the job (`applicationId: null`).
+- `DELETE` of applications and processes.
+- Static PDF and `/cv/:id` with the download bar.
+- `/extras/:id/:view` for email, recruiter and invalid view.
+- `base-resumes`, `pdf-theme` (including invalid color → `400`), `candidate-data`.
+- Profiles, generic settings and `404` for an unknown route.
 
 ### Requests (`requests.test.ts`)
 
-Suíte dedicada a exercitar **cada rota HTTP** e os casos de borda que a UI vai encontrar:
+A suite dedicated to exercising **every HTTP route** and the edge cases the UI will hit:
 
-- Lista vazia e `stats` zerados em banco novo.
-- Busca textual, filtro por status, paginação e `limit` inválido.
-- Criação mínima com defaults (`ownerId`, `language`, `stack`, `status`, `appliedEmails`).
-- Datas fora do ISO e campos vazios → `400`.
-- CRUD de runs (criar, atualizar, remover) e filtros `jobId`/`stage`.
-- `base-resumes` sem perfis; `pdf-theme` com merge parcial; `candidate-data` parcial.
-- Upsert de perfis e settings, incluindo corpo sem `value` → `400`.
-- Compatibilidade v1: listas vazias, campos de artefato, status desconhecido ignorado,
-  desvinculação de run e `404` em recursos ausentes.
-- Visualizadores: CV sem arquivo → `404` com página amigável, extras em texto/JSON escapado,
-  material ausente → `200` com aviso.
-- **Transporte**: JSON malformado → `400`, corpo acima de 4 MB → `413`, path traversal bloqueado,
-  formulário sem campos obrigatórios → `400`, rota desconhecida → `404`.
+- Empty list and zeroed `stats` on a fresh database.
+- Text search, status filter, pagination and invalid `limit`.
+- Minimal creation with defaults (`ownerId`, `language`, `stack`, `status`, `appliedEmails`).
+- Dates outside ISO and empty fields → `400`.
+- Run CRUD (create, update, delete) and `jobId`/`stage` filters.
+- `base-resumes` without profiles; `pdf-theme` with partial merge; partial `candidate-data`.
+- Upsert of profiles and settings, including a body without `value` → `400`.
+- v1 compatibility: empty lists, artifact fields, unknown status ignored, run detachment and `404`
+  on missing resources.
+- Viewers: CV without file → `404` with a friendly page, extras in text/escaped JSON, missing
+  material → `200` with a warning.
+- **Transport**: malformed JSON → `400`, body above 4 MB → `413`, path traversal blocked, form
+  without required fields → `400`, unknown route → `404`.
 
 ### Frontend (`web/src/**/*.test.tsx`)
 
-| Arquivo | Testes | Cobre |
+| File | Tests | Covers |
 |---|---:|---|
-| `web/src/lib/format.test.ts` | 5 | Datas, fit, bytes, labels e URL de artefatos |
-| `web/src/lib/runs.test.ts` | 4 | Run ativo, confirmação pendente e prioridade idioma/fit |
-| `web/src/pages/Dashboard.test.tsx` | 7 | Stats, tabela, filtros, URL, paginação, vazio e erro |
-| `web/src/pages/JobDetail.test.tsx` | 3 | Fit, runs, artefatos, PATCH de status e 404 |
-| `web/src/pages/Admin.test.tsx` | 4 | Currículos base, tema do PDF e dados do formulário |
+| `web/src/lib/format.test.ts` | 5 | Dates, fit, bytes, labels and artifact URLs |
+| `web/src/lib/runs.test.ts` | 4 | Active run, pending confirmation and language/fit priority |
+| `web/src/pages/Dashboard.test.tsx` | 7 | Stats, table, filters, URL, pagination, empty and error |
+| `web/src/pages/JobDetail.test.tsx` | 3 | Fit, runs, artifacts, status PATCH and 404 |
+| `web/src/pages/Admin.test.tsx` | 4 | Base resumes, PDF theme and form data |
 
-O `fetch` é mockado com respostas no formato da API. Os testes usam `MemoryRouter` e um
-`QueryClient` sem retry. O polling de 4 s não é exercitado com timers: a regra de “run ativo” é
-testada isoladamente em `runs.test.ts`.
+`fetch` is mocked with responses in the API's format. The tests use `MemoryRouter` and a
+`QueryClient` without retry. The 4 s polling is not exercised with timers: the "active run" rule
+is tested in isolation in `runs.test.ts`.
 
-## 5. O que não está testado
+## 5. What is not tested
 
-| Área | Risco | Motivo |
+| Area | Risk | Reason |
 |---|---|---|
-| Pipeline Playwright/LLM/PDF | Alto | Não foi portado |
-| Autenticação | Alto quando houver nuvem | Não existe hoje |
-| Concorrência de escrita | Médio | Uso local single-user |
-| Migração de banco real | Médio | Smoke test manual, não automatizado |
-| Resposta de checkpoint no v2 | Médio | Depende do pipeline portado |
-| Upload de currículo em PDF | Médio | Extração ainda depende do v1 |
-| Performance com volume | Baixo hoje | 16 vagas; N+1 tolerado |
+| Playwright/LLM/PDF pipeline | High | Not ported |
+| Authentication | High when there is a cloud | Doesn't exist today |
+| Write concurrency | Medium | Local single-user use |
+| Real database migration | Medium | Manual smoke test, not automated |
+| Checkpoint response in v2 | Medium | Depends on the ported pipeline |
+| PDF resume upload | Medium | Extraction still depends on v1 |
+| Performance at volume | Low today | 16 jobs; N+1 tolerated |
 
-## 6. Adicionando testes
+## 6. Adding tests
 
-### Repositório
+### Repository
 
 ```ts
 it('filtra por status', () => {
@@ -159,7 +159,7 @@ it('filtra por status', () => {
 });
 ```
 
-### Rota
+### Route
 
 ```ts
 it('responde 404 para vaga inexistente', async () => {
@@ -169,11 +169,11 @@ it('responde 404 para vaga inexistente', async () => {
 });
 ```
 
-Prefira testar pela **borda HTTP** quando o comportamento envolve validação ou DTO; teste o
-repositório diretamente quando o alvo é SQL/filtro/cascata.
+Prefer testing at the **HTTP boundary** when the behavior involves validation or DTOs; test the
+repository directly when the target is SQL/filters/cascades.
 
-## 7. Contrato para a nuvem
+## 7. Contract for the cloud
 
-Os testes de repositório são o contrato que qualquer adaptador futuro (Turso, Supabase, Firestore)
-precisa satisfazer. A ideia é rodar a mesma suíte contra o adaptador novo antes de trocar o default
-em produção. Ver [ADR-0003](./adr/0003-repository-pattern-e-nuvem.md).
+The repository tests are the contract any future adapter (Turso, Supabase, Firestore) must
+satisfy. The idea is to run the same suite against the new adapter before switching the production
+default. See [ADR-0003](./adr/0003-repository-pattern-and-cloud.md).

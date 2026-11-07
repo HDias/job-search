@@ -2,108 +2,109 @@
 
 ## 1. Stack
 
-| Item | Escolha | Papel |
+| Item | Choice | Role |
 |---|---|---|
-| Build | Vite 6 | Dev server, proxy e build de produção |
-| UI | React 19 | Componentes e estado local |
-| Rotas | React Router 7 | Dashboard e detalhe da vaga |
-| Dados | TanStack Query 5 | Cache, loading/erro, invalidação |
-| Tipos | TypeScript 5.9 | Contrato com a API |
-| Testes | Vitest 4 + Testing Library | Componentes e fluxo de dados |
+| Build | Vite 6 | Dev server, proxy and production build |
+| UI | React 19 | Components and local state |
+| Routes | React Router 7 | Dashboard and job detail |
+| Data | TanStack Query 5 | Cache, loading/error, invalidation |
+| Types | TypeScript 5.9 | Contract with the API |
+| Tests | Vitest 4 + Testing Library | Components and data flow |
 
-O app fica em `web/` e é um pacote do workspace pnpm.
+The app lives in `web/` and is a pnpm workspace package.
 
-## 2. Estrutura
+## 2. Structure
 
 ```text
 web/
 ├── index.html
-├── vite.config.ts          # proxy /api e configuração do Vitest
+├── vite.config.ts          # /api proxy and Vitest configuration
 ├── src/
 │   ├── main.tsx            # QueryClient + BrowserRouter
-│   ├── App.tsx             # rotas
-│   ├── styles.css          # tema escuro, layout e componentes
+│   ├── App.tsx             # routes
+│   ├── styles.css          # dark theme, layout and components
 │   ├── api/
-│   │   ├── types.ts        # espelho dos tipos do domínio
+│   │   ├── types.ts        # mirror of the domain types
 │   │   ├── client.ts       # fetch + ApiError + query string
 │   │   └── hooks.ts        # useStats, useJobs, useJob, useUpdateJob
-│   ├── components/         # Layout, badges, fit, runs, artefatos, estados
-│   ├── lib/format.ts       # datas, fit, bytes, labels e URLs
+│   ├── components/         # Layout, badges, fit, runs, artifacts, states
+│   ├── lib/format.ts       # dates, fit, bytes, labels and URLs
 │   ├── pages/              # Dashboard, JobDetail, Admin, AppSettings, NotFound
-│   └── test/               # setup e renderWithProviders
+│   └── test/               # setup and renderWithProviders
 └── dist/                   # build (gitignored)
 ```
 
-## 3. Rotas
+## 3. Routes
 
-| Rota | Página | Fonte |
+| Route | Page | Source |
 |---|---|---|
-| `/` | Dashboard | `GET /api/stats` + `GET /api/jobs` (filtros na query string) |
-| `/jobs/:id` | Detalhe da vaga | `GET /api/jobs/:id` |
-| `/admin` | Aparência do PDF e dados do formulário | `GET/PUT` de pdf-theme e candidate-data |
-| `/admin/settings` | App Settings (alvos e currículos base) | `GET/POST/PUT/DELETE` de profiles |
-| `*` | Não encontrado | — |
+| `/` | Dashboard | `GET /api/stats` + `GET /api/jobs` (filters in the query string) |
+| `/jobs/:id` | Job detail | `GET /api/jobs/:id` |
+| `/admin` | PDF appearance and form data | `GET/PUT` of pdf-theme and candidate-data |
+| `/admin/settings` | App Settings (targets and base resumes) | `GET/POST/PUT/DELETE` of profiles |
+| `*` | Not found | — |
 
-Filtros e paginação do dashboard ficam na URL (`?q=`, `?status=`, `?page=`), então links
-filtrados são compartilháveis e o botão voltar do navegador funciona. A busca é escrita na URL
-com `replace` para não empilhar histórico a cada tecla; `page` é resetado ao mudar `q` ou `status`.
-A lista usa 25 itens por página.
+Dashboard filters and pagination live in the URL (`?q=`, `?status=`, `?page=`), so filtered links
+are shareable and the browser back button works. The search is written to the URL with `replace`
+so keystrokes don't pile up history; `page` resets when `q` or `status` changes. The list uses 25
+items per page.
 
-## 4. Fluxo de dados
+## 4. Data flow
 
 ```mermaid
 flowchart LR
-  PAGE["Página React"] --> HOOK["Hook TanStack Query"]
+  PAGE["React page"] --> HOOK["TanStack Query hook"]
   HOOK --> CLIENT["api/client.ts"]
   CLIENT -->|"fetch /api/*"| API["Express v2"]
   HOOK --> CACHE[("Query cache")]
   CACHE --> PAGE
 ```
 
-- `useStats` → chave `['stats']`
-- `useJobs(filters)` → chave `['jobs', filters]`, com `keepPreviousData` para não piscar ao filtrar
-- `useJob(id)` → chave `['job', id]`; refaz a consulta a cada **4 s** enquanto houver run ativo
-  (stage diferente de `done`/`error`) ou confirmação pendente
-- `useUpdateJob` → `PATCH /api/jobs/:id`; no sucesso atualiza o cache do detalhe e invalida
-  `['jobs']` e `['stats']`
-- `useProfiles` → `GET /api/profiles` (alvos, incluindo `enabled` e `extraPrompt`)
-- `useSaveProfile` → `PUT /api/profiles/:stack/:language` com patch parcial
+- `useStats` → key `['stats']`
+- `useJobs(filters)` → key `['jobs', filters]`, with `keepPreviousData` so the table doesn't flash
+  when filtering
+- `useJob(id)` → key `['job', id]`; refetches every **4 s** while there is an active run (stage
+  different from `done`/`error`) or a pending confirmation
+- `useUpdateJob` → `PATCH /api/jobs/:id`; on success updates the detail cache and invalidates
+  `['jobs']` and `['stats']`
+- `useProfiles` → `GET /api/profiles` (targets, including `enabled` and `extraPrompt`)
+- `useSaveProfile` → `PUT /api/profiles/:stack/:language` with a partial patch
 - `useCreateProfile` → `POST /api/profiles`; `useDeleteProfile` → `DELETE /api/profiles/:stack/:language`
-  (as três mutações invalidam `['profiles']` e `['base-resumes']`)
+  (all three mutations invalidate `['profiles']` and `['base-resumes']`)
 - `usePdfTheme` / `useSavePdfTheme` → `GET/PUT /api/pdf-theme`
 - `useCandidateData` / `useSaveCandidateData` → `GET/PUT /api/candidate-data`
 
-Erros HTTP viram `ApiError` com `status` e a mensagem do backend. A página de detalhe usa o status
-`404` para distinguir “vaga não encontrada” de falha genérica.
+HTTP errors become an `ApiError` with `status` and the backend's message. The detail page uses the
+`404` status to distinguish "job not found" from a generic failure.
 
-## 5. Componentes
+## 5. Components
 
-| Componente | Responsabilidade |
+| Component | Responsibility |
 |---|---|
-| `Layout` | Topbar, navegação e rodapé |
-| `Dashboard` | Stats, busca, filtro, tabela e paginação |
-| `JobDetail` | Cabeçalho, troca de status, fit, runs, artefatos e resumo |
-| `FitPanel` | Rating, análise, dimensões, forças, gaps e elegibilidade |
-| `RunList` | Checkpoints com estágio, flags e snapshot expansível |
-| `ArtifactList` | Um link por tipo, apontando para o visualizador correto |
-| `StatusBadge` | Cores e rótulos por status |
-| `StateMessage` | Loading, erro com retry e vazio |
-| `Admin` | Aparência do PDF, dados do formulário e link para App Settings |
-| `AppSettings` | Formulário de novo alvo e lista de cards por stack × idioma |
-| `TargetCard` | Currículo base, instruções extras, ativação e remoção de um alvo |
+| `Layout` | Topbar, navigation and footer |
+| `Dashboard` | Stats, search, filter, table and pagination |
+| `JobDetail` | Header, status change, fit, runs, artifacts and summary |
+| `FitPanel` | Rating, analysis, dimensions, strengths, gaps and eligibility |
+| `RunList` | Checkpoints with stage, flags and expandable snapshot |
+| `ArtifactList` | One link per type, pointing to the right viewer |
+| `StatusBadge` | Colors and labels per status |
+| `StateMessage` | Loading, error with retry and empty |
+| `Admin` | PDF appearance, form data and link to App Settings |
+| `AppSettings` | New-target form and a list of cards per stack × language |
+| `TargetCard` | Base resume, extra instructions, activation and removal of a target |
 
-`ArtifactList` deduplica por `kind` (fica o mais recente) e ordena por relevância. Os links usam os
-visualizadores do backend:
+`ArtifactList` deduplicates by `kind` (keeping the most recent) and sorts by relevance. The links
+use the backend viewers:
 
 - CV → `/cv/:jobId`
-- e-mail → `/extras/:jobId/email`
-- recrutador/LinkedIn → `/extras/:jobId/recruiter`
-- perguntas/sugestões → `/extras/:jobId/suggestions`
-- demais → `/applications/<relativePath>`
+- email → `/extras/:jobId/email`
+- recruiter/LinkedIn → `/extras/:jobId/recruiter`
+- questions/suggestions → `/extras/:jobId/suggestions`
+- everything else → `/applications/<relativePath>`
 
-## 6. Desenvolvimento
+## 6. Development
 
-Dois terminais:
+Two terminals:
 
 ```bash
 # terminal 1 — API
@@ -113,61 +114,61 @@ pnpm dev
 pnpm dev:web
 ```
 
-O Vite roda em `http://localhost:5173` e faz proxy de `/api`, `/applications`, `/base_profile`,
-`/cv` e `/extras` para `http://localhost:3344`.
+Vite runs at `http://localhost:5173` and proxies `/api`, `/applications`, `/base_profile`, `/cv`
+and `/extras` to `http://localhost:3344`.
 
-## 7. Produção
+## 7. Production
 
 ```bash
 pnpm build:web
 pnpm start
 ```
 
-O Express serve `web/dist` na mesma porta da API (`3344`) e faz fallback para `index.html` em rotas
-de navegação. Os prefixos `/api`, `/applications`, `/base_profile`, `/cv` e `/extras` **não** caem
-no fallback, então um artefato ausente continua `404` em vez de devolver HTML.
+Express serves `web/dist` on the same port as the API (`3344`) and falls back to `index.html` for
+navigation routes. The `/api`, `/applications`, `/base_profile`, `/cv` and `/extras` prefixes do
+**not** hit the fallback, so a missing artifact keeps returning `404` instead of HTML.
 
-`WEB_DIST` permite apontar para outro diretório de build.
+`WEB_DIST` allows pointing at a different build directory.
 
-## 8. Testes
+## 8. Tests
 
 ```bash
-pnpm test:web          # 28 testes
+pnpm test:web          # 28 tests
 pnpm typecheck:web
 pnpm build:web
 ```
 
-Cobrem:
+They cover:
 
-- Formatação de datas, fit, bytes, labels e URL de artefato.
-- Dashboard: stats, tabela, filtro de status, busca, vazio, erro com retry, filtros/página da URL
-  e navegação de paginação.
-- Runs: detecção de run ativo e confirmação pendente (usada pelo polling).
-- Detalhe: fit, runs, artefatos, troca de status via `PATCH`, indicador de atualização e `404`.
-- App Settings: listagem, criação (`POST`), salvamento de currículo + `extraPrompt` em um único
-  `PUT`, desativação, remoção (`DELETE`) e erro de duplicado (`409`).
-- Admin: link para App Settings, salvar cores do PDF e salvar dados do formulário.
+- Formatting of dates, fit, bytes, labels and artifact URLs.
+- Dashboard: stats, table, status filter, search, empty, error with retry, filters/page from the
+  URL and pagination navigation.
+- Runs: detection of an active run and pending confirmation (used by the polling).
+- Detail: fit, runs, artifacts, status change via `PATCH`, updating indicator and `404`.
+- App Settings: listing, creation (`POST`), saving resume + `extraPrompt` in a single `PUT`,
+  deactivation, removal (`DELETE`) and duplicate error (`409`).
+- Admin: link to App Settings, saving PDF colors and saving form data.
 
-O `fetch` é mockado por teste; não é preciso subir a API. Ver [testing.md](./testing.md).
+`fetch` is mocked per test; there is no need to run the API. See [testing.md](./testing.md).
 
-## 9. Decisões
+## 9. Decisions
 
-- **Sem Redux/Zustand.** O cache do TanStack Query cobre o estado do servidor; o resto é local.
-- **Sem biblioteca de UI.** CSS próprio para manter o bundle pequeno e o visual próximo do v1.
-- **Sem `dangerouslySetInnerHTML`.** Conteúdo de vaga e mensagens são renderizados como texto.
-- **Filtros e página na URL.** Links filtrados são compartilháveis; a busca usa `replace` para
-  não poluir o histórico.
-- **Um pacote de workspace.** `web/` tem scripts e dependências isolados.
-- **Alvos configuráveis no App Settings.** Cada alvo é uma linha em `profiles` (`stack × idioma`),
-  editável na UI: currículo base, instruções extras, ativar/desativar e remover. Descrição completa
-  em [ADR-0009](./adr/0009-alvos-configuraveis.md).
-- **Admin edita texto, não PDF.** O upload com extração de PDF depende do pipeline do v1; no v2 a
-  página aceita `.txt`, `.md` e `.html` (lidos no navegador) ou texto colado, e salva em
+- **No Redux/Zustand.** The TanStack Query cache covers server state; the rest is local.
+- **No UI library.** Own CSS to keep the bundle small and the look close to v1.
+- **No `dangerouslySetInnerHTML`.** Job content and messages are rendered as text.
+- **Filters and page in the URL.** Filtered links are shareable; the search uses `replace` to keep
+  the history clean.
+- **One workspace package.** `web/` has isolated scripts and dependencies.
+- **Configurable targets in App Settings.** Each target is a row in `profiles` (`stack × language`),
+  editable in the UI: base resume, extra instructions, enable/disable and remove. Full description
+  in [ADR-0009](./adr/0009-configurable-targets.md).
+- **Admin edits text, not PDF.** Upload with PDF extraction depends on v1's pipeline; in v2 the
+  page accepts `.txt`, `.md` and `.html` (read in the browser) or pasted text, and saves via
   `PUT /api/profiles/:stack/:language`.
 
-## 10. Próximos passos
+## 10. Next steps
 
-1. Resposta de checkpoint dentro do v2 (depende de portar o pipeline).
-2. Atualização otimista de status.
-3. Upload de currículo com extração de PDF (depende do pipeline).
-4. Substituir de vez o `public/index.html` do v1 e remover as rotas de compatibilidade.
+1. Checkpoint response inside v2 (depends on porting the pipeline).
+2. Optimistic status updates.
+3. Resume upload with PDF extraction (depends on the pipeline).
+4. Retire the v1 UI for good and remove the compatibility routes.

@@ -1,12 +1,12 @@
-# Modelo de dados
+# Data model
 
-## 1. Diagrama entidade-relacionamento
+## 1. Entity-relationship diagram
 
 ```mermaid
 erDiagram
-  JOBS ||--o{ RUNS : "possui"
-  JOBS ||--o{ ARTIFACTS : "gera"
-  RUNS ||--o{ ARTIFACTS : "origina"
+  JOBS ||--o{ RUNS : "has"
+  JOBS ||--o{ ARTIFACTS : "generates"
+  RUNS ||--o{ ARTIFACTS : "originates"
 
   JOBS {
     text id PK
@@ -86,104 +86,103 @@ erDiagram
   }
 ```
 
-## 2. Tabelas
+## 2. Tables
 
 ### `jobs`
 
-Uma linha por vaga/candidatura. É a **fonte única de verdade** para empresa, cargo, status,
-idioma, stack e análise de aderência.
+One row per job/application. It is the **single source of truth** for company, role, status,
+language, stack and fit analysis.
 
-| Coluna | Tipo | Observação |
+| Column | Type | Notes |
 |---|---|---|
 | `id` | TEXT PK | `app_` + UUID |
-| `owner_id` | TEXT | Default `local`; preparado para auth |
-| `company`, `role` | TEXT | Obrigatórios |
-| `vacancy_url`, `apply_url` | TEXT | URLs originais |
-| `language` | TEXT | `pt-br` ou `en` |
+| `owner_id` | TEXT | Default `local`; ready for auth |
+| `company`, `role` | TEXT | Required |
+| `vacancy_url`, `apply_url` | TEXT | Original URLs |
+| `language` | TEXT | `pt-br` or `en` |
 | `stack` | TEXT | `ruby`, `php` etc. |
 | `channel` | TEXT | `linkedin`, `portal`, `email`… |
-| `language_confirmation` | TEXT | Preserva `user-confirmed` do v1 |
+| `language_confirmation` | TEXT | Preserves v1's `user-confirmed` |
 | `status` | TEXT | `drafted`, `applied`, `interview`, `offer`, `rejected`, `archived` |
 | `applied_at` | TEXT | ISO 8601 UTC |
-| `fit_rating` | REAL | Cópia indexável de `fit.rating` |
-| `fit_analysis` | TEXT | Cópia indexável de `fit.analysis` |
-| `fit_json` | TEXT JSON | Objeto `Fit` completo |
-| `applied_emails` | TEXT JSON | Array de e-mails usados |
-| `cover_letter_guidance` | TEXT | Instruções para a carta |
-| `cover_in_cv_required` | INTEGER bool | Se a vaga pede cover no CV |
-| `cover_in_cv_reason` | TEXT | Justificativa |
-| `has_recruiter_message` | INTEGER bool | Existe mensagem de recrutador |
-| `has_questions` | INTEGER bool | Existem perguntas extras |
-| `skill_grounded` | INTEGER bool | Análise baseada apenas no perfil |
-| `fit_confirmed` | INTEGER bool | Fit confirmado pelo usuário |
+| `fit_rating` | REAL | Indexable copy of `fit.rating` |
+| `fit_analysis` | TEXT | Indexable copy of `fit.analysis` |
+| `fit_json` | TEXT JSON | Full `Fit` object |
+| `applied_emails` | TEXT JSON | Array of emails used |
+| `cover_letter_guidance` | TEXT | Instructions for the letter |
+| `cover_in_cv_required` | INTEGER bool | Whether the job asks for a cover in the CV |
+| `cover_in_cv_reason` | TEXT | Justification |
+| `has_recruiter_message` | INTEGER bool | A recruiter message exists |
+| `has_questions` | INTEGER bool | Extra questions exist |
+| `skill_grounded` | INTEGER bool | Analysis based only on the profile |
+| `fit_confirmed` | INTEGER bool | Fit confirmed by the user |
 | `created_at`, `updated_at` | TEXT | ISO 8601 UTC |
 
 ### `runs`
 
-Checkpoint de um processamento (raspagem, fit, geração). Um job pode ter vários runs.
+Checkpoint of a processing run (scraping, fit, generation). A job can have several runs.
 
-| Coluna | Tipo | Observação |
+| Column | Type | Notes |
 |---|---|---|
 | `id` | TEXT PK | `proc_` + UUID |
-| `job_id` | TEXT FK | `ON DELETE SET NULL`; runs órfãos são válidos |
+| `job_id` | TEXT FK | `ON DELETE SET NULL`; orphan runs are valid |
 | `stage` | TEXT | `draft`, `fit-checked`, `processing`, `done`, `error`… |
-| `url` | TEXT | URL processada |
-| `stack` | TEXT | Stack usada no run |
-| `language_preference` | TEXT | Idioma escolhido |
-| `detected_language` | TEXT | Idioma detectado |
-| `suggested_language` | TEXT | Idioma sugerido |
-| `needs_language_confirmation` | INTEGER bool | Aguarda confirmação |
-| `needs_fit_confirmation` | INTEGER bool | Aguarda confirmação do fit |
-| `eligibility_blocked` | INTEGER bool | Bloqueado por elegibilidade |
-| `has_raw_text` | INTEGER bool | Texto bruto disponível |
-| `has_extra_questions` | INTEGER bool | Perguntas extras disponíveis |
-| `has_recruiter_message` | INTEGER bool | Mensagem de recrutador disponível |
-| `error` | TEXT | Erro do run |
-| `fit_json` | TEXT JSON | Fit do run |
-| `job_json` | TEXT JSON | Metadados da vaga no momento do run |
-| `job_snapshot` | TEXT JSON | Snapshot completo, incluindo `content` |
+| `url` | TEXT | Processed URL |
+| `stack` | TEXT | Stack used in the run |
+| `language_preference` | TEXT | Chosen language |
+| `detected_language` | TEXT | Detected language |
+| `suggested_language` | TEXT | Suggested language |
+| `needs_language_confirmation` | INTEGER bool | Awaiting confirmation |
+| `needs_fit_confirmation` | INTEGER bool | Awaiting fit confirmation |
+| `eligibility_blocked` | INTEGER bool | Blocked by eligibility |
+| `has_raw_text` | INTEGER bool | Raw text available |
+| `has_extra_questions` | INTEGER bool | Extra questions available |
+| `has_recruiter_message` | INTEGER bool | Recruiter message available |
+| `error` | TEXT | Run error |
+| `fit_json` | TEXT JSON | Run's fit |
+| `job_json` | TEXT JSON | Job metadata at run time |
+| `job_snapshot` | TEXT JSON | Full snapshot, including `content` |
 | `created_at`, `updated_at` | TEXT | ISO 8601 UTC |
 
 ### `artifacts`
 
-Metadados dos arquivos gerados. **O conteúdo não fica no banco.**
+Metadata of generated files. **The content does not live in the database.**
 
-| Coluna | Tipo | Observação |
+| Column | Type | Notes |
 |---|---|---|
 | `id` | TEXT PK | `art_` + UUID |
 | `job_id` | TEXT FK | `ON DELETE CASCADE` |
 | `run_id` | TEXT FK | `ON DELETE SET NULL` |
 | `kind` | TEXT | `cv_pdf`, `cv_html`, `email_text`, `recruiter_note`… |
-| `relative_path` | TEXT | Relativo a `applications/` |
-| `mime` | TEXT | Ex.: `application/pdf` |
-| `size_bytes` | INTEGER | Tamanho no momento da importação |
+| `relative_path` | TEXT | Relative to `applications/` |
+| `mime` | TEXT | E.g.: `application/pdf` |
+| `size_bytes` | INTEGER | Size at import time |
 | `created_at` | TEXT | ISO 8601 UTC |
 
-Índice único em `(job_id, kind, relative_path)` impede duplicatas na reimportação.
+A unique index on `(job_id, kind, relative_path)` prevents duplicates on re-import.
 
 ### `profiles`
 
-Alvos de candidatura por stack e idioma. Cada linha combina `(stack, language)` e guarda o
-currículo base em `content` (JSON original do v1 + `rawText` editado no v2).
+Application targets per stack and language. Each row combines `(stack, language)` and keeps the
+base resume in `content` (v1's original JSON + `rawText` edited in v2).
 
-| Coluna | Tipo | Observação |
+| Column | Type | Notes |
 |---|---|---|
 | `stack` | TEXT PK | Slug (`ruby`, `php`, `elixir`…); `^[a-z][a-z0-9-]{0,31}$` |
-| `language` | TEXT PK | `pt-br` ou `en` |
-| `content` | TEXT JSON | Currículo base; `null` enquanto não houver texto |
-| `enabled` | INTEGER bool | Default `true`; alvos importados do v1 continuam ativos |
-| `extra_prompt` | TEXT | Instruções extras para os prompts de fit/tailor; `null` se vazio |
+| `language` | TEXT PK | `pt-br` or `en` |
+| `content` | TEXT JSON | Base resume; `null` while there is no text |
+| `enabled` | INTEGER bool | Default `true`; targets imported from v1 stay active |
+| `extra_prompt` | TEXT | Extra instructions for the fit/tailor prompts; `null` if empty |
 | `updated_at` | TEXT | ISO 8601 UTC |
 
-O texto extra é **instrução de estilo/ênfase**, nunca fonte de fatos: o grounding continua no
-currículo base. O pipeline (Fase 3) deve considerar apenas alvos com `enabled = true`.
+The extra text is a **style/emphasis instruction**, never a source of facts: grounding stays in the
+base resume. The pipeline (Phase 3) should only consider targets with `enabled = true`.
 
 ### `settings`
 
-Pares chave/valor para tema de PDF, perfil calculado e dados de formulário. Chaves de API **não**
-entram aqui.
+Key/value pairs for PDF theme, computed profile and form data. API keys **do not** go here.
 
-## 3. JSONs aninhados
+## 3. Nested JSONs
 
 ### `Fit`
 
@@ -221,34 +220,34 @@ entram aqui.
 }
 ```
 
-`content` pode ser grande; por isso o snapshot fica em uma coluna JSON e não é carregado em
-listagens.
+`content` can be large; that's why the snapshot lives in a JSON column and is not loaded in
+listings.
 
-## 4. Índices
+## 4. Indexes
 
-| Índice | Tabela | Motivo |
+| Index | Table | Reason |
 |---|---|---|
-| `jobs_owner_idx` | `jobs(owner_id)` | Futuro filtro por usuário |
-| `jobs_status_idx` | `jobs(status)` | Filtro do dashboard |
-| `jobs_applied_at_idx` | `jobs(applied_at)` | Ordenação e estatísticas |
-| `jobs_company_idx` | `jobs(company)` | Busca textual |
-| `runs_job_idx` | `runs(job_id)` | Runs de uma vaga |
-| `runs_stage_idx` | `runs(stage)` | Fila de checkpoints |
-| `artifacts_job_idx` | `artifacts(job_id)` | Artefatos de uma vaga |
-| `artifacts_kind_idx` | `artifacts(kind)` | Filtro por tipo |
-| `artifacts_job_kind_path_uq` | `artifacts(job_id, kind, relative_path)` | Deduplicação |
+| `jobs_owner_idx` | `jobs(owner_id)` | Future per-user filtering |
+| `jobs_status_idx` | `jobs(status)` | Dashboard filter |
+| `jobs_applied_at_idx` | `jobs(applied_at)` | Sorting and statistics |
+| `jobs_company_idx` | `jobs(company)` | Text search |
+| `runs_job_idx` | `runs(job_id)` | Runs of a job |
+| `runs_stage_idx` | `runs(stage)` | Checkpoint queue |
+| `artifacts_job_idx` | `artifacts(job_id)` | Artifacts of a job |
+| `artifacts_kind_idx` | `artifacts(kind)` | Filter by type |
+| `artifacts_job_kind_path_uq` | `artifacts(job_id, kind, relative_path)` | Deduplication |
 
-## 5. Invariantes
+## 5. Invariants
 
-1. `jobs.id` é imutável.
-2. `runs.job_id` pode ser `null`; nunca aponta para job inexistente.
-3. `artifacts.job_id` sempre existe; ao remover o job, os artefatos caem por cascade.
-4. `artifacts.relative_path` nunca começa com `/` e nunca sai de `applications/`.
-5. `applied_at`, `created_at` e `updated_at` são ISO 8601.
-6. Campos opcionais são `null`, não `undefined`.
-7. `status` pertence ao enum do domínio.
+1. `jobs.id` is immutable.
+2. `runs.job_id` may be `null`; it never points to a nonexistent job.
+3. `artifacts.job_id` always exists; removing the job drops the artifacts via cascade.
+4. `artifacts.relative_path` never starts with `/` and never leaves `applications/`.
+5. `applied_at`, `created_at` and `updated_at` are ISO 8601.
+6. Optional fields are `null`, not `undefined`.
+7. `status` belongs to the domain enum.
 
-## 6. Ciclo de vida do status
+## 6. Status lifecycle
 
 ```mermaid
 stateDiagram-v2
@@ -265,34 +264,34 @@ stateDiagram-v2
   archived --> [*]
 ```
 
-O banco não impõe a máquina de estados; a validação de valores é feita por Zod na API. Transições
-inválidas ainda são possíveis via `PATCH` direto — decisão consciente para uso local.
+The database doesn't enforce the state machine; value validation is done by Zod in the API.
+Invalid transitions are still possible via a direct `PATCH` — a conscious decision for local use.
 
-## 7. Mapeamento para Firestore
+## 7. Mapping to Firestore
 
 | SQLite | Firestore |
 |---|---|
-| `jobs` | coleção `jobs`, documento por `id` |
-| `runs` | coleção `runs`, com campo `jobId` (ou subcoleção) |
-| `artifacts` | coleção `artifacts`; arquivo no Cloud Storage |
-| `profiles` | coleção `profiles`, doc `stack__language` |
-| `settings` | coleção `settings`, doc por chave |
-| `fit_json` | campo `fit` (map) |
-| `job_snapshot` | campo `jobSnapshot` (map) |
-| `owner_id` | campo `ownerId` + regras de segurança |
+| `jobs` | `jobs` collection, one document per `id` |
+| `runs` | `runs` collection, with a `jobId` field (or subcollection) |
+| `artifacts` | `artifacts` collection; file in Cloud Storage |
+| `profiles` | `profiles` collection, doc `stack__language` |
+| `settings` | `settings` collection, doc per key |
+| `fit_json` | `fit` field (map) |
+| `job_snapshot` | `jobSnapshot` field (map) |
+| `owner_id` | `ownerId` field + security rules |
 
-Sem joins: a listagem de artefatos por job vira uma consulta por `jobId` (ou um array de
-referências no documento do job, se a leitura for sempre junto).
+No joins: listing artifacts per job becomes a query by `jobId` (or an array of references in the
+job document, if the read always happens together).
 
 ## 8. Migrations
 
-- Geradas por `drizzle-kit` a partir de `src/db/schema.ts`.
-- Versionadas em `drizzle/`.
-- Aplicadas por `pnpm db:migrate` ou automaticamente no boot da API.
-- `drizzle/meta/_journal.json` registra a ordem; não edite migrations já aplicadas.
+- Generated by `drizzle-kit` from `src/db/schema.ts`.
+- Versioned in `drizzle/`.
+- Applied by `pnpm db:migrate` or automatically on API boot.
+- `drizzle/meta/_journal.json` records the order; don't edit already-applied migrations.
 
-| Migration | Conteúdo |
+| Migration | Content |
 |---|---|
-| `0000_init.sql` | Cria as cinco tabelas e índices |
-| `0001_compat_fields.sql` | Adiciona `language_confirmation`, `runs.stack` e `runs.job_json` |
-| `0002_profile_targets.sql` | Adiciona `profiles.enabled` e `profiles.extra_prompt` |
+| `0000_init.sql` | Creates the five tables and indexes |
+| `0001_compat_fields.sql` | Adds `language_confirmation`, `runs.stack` and `runs.job_json` |
+| `0002_profile_targets.sql` | Adds `profiles.enabled` and `profiles.extra_prompt` |

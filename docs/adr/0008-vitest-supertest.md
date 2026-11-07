@@ -1,54 +1,55 @@
-# ADR-0008 — Vitest e Supertest
+# ADR-0008 — Vitest and Supertest
 
-- **Status:** Aceita
-- **Data:** 2026-11-02
+- **Status:** Accepted
+- **Date:** 2026-11-02
 
-## Contexto
+## Context
 
-O v1 não tinha testes automatizados. A migração envolve normalização de dados, SQL e uma camada de
-compatibilidade — três áreas onde regressões silenciosas são prováveis. Era preciso escolher um
-runner e uma estratégia de teste que rodassem rápido e sem infraestrutura.
+v1 had no automated tests. The migration involves data normalization, SQL and a compatibility
+layer — three areas where silent regressions are likely. A runner and a test strategy had to be
+chosen so everything runs fast and without infrastructure.
 
-## Decisão
+## Decision
 
-- **Vitest 4** como runner (integrado ao ecossistema Vite, ESM nativo, watch rápido).
-- **Supertest 7** para exercitar as rotas Express sem abrir porta.
-- Cada teste cria um **SQLite temporário** via `createTestStore()`, com `cleanup()` no `afterEach`.
-- Três níveis:
-  1. **Repositório** — SQL, filtros, cascatas, projeções.
-  2. **Importação** — normalização de datas, status, fit e snapshots.
-  3. **API** — status codes, DTOs, validação, visualizadores.
+- **Vitest 4** as the runner (integrated with the Vite ecosystem, native ESM, fast watch).
+- **Supertest 7** to exercise the Express routes without opening a port.
+- Each test creates its own **temporary SQLite** via `createTestStore()`, with `cleanup()` in
+  `afterEach`.
+- Three levels:
+  1. **Repository** — SQL, filters, cascades, projections.
+  2. **Import** — normalization of dates, status, fit and snapshots.
+  3. **API** — status codes, DTOs, validation, viewers.
 
 ```mermaid
 flowchart TB
-  UNIT["Testes de repositório"] --> DB[("SQLite temporário")]
-  IMPORT["Testes de importação"] --> DB
-  HTTP["Testes de API - Supertest"] --> APP["createApp(store)"]
+  UNIT["Repository tests"] --> DB[("Temporary SQLite")]
+  IMPORT["Import tests"] --> DB
+  HTTP["API tests - Supertest"] --> APP["createApp(store)"]
   APP --> DB
 ```
 
-## Consequências
+## Consequences
 
-**Positivas**
+**Positive**
 
-- Suíte completa em ~2–3 segundos.
-- Sem servidor rodando, sem porta, sem mock de banco.
-- Testa o SQL real, não um dublê — pega erro de migration e de tipo.
-- `createApp` recebe `store` por injeção, o que torna o teste trivial.
+- Full suite in ~2–3 seconds.
+- No running server, no port, no database mock.
+- Tests real SQL, not a stand-in — catches migration and type errors.
+- `createApp` receives `store` by injection, which makes testing trivial.
 
-**Negativas**
+**Negative**
 
-- Testes de API e repositório compartilham SQLite; um bug de schema aparece em vários lugares.
-- Sem teste end-to-end no navegador (a UI v1 não é testada).
-- O pipeline pesado fica fora da suíte.
+- API and repository tests share SQLite; one schema bug shows up in several places.
+- No browser end-to-end test (the v1 UI is not tested).
+- The heavy pipeline stays out of the suite.
 
-**Convenção**
+**Convention**
 
-- Nome do teste descreve comportamento, não função (`'esconde runs concluídos'`, não `'test list'`).
-- Dados de teste são criados explicitamente em cada arquivo; sem fixture global compartilhada.
-- Ao trocar o adaptador de banco, a suíte de repositório deve rodar sem alteração.
+- Test names describe behavior, not function (`'esconde runs concluídos'`, not `'test list'`).
+- Test data is created explicitly in each file; no shared global fixture.
+- When swapping the database adapter, the repository suite must run unchanged.
 
-## Referências
+## References
 
 - [testing.md](../testing.md)
 - `test/helpers.ts`

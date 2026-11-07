@@ -1,63 +1,63 @@
-# Arquitetura
+# Architecture
 
-## 1. Visão geral
+## 1. Overview
 
-O v2 é uma aplicação **local-first** com três blocos:
+v2 is a **local-first** application with three blocks:
 
-1. **UI** — hoje a página vanilla do v1; a partir da Fase 2, um app React.
-2. **API** — Express 5, dona da validação, regras de acesso e tradução de formatos.
-3. **Persistência** — SQLite para dados estruturados e filesystem para artefatos gerados
+1. **UI** — today the v1 vanilla page; from Phase 2 on, a React app.
+2. **API** — Express 5, owning validation, access rules and format translation.
+3. **Persistence** — SQLite for structured data and the filesystem for generated artifacts
    (PDF, HTML, TXT).
 
-O pipeline pesado do v1 (Playwright, LLM, geração de PDF) **ainda não foi portado**; ele continua
-no servidor antigo. O v2 hoje é a fonte de verdade dos dados de vagas, runs e artefatos.
+v1's heavy pipeline (Playwright, LLM, PDF generation) **has not been ported yet**; it stays on the
+old server. v2 is today the source of truth for job, run and artifact data.
 
-## 2. Contexto
+## 2. Context
 
 ```mermaid
 flowchart LR
-  USER["Usuário"]
-  UI1["UI v1 - vanilla JS na porta 3333"]
-  UI2["UI v2 - React na porta 5173"]
-  API["API v2 - Express na porta 3344"]
-  PIPE["Pipeline v1 - Playwright, LLM e PDF"]
+  USER["User"]
+  UI1["v1 UI - vanilla JS on port 3333"]
+  UI2["v2 UI - React on port 5173"]
+  API["v2 API - Express on port 3344"]
+  PIPE["v1 pipeline - Playwright, LLM and PDF"]
   DB[("SQLite - data/job-search.db")]
-  FS[("Artefatos - applications/")]
-  BASE[("Perfis base - base_profile/")]
+  FS[("Artifacts - applications/")]
+  BASE[("Base profiles - base_profile/")]
 
   USER --> UI1
   USER --> UI2
-  UI1 -->|"/api/applications e /api/processes"| API
-  UI2 -->|"/api/jobs, /api/runs e /api/stats"| API
+  UI1 -->|"/api/applications and /api/processes"| API
+  UI2 -->|"/api/jobs, /api/runs and /api/stats"| API
   API --> DB
   API --> FS
   API --> BASE
-  PIPE -->|"grava artefatos e checkpoints"| FS
-  PIPE -->|"importação one-off"| DB
+  PIPE -->|"writes artifacts and checkpoints"| FS
+  PIPE -->|"one-off import"| DB
 ```
 
 ## 3. Containers
 
 ```mermaid
 flowchart TB
-  subgraph BROWSER["Navegador"]
-    V1["UI v1 - public/index.html"]
-    V2["UI v2 - React + Vite"]
+  subgraph BROWSER["Browser"]
+    V1["v1 UI - vanilla single page"]
+    V2["v2 UI - React + Vite"]
   end
 
   subgraph NODE["Node.js 24"]
     EXPRESS["Express 5 - src/api"]
-    META["Rotas de metadados"]
-    COMPAT["Rotas de compatibilidade v1"]
-    JOBS["Rotas REST de jobs e runs"]
-    REPO["Repositórios - src/repositories"]
-    DOMAIN["Domínio + Zod - src/domain"]
-    IMP["Importador v1 - src/migrations"]
-    MIG["Migrator Drizzle - src/db"]
+    META["Metadata routes"]
+    COMPAT["v1 compatibility routes"]
+    JOBS["REST routes for jobs and runs"]
+    REPO["Repositories - src/repositories"]
+    DOMAIN["Domain + Zod - src/domain"]
+    IMP["v1 importer - src/migrations"]
+    MIG["Drizzle migrator - src/db"]
   end
 
   DB[("SQLite")]
-  FILES[("Arquivos no disco")]
+  FILES[("Files on disk")]
 
   V1 --> COMPAT
   V1 --> META
@@ -74,51 +74,51 @@ flowchart TB
   COMPAT --> FILES
 ```
 
-### Responsabilidades
+### Responsibilities
 
-| Componente | Responsabilidade | Não faz |
+| Component | Responsibility | Does not do |
 |---|---|---|
-| `src/api` | HTTP, validação de entrada, status codes, DTOs | SQL, regra de negócio profunda |
-| `src/domain` | Tipos, schemas Zod, datas, IDs | Acesso a banco |
-| `src/repositories` | Contratos e implementação SQLite | HTTP, formatação de UI |
-| `src/db` | Schema Drizzle, conexão, migrations | Regra de negócio |
-| `src/migrations` | Importação one-off do v1 | Uso em runtime |
-| `web/` (Fase 2) | UI React, cache de dados, navegação | Acesso direto ao SQLite |
+| `src/api` | HTTP, input validation, status codes, DTOs | SQL, deep business logic |
+| `src/domain` | Types, Zod schemas, dates, IDs | Database access |
+| `src/repositories` | Contracts and SQLite implementation | HTTP, UI formatting |
+| `src/db` | Drizzle schema, connection, migrations | Business logic |
+| `src/migrations` | One-off import from v1 | Runtime usage |
+| `web/` (Phase 2) | React UI, data cache, navigation | Direct SQLite access |
 
-## 4. Estrutura de pastas
+## 4. Folder structure
 
 ```text
 job-search-v2/
-├── web/                        # frontend React (Vite + TanStack Query)
+├── web/                        # React frontend (Vite + TanStack Query)
 │   ├── src/
-│   │   ├── api/                # client, tipos e hooks
-│   │   ├── components/         # layout, fit, runs, artefatos
-│   │   ├── pages/              # dashboard e detalhe
-│   │   └── lib/                # formatação e labels
-│   └── dist/                   # build servido pelo Express
+│   │   ├── api/                # client, types and hooks
+│   │   ├── components/         # layout, fit, runs, artifacts
+│   │   ├── pages/              # dashboard and detail
+│   │   └── lib/                # formatting and labels
+│   └── dist/                   # build served by Express
 ├── src/
 │   ├── api/
-│   │   ├── app.ts              # monta Express e middlewares
-│   │   ├── server.ts           # bootstrap, porta, shutdown
+│   │   ├── app.ts              # mounts Express and middlewares
+│   │   ├── server.ts           # bootstrap, port, shutdown
 │   │   ├── http.ts             # HttpError, parseBody, error handler
-│   │   ├── dto/legacy.ts       # tradução para o formato do v1
+│   │   ├── dto/legacy.ts       # translation to the v1 format
 │   │   └── routes/
 │   │       ├── jobs.ts         # /api/jobs
 │   │       ├── runs.ts         # /api/runs
-│   │       ├── meta.ts         # perfis, settings, pdf-theme, candidate-data
-│   │       ├── compat.ts       # /api/applications e /api/processes
-│   │       └── viewers.ts      # /cv/:id e /extras/:id/:view
-│   ├── domain/                 # Job, Run, Fit, Artifact, datas, IDs
-│   ├── db/                     # schema, client SQLite, migrator
-│   ├── repositories/           # interfaces + implementação SQLite
-│   └── migrations/from-json.ts # importador do v1
-├── drizzle/                    # migrations SQL geradas
+│   │       ├── meta.ts         # profiles, settings, pdf-theme, candidate-data
+│   │       ├── compat.ts       # /api/applications and /api/processes
+│   │       └── viewers.ts      # /cv/:id and /extras/:id/:view
+│   ├── domain/                 # Job, Run, Fit, Artifact, dates, IDs
+│   ├── db/                     # schema, SQLite client, migrator
+│   ├── repositories/           # interfaces + SQLite implementation
+│   └── migrations/from-json.ts # v1 importer
+├── drizzle/                    # generated SQL migrations
 ├── test/                       # Vitest + Supertest
-├── data/                       # SQLite local (gitignored)
-└── docs/                       # esta documentação
+├── data/                       # local SQLite (gitignored)
+└── docs/                       # this documentation
 ```
 
-## 5. Fluxo de leitura
+## 5. Read flow
 
 ```mermaid
 sequenceDiagram
@@ -129,15 +129,15 @@ sequenceDiagram
   participant DB as "SQLite"
 
   UI->>API: GET /api/jobs?status=applied
-  API->>API: valida query com Zod
+  API->>API: validates query with Zod
   API->>REPO: list({ status, limit, offset })
   REPO->>DB: SELECT ... WHERE status = ? ORDER BY applied_at DESC LIMIT ?
-  DB-->>REPO: linhas
+  DB-->>REPO: rows
   REPO-->>API: Job[] + total
   API-->>UI: 200 { items, total }
 ```
 
-## 6. Fluxo de escrita
+## 6. Write flow
 
 ```mermaid
 sequenceDiagram
@@ -149,18 +149,18 @@ sequenceDiagram
 
   UI->>API: PATCH /api/jobs/app_123
   API->>API: jobPatchSchema.safeParse(body)
-  alt body inválido
-    API-->>UI: 400 com issues
-  else body válido
+  alt invalid body
+    API-->>UI: 400 with issues
+  else valid body
     API->>REPO: update(id, patch)
     REPO->>DB: UPDATE jobs SET ... WHERE id = ?
     DB-->>REPO: changes
-    REPO-->>API: Job atualizado ou null
-    API-->>UI: 200 Job ou 404
+    REPO-->>API: updated Job or null
+    API-->>UI: 200 Job or 404
   end
 ```
 
-## 7. Importação do v1
+## 7. Import from v1
 
 ```mermaid
 sequenceDiagram
@@ -172,32 +172,32 @@ sequenceDiagram
 
   CLI->>IMP: tracker, processes, applications, base_profile
   IMP->>DB: runMigrations()
-  IMP->>IMP: valida se o banco está vazio
+  IMP->>IMP: checks the database is empty
   IMP->>DB: BEGIN
-  loop cada vaga do tracker
-    IMP->>IMP: normaliza data, status e fit
+  loop each job in the tracker
+    IMP->>IMP: normalizes date, status and fit
     IMP->>DB: INSERT jobs
-    IMP->>FS: stat dos artefatos referenciados
+    IMP->>FS: stat on referenced artifacts
     IMP->>DB: INSERT artifacts
   end
-  loop cada processo
-    IMP->>IMP: resolve applicationId ou URL para job_id
+  loop each process
+    IMP->>IMP: resolves applicationId or URL into job_id
     IMP->>DB: INSERT runs
   end
-  IMP->>DB: INSERT profiles e settings
+  IMP->>DB: INSERT profiles and settings
   IMP->>DB: COMMIT
-  IMP-->>CLI: relatório com contagens e avisos
+  IMP-->>CLI: report with counts and warnings
 ```
 
-## 8. Estratégia de compatibilidade
+## 8. Compatibility strategy
 
 ```mermaid
 flowchart LR
-  V1UI["UI v1"]
-  NEW["API nova - /api/jobs e /api/runs"]
-  COMPAT["Camada compat - /api/applications e /api/processes"]
+  V1UI["v1 UI"]
+  NEW["New API - /api/jobs and /api/runs"]
+  COMPAT["Compat layer - /api/applications and /api/processes"]
   DTO["dto/legacy.ts"]
-  REPO["Repositórios"]
+  REPO["Repositories"]
   DB[("SQLite")]
 
   V1UI --> COMPAT
@@ -207,58 +207,59 @@ flowchart LR
   REPO --> DB
 ```
 
-A UI antiga não fala com o banco: ela fala com rotas que traduzem o domínio novo para o DTO antigo.
-Quando o React assumir, a camada de compatibilidade pode ser removida sem tocar nos repositórios.
+The old UI doesn't talk to the database: it talks to routes that translate the new domain into the
+old DTO. Once React takes over, the compatibility layer can be removed without touching the
+repositories.
 
-## 9. Evolução para nuvem
+## 9. Evolution to the cloud
 
 ```mermaid
 flowchart LR
-  CONTRACTS["Interfaces em repositories/types.ts"]
-  SQLITE["SQLite - hoje"]
-  TURSO["Turso ou libSQL"]
-  SUPA["Supabase ou Postgres"]
+  CONTRACTS["Interfaces in repositories/types.ts"]
+  SQLITE["SQLite - today"]
+  TURSO["Turso or libSQL"]
+  SUPA["Supabase or Postgres"]
   FIRE["Firestore"]
 
   CONTRACTS --> SQLITE
-  CONTRACTS -.->|"mesmo SQL"| TURSO
-  CONTRACTS -.->|"SQL e joins"| SUPA
-  CONTRACTS -.->|"documentos"| FIRE
+  CONTRACTS -.->|"same SQL"| TURSO
+  CONTRACTS -.->|"SQL and joins"| SUPA
+  CONTRACTS -.->|"documents"| FIRE
 ```
 
-O modelo atual foi desenhado para tornar a troca barata: agregados em JSON, sem joins obrigatórios,
-IDs estáveis e `owner_id` desde o início. Os detalhes estão no
-[ADR-0002](./adr/0002-modelo-document-shaped.md) e no
-[ADR-0003](./adr/0003-repository-pattern-e-nuvem.md).
+The current model was designed to make the swap cheap: JSON aggregates, no mandatory joins, stable
+IDs and `owner_id` from the start. The details are in
+[ADR-0002](./adr/0002-document-shaped-model.md) and
+[ADR-0003](./adr/0003-repository-pattern-and-cloud.md).
 
-## 10. Atributos de qualidade
+## 10. Quality attributes
 
-| Atributo | Como é endereçado | Limite atual |
+| Attribute | How it is addressed | Current limit |
 |---|---|---|
-| Simplicidade | Um processo Node, um arquivo SQLite, sem infraestrutura | Não escala para múltiplos usuários simultâneos |
-| Portabilidade | Repositórios + JSON columns + ISO + `owner_id` | DTO legado ainda acopla a UI v1 |
-| Testabilidade | 64 testes de backend + 23 de frontend; banco temporário e Supertest | Pipeline pesado não testado no v2 |
-| Segurança | Validação Zod, path traversal bloqueado, segredos fora do banco | Sem autenticação; assume uso local |
-| Performance | Índices em status, data, empresa e job_id; WAL | Sem cache; N+1 na listagem de artefatos por vaga |
-| Observabilidade | Logs de erro no handler global; health check | Sem métricas ou tracing |
+| Simplicity | One Node process, one SQLite file, no infrastructure | Doesn't scale to multiple concurrent users |
+| Portability | Repositories + JSON columns + ISO + `owner_id` | The legacy DTO still couples the v1 UI |
+| Testability | 64 backend tests + 23 frontend tests; temporary database and Supertest | Heavy pipeline not tested in v2 |
+| Security | Zod validation, path traversal blocked, secrets out of the database | No authentication; assumes local use |
+| Performance | Indexes on status, date, company and job_id; WAL | No cache; N+1 when listing artifacts per job |
+| Observability | Error logs in the global handler; health check | No metrics or tracing |
 
-## 11. Limites conhecidos
+## 11. Known limits
 
-- O v2 **não executa** Playwright, chamadas de LLM nem geração de PDF.
-- Não há autenticação; `owner_id` existe, mas é sempre `local`.
-- A listagem de `/api/applications` faz uma consulta de artefatos por vaga (N+1). Para 16 vagas é
-  irrelevante; será resolvido no React com um endpoint agregado ou `IN (...)`.
-- A UI v1 ainda chama rotas de processamento que só existem no servidor antigo.
-- O React cobre dashboard e detalhe; admin (perfis, tema, formulário) ainda não foi migrado.
-- Filtros do dashboard não estão na URL.
+- v2 **does not run** Playwright, LLM calls or PDF generation.
+- There is no authentication; `owner_id` exists but is always `local`.
+- The `/api/applications` listing runs one artifact query per job (N+1). For 16 jobs it's
+  irrelevant; it will be solved in React with an aggregate endpoint or `IN (...)`.
+- The v1 UI still calls processing routes that only exist on the old server.
+- React covers dashboard and detail; admin (profiles, theme, form data) has not been migrated yet.
+- Dashboard filters are not in the URL.
 
-## 12. Decisões relacionadas
+## 12. Related decisions
 
-- [ADR-0001 — SQLite no backend](./adr/0001-sqlite-no-backend.md)
-- [ADR-0002 — Modelo document-shaped](./adr/0002-modelo-document-shaped.md)
-- [ADR-0003 — Repositórios e nuvem](./adr/0003-repository-pattern-e-nuvem.md)
-- [ADR-0004 — Estratégia strangler](./adr/0004-estrategia-strangler-compatibilidade-v1.md)
-- [ADR-0005 — Identidade, datas e nulos](./adr/0005-identidade-datas-e-nulos.md)
-- [ADR-0006 — Artefatos no filesystem](./adr/0006-artefatos-no-filesystem.md)
-- [ADR-0007 — Zod na borda](./adr/0007-zod-na-borda.md)
-- [ADR-0008 — Vitest e Supertest](./adr/0008-vitest-supertest.md)
+- [ADR-0001 — SQLite in the backend](./adr/0001-sqlite-in-backend.md)
+- [ADR-0002 — Document-shaped model](./adr/0002-document-shaped-model.md)
+- [ADR-0003 — Repositories and cloud](./adr/0003-repository-pattern-and-cloud.md)
+- [ADR-0004 — Strangler strategy](./adr/0004-strangler-strategy-v1-compatibility.md)
+- [ADR-0005 — Identity, dates and nulls](./adr/0005-identity-datas-and-nulls.md)
+- [ADR-0006 — Artifacts on the filesystem](./adr/0006-artifacts-on-the-filesystem.md)
+- [ADR-0007 — Zod at the boundary](./adr/0007-zod-at-the-http-boundary.md)
+- [ADR-0008 — Vitest and Supertest](./adr/0008-vitest-supertest.md)

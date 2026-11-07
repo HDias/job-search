@@ -1,55 +1,57 @@
-# Segurança
+# Security
 
-## 1. Modelo de ameaça atual
+## 1. Current threat model
 
-O v2 é uma aplicação **local, single-user**, sem autenticação. O modelo assume que só o dono da
-máquina acessa `localhost:3344`. Isso é aceitável para o estágio atual e **inaceitável** para
-qualquer exposição de rede ou nuvem.
+v2 is a **local, single-user** application without authentication. The model assumes only the
+machine's owner accesses `localhost:3344`. This is acceptable for the current stage and
+**unacceptable** for any network or cloud exposure.
 
-| Ativo | Sensibilidade | Onde está |
+| Asset | Sensitivity | Where it lives |
 |---|---|---|
-| Currículos e cartas | Alta (dados pessoais) | `applications/` |
-| Perfis base | Alta | `base_profile/` ou `profiles.content` |
-| Dados de candidatura | Média | `data/job-search.db` |
-| Chave de LLM | Crítica | `config.json` do v1, **fora** do v2 |
-| Configuração de tema | Baixa | `settings` |
+| Resumes and cover letters | High (personal data) | `applications/` |
+| Base profiles | High | `base_profile/` or `profiles.content` |
+| Application data | Medium | `data/job-search.db` |
+| LLM key | Critical | v1's `config.json`, **outside** v2 |
+| Theme configuration | Low | `settings` |
 
-## 2. Segredos
+## 2. Secrets
 
-- `config.json` do v1 **não é importado**. A chave de LLM continua apenas no arquivo antigo.
-- `.env` e `.env.*` são gitignored; `.env.example` é versionado sem valores reais.
-- `settings` guarda apenas preferências (`pdf_theme`, `candidate_form`); nunca tokens.
-- Nenhum segredo é logado. O handler global imprime o erro, não o corpo da requisição.
+- v1's `config.json` **is not imported**. The LLM key remains only in the old file.
+- `.env` and `.env.*` are gitignored; `.env.example` is versioned without real values.
+- `settings` only stores preferences (`pdf_theme`, `candidate_form`); never tokens.
+- No secret is logged. The global handler prints the error, not the request body.
 
-### Regra para a Fase 3
+### Rule for Phase 3
 
-Quando o pipeline LLM for portado, a chave deve vir de variável de ambiente ou de um secret
-manager — nunca do banco nem do repositório. Ver [roadmap.md](./roadmap.md).
+When the LLM pipeline is ported, the key must come from an environment variable or a secret
+manager — never from the database or the repository. See [roadmap.md](./roadmap.md).
 
-## 3. Validação de entrada
+## 3. Input validation
 
-Toda escrita passa por Zod na borda (`parseBody` em `src/api/http.ts`):
+Every write goes through Zod at the boundary (`parseBody` in `src/api/http.ts`):
 
 - `newJobSchema`, `jobPatchSchema`, `newRunSchema`, `runPatchSchema`.
-- Enums de status e limites de tamanho.
-- Cor de tema validada por regex `^#[0-9a-fA-F]{6}$`.
-- Corpo JSON limitado a **4 MB** (`express.json({ limit: '4mb' })`).
+- Status enums and size limits.
+- Theme color validated by regex `^#[0-9a-fA-F]{6}$`.
+- JSON body limited to **4 MB** (`express.json({ limit: '4mb' })`).
 
-O DTO legado (`/api/applications`, `/api/processes`) aceita corpos mais livres porque replica o
-que a UI v1 enviava, mas ainda converte tipos e ignora campos desconhecidos. **Não é uma superfície
-para código novo.**
+The legacy DTO (`/api/applications`, `/api/processes`) accepts looser bodies because it replicates
+what the v1 UI used to send, but it still converts types and ignores unknown fields. **It is not a
+surface for new code.**
 
 ### SQL injection
 
-Todo acesso ao banco usa Drizzle com queries parametrizadas. Não há interpolação de string em SQL.
+Every database access uses Drizzle with parameterized queries. There is no string interpolation in
+SQL.
 
-Nota: a busca textual (`q`) usa `LIKE` com o valor parametrizado; wildcards `%` e `_` enviados pelo
-usuário são tratados como padrão. Para uso local é aceitável; se virar multiusuário, escape-os.
+Note: the text search (`q`) uses `LIKE` with the parameterized value; `%` and `_` wildcards sent by
+the user are treated as literal. For local use this is acceptable; if it ever becomes
+multi-user, escape them.
 
 ## 4. Path traversal
 
-Os visualizadores e estáticos leem arquivos do disco a partir de caminhos guardados no banco.
-`src/api/routes/viewers.ts` resolve o caminho e verifica se ele permanece dentro do diretório base:
+The viewers and static routes read files from disk based on paths stored in the database.
+`src/api/routes/viewers.ts` resolves the path and checks that it stays inside the base directory:
 
 ```ts
 function safeResolve(baseDir: string, relativePath: string): string | null {
@@ -60,70 +62,69 @@ function safeResolve(baseDir: string, relativePath: string): string | null {
 }
 ```
 
-Isso bloqueia `../../etc/passwd` e symlinks que apontem para fora? **Symlinks não são resolvidos**
-(`realpath` não é usado), então um symlink dentro de `applications/` apontando para fora ainda
-seria lido. Como só o dono escreve nesse diretório, o risco é baixo; ao migrar para upload
-multiusuário, troque por `fs.realpath` + verificação de prefixo.
+Does this block `../../etc/passwd` and symlinks that point outside? **Symlinks are not resolved**
+(`realpath` is not used), so a symlink inside `applications/` pointing outside would still be
+read. Since only the owner writes to that directory, the risk is low; when moving to multi-user
+uploads, replace it with `fs.realpath` + prefix check.
 
-`/applications/*` e `/base_profile/*` são servidos por `express.static`, que já normaliza `..` e
-não segue symlinks para fora da raiz por padrão.
+`/applications/*` and `/base_profile/*` are served by `express.static`, which already normalizes
+`..` and by default does not follow symlinks outside the root.
 
 ## 5. XSS
 
-Os visualizadores montam HTML com `escapeHtml()` em todo dado vindo do banco (empresa, cargo,
-conteúdo de arquivo). O HTML do currículo em si é inserido como veio do disco — ele é gerado pelo
-próprio pipeline e contém CSS/HTML controlado, não entrada de usuário externo.
+The viewers build HTML with `escapeHtml()` on every piece of data coming from the database
+(company, role, file content). The resume HTML itself is inserted as it came from disk — it is
+generated by the pipeline itself and contains controlled CSS/HTML, not external user input.
 
-Ao portar para React, a regra é: **nunca `dangerouslySetInnerHTML`** em conteúdo de vaga ou
-mensagem de recrutador. O currículo pode precisar de iframe isolado, dado que é um documento
-completo.
+When porting to React, the rule is: **never `dangerouslySetInnerHTML`** on job content or
+recruiter messages. The resume may need an isolated iframe, given that it is a full document.
 
-## 6. CORS e exposição de rede
+## 6. CORS and network exposure
 
-Não há CORS configurado. O servidor escuta em todas as interfaces por padrão do Express
-(`app.listen(port)`), então em uma rede compartilhada ele fica acessível. Para uso local estrito:
+No CORS is configured. The server listens on all interfaces by Express default
+(`app.listen(port)`), so on a shared network it becomes reachable. For strict local use:
 
 ```bash
 PORT=3344 HOST=127.0.0.1 pnpm dev
 ```
 
-> O `HOST` ainda não é lido por `src/config.ts`; hoje o bind é o default do Node. Se isso importar,
-> ajuste `app.listen(config.port, '127.0.0.1')`.
+> `HOST` is not yet read by `src/config.ts`; today the bind is Node's default. If this matters,
+> adjust to `app.listen(config.port, '127.0.0.1')`.
 
-Em nuvem, será necessário:
+In the cloud, you will need:
 
-1. autenticação (provedor de identidade);
-2. `owner_id` real em todas as consultas, não o default `local`;
-3. CORS restrito ao domínio da UI;
-4. rate limiting nas rotas de escrita e no pipeline;
-5. CSRF se cookies forem usados.
+1. authentication (identity provider);
+2. a real `owner_id` in every query, not the default `local`;
+3. CORS restricted to the UI's domain;
+4. rate limiting on write routes and the pipeline;
+5. CSRF protection if cookies are used.
 
-## 7. Dados pessoais (LGPD)
+## 7. Personal data (LGPD)
 
-O app guarda currículo, e-mail, telefone e histórico de candidaturas. Hoje tudo fica na máquina do
-usuário. Ao migrar para nuvem:
+The app stores resume, email, phone and application history. Today everything stays on the user's
+machine. When moving to the cloud:
 
-- defina base legal e prazo de retenção;
-- permita exportação e exclusão por titular;
-- criptografe em repouso (o provedor de banco e o storage fazem isso);
-- restrinja logs para não registrar conteúdo de currículo;
-- cuidado com artefatos em bucket público — use URLs assinadas.
+- define a legal basis and a retention period;
+- allow export and deletion per data subject;
+- encrypt at rest (the database provider and storage do this);
+- restrict logs so resume content is never recorded;
+- be careful with artifacts in public buckets — use signed URLs.
 
-## 8. Dependências
+## 8. Dependencies
 
-- `pnpm audit` não está no CI. Rode manualmente antes de releases.
-- `better-sqlite3` e `esbuild` têm scripts de build liberados explicitamente em
-  `pnpm-workspace.yaml`; qualquer nova dependência com script de instalação exige revisão.
-- Versões estão fixadas no `pnpm-lock.yaml`.
+- `pnpm audit` is not in CI. Run it manually before releases.
+- `better-sqlite3` and `esbuild` have build scripts explicitly allowed in `pnpm-workspace.yaml`;
+  any new dependency with an install script requires review.
+- Versions are pinned in `pnpm-lock.yaml`.
 
-## 9. Checklist antes de expor o v2
+## 9. Checklist before exposing v2
 
-- [ ] Autenticação e autorização por `owner_id`
-- [ ] Bind em `127.0.0.1` ou proxy reverso com TLS
-- [ ] CORS restrito
+- [ ] Authentication and authorization by `owner_id`
+- [ ] Bind on `127.0.0.1` or reverse proxy with TLS
+- [ ] Restricted CORS
 - [ ] Rate limiting
-- [ ] Segredos em secret manager
-- [ ] Backup e retenção definidos
-- [ ] `pnpm audit` limpo
-- [ ] Revisão de logs (sem PII)
-- [ ] Testes de autorização (hoje inexistentes)
+- [ ] Secrets in a secret manager
+- [ ] Backup and retention defined
+- [ ] Clean `pnpm audit`
+- [ ] Log review (no PII)
+- [ ] Authorization tests (none today)

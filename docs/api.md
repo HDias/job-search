@@ -1,29 +1,29 @@
 # API
 
-A API do v2 é um servidor Express 5 que roda em `http://localhost:3344` por padrão. Ela expõe
-três famílias de rotas:
+The v2 API is an Express 5 server running at `http://localhost:3344` by default. It exposes three
+route families:
 
-| Família | Prefixo | Público-alvo |
+| Family | Prefix | Audience |
 |---|---|---|
-| REST nova | `/api/jobs`, `/api/runs`, `/api/profiles`, `/api/settings`, `/api/stats` | UI React (Fase 2) e integrações |
-| Compatibilidade v1 | `/api/applications`, `/api/processes`, `/api/base-resumes`, `/api/pdf-theme`, `/api/candidate-data` | `public/index.html` do v1 |
-| Visualizadores | `/applications/*`, `/cv/:id`, `/extras/:id/:view` | Links abertos pelo usuário |
+| New REST | `/api/jobs`, `/api/runs`, `/api/profiles`, `/api/settings`, `/api/stats` | React UI (Phase 2) and integrations |
+| v1 compatibility | `/api/applications`, `/api/processes`, `/api/base-resumes`, `/api/pdf-theme`, `/api/candidate-data` | the v1 UI |
+| Viewers | `/applications/*`, `/cv/:id`, `/extras/:id/:view` | Links opened by the user |
 
-## 1. Convenções
+## 1. Conventions
 
-- **JSON em tudo** exceto os visualizadores, que devolvem HTML.
-- **Datas em ISO 8601 UTC** (`2026-10-28T12:00:00.000Z`). A única exceção é o DTO legado, que
-  devolve `date` no formato `dd/mm/yyyy`.
-- **Campos ausentes são `null`**, nunca `undefined`.
-- **IDs são opacos** e prefixados: `app_`, `proc_`, `art_`.
-- **Paginação** por `limit` e `offset`. Defaults: `50` para jobs, `100` para runs.
-- **Erros** seguem sempre o mesmo envelope:
+- **JSON everywhere** except the viewers, which return HTML.
+- **Dates in ISO 8601 UTC** (`2026-10-28T12:00:00.000Z`). The only exception is the legacy DTO,
+  which returns `date` in `dd/mm/yyyy` format.
+- **Missing fields are `null`**, never `undefined`.
+- **IDs are opaque** and prefixed: `app_`, `proc_`, `art_`.
+- **Pagination** via `limit` and `offset`. Defaults: `50` for jobs, `100` for runs.
+- **Errors** always follow the same envelope:
 
 ```json
 { "error": "Vaga não encontrada", "details": null }
 ```
 
-Em erro de validação, `details` traz a lista de `issues` do Zod:
+On validation errors, `details` carries the list of Zod `issues`:
 
 ```json
 {
@@ -32,18 +32,18 @@ Em erro de validação, `details` traz a lista de `issues` do Zod:
 }
 ```
 
-| Código | Quando |
+| Code | When |
 |---|---|
-| `200` | Leitura ou atualização bem-sucedida |
-| `201` | Criação |
-| `204` | Remoção sem corpo |
-| `400` | Corpo ou query inválidos, JSON malformado |
-| `404` | Recurso ou rota inexistente |
-| `409` | Conflito (ex.: alvo `stack × idioma` já existe) |
-| `413` | Corpo acima de 4 MB |
-| `500` | Erro não tratado (logado no servidor) |
+| `200` | Successful read or update |
+| `201` | Creation |
+| `204` | Removal without body |
+| `400` | Invalid body or query, malformed JSON |
+| `404` | Missing resource or route |
+| `409` | Conflict (e.g.: `stack × language` target already exists) |
+| `413` | Body above 4 MB |
+| `500` | Unhandled error (logged server-side) |
 
-## 2. Saúde e estatísticas
+## 2. Health and statistics
 
 ### `GET /api/health`
 
@@ -53,7 +53,7 @@ Em erro de validação, `details` traz a lista de `issues` do Zod:
 
 ### `GET /api/stats`
 
-Calculado sobre as vagas do `owner` (default `local`).
+Computed over the `owner`'s jobs (default `local`).
 
 ```json
 {
@@ -64,20 +64,20 @@ Calculado sobre as vagas do `owner` (default `local`).
 }
 ```
 
-- `averageFitRating` é `null` quando nenhuma vaga tem fit.
-- `appliedLast30Days` conta `applied_at >= agora - 30 dias`.
+- `averageFitRating` is `null` when no job has a fit.
+- `appliedLast30Days` counts `applied_at >= now - 30 days`.
 
-## 3. Vagas — `/api/jobs`
+## 3. Jobs — `/api/jobs`
 
 ### `GET /api/jobs`
 
-| Query | Tipo | Default | Descrição |
+| Query | Type | Default | Description |
 |---|---|---|---|
 | `status` | enum | — | `drafted`, `applied`, `interview`, `offer`, `rejected`, `archived` |
-| `q` | string | — | Busca textual em empresa/cargo |
-| `ownerId` | string | `local` | Dono |
-| `limit` | int | `50` | Tamanho da página |
-| `offset` | int | `0` | Deslocamento |
+| `q` | string | — | Text search over company/role |
+| `ownerId` | string | `local` | Owner |
+| `limit` | int | `50` | Page size |
+| `offset` | int | `0` | Displacement |
 
 ```json
 {
@@ -99,11 +99,11 @@ Calculado sobre as vagas do `owner` (default `local`).
 }
 ```
 
-`status` inválido responde `400`, não é ignorado.
+An invalid `status` responds `400`, it is not ignored.
 
 ### `GET /api/jobs/:id`
 
-Devolve o agregado da vaga:
+Returns the job aggregate:
 
 ```json
 {
@@ -115,11 +115,11 @@ Devolve o agregado da vaga:
 }
 ```
 
-`404` se a vaga não existe.
+`404` if the job doesn't exist.
 
 ### `POST /api/jobs`
 
-Corpo validado por `newJobSchema`. Obrigatórios: `company` e `role`.
+Body validated by `newJobSchema`. Required: `company` and `role`.
 
 ```json
 {
@@ -132,13 +132,13 @@ Corpo validado por `newJobSchema`. Obrigatórios: `company` e `role`.
 }
 ```
 
-Responde `201` com o `Job` criado. `id`, `ownerId`, `createdAt` e `updatedAt` são gerados no
-servidor.
+Responds `201` with the created `Job`. `id`, `ownerId`, `createdAt` and `updatedAt` are generated
+server-side.
 
 ### `PATCH /api/jobs/:id`
 
-Aceita qualquer subconjunto de `jobPatchSchema`. O merge do `fit` é **substituição do objeto
-inteiro** nesta rota; a mesclagem campo a campo existe apenas no DTO legado.
+Accepts any subset of `jobPatchSchema`. The `fit` merge is a **replacement of the whole object**
+on this route; field-by-field merging only exists in the legacy DTO.
 
 ```json
 { "status": "interview", "fit": { "rating": 88, "strengths": [], "gaps": [] } }
@@ -146,25 +146,25 @@ inteiro** nesta rota; a mesclagem campo a campo existe apenas no DTO legado.
 
 ### `DELETE /api/jobs/:id`
 
-`204` sem corpo. Os artefatos caem por `ON DELETE CASCADE`; os runs ficam órfãos com
-`job_id = NULL` (comportamento intencional — ver [ADR-0002](./adr/0002-modelo-document-shaped.md)).
+`204` without body. Artifacts fall via `ON DELETE CASCADE`; runs become orphans with
+`job_id = NULL` (intentional behavior — see [ADR-0002](./adr/0002-document-shaped-model.md)).
 
 ## 4. Runs — `/api/runs`
 
 ### `GET /api/runs`
 
-| Query | Tipo | Default | Descrição |
+| Query | Type | Default | Description |
 |---|---|---|---|
-| `jobId` | string | — | Filtra por vaga |
-| `stage` | string | — | Filtra por estágio |
-| `limit` | int | `100` | Página |
-| `offset` | int | `0` | Deslocamento |
+| `jobId` | string | — | Filters by job |
+| `stage` | string | — | Filters by stage |
+| `limit` | int | `100` | Page |
+| `offset` | int | `0` | Displacement |
 
-Devolve um array simples (sem envelope de paginação).
+Returns a plain array (no pagination envelope).
 
 ### `GET /api/runs/:id`
 
-`404` se não existe.
+`404` if it doesn't exist.
 
 ### `POST /api/runs`
 
@@ -180,21 +180,21 @@ Devolve um array simples (sem envelope de paginação).
 
 ### `PATCH /api/runs/:id`
 
-Aceita `stage`, flags (`hasRawText`, `needsFitConfirmation`…), `error`, `fit`, `job` e
+Accepts `stage`, flags (`hasRawText`, `needsFitConfirmation`…), `error`, `fit`, `job` and
 `jobSnapshot`.
 
 ### `DELETE /api/runs/:id`
 
 `204`.
 
-## 5. Compatibilidade com o v1
+## 5. Compatibility with v1
 
-Estas rotas existem para o `public/index.html` antigo continuar funcionando durante a migração.
-Elas traduzem o domínio novo para o DTO que a UI já conhece. **Não use em código novo.**
+These routes exist so the v1 UI keeps working during the migration. They
+translate the new domain into the DTO the UI already knows. **Do not use them in new code.**
 
 ### `GET /api/applications`
 
-Lista todas as vagas no formato legado:
+Lists all jobs in the legacy format:
 
 ```json
 [
@@ -222,67 +222,68 @@ Lista todas as vagas no formato legado:
 ]
 ```
 
-- O fit achatado (`fitRating`, `fitDimensions`, `strengths`…) desfaz o objeto `Fit`.
-- `recruiterNoteFile` e `linkedInNoteFile` são fallback um do outro, como no v1.
-- Os caminhos de arquivo são públicos (`/applications/...`), servidos por `express.static`.
+- The flattened fit (`fitRating`, `fitDimensions`, `strengths`…) undoes the `Fit` object.
+- `recruiterNoteFile` and `linkedInNoteFile` fall back to each other, as in v1.
+- File paths are public (`/applications/...`), served by `express.static`.
 
 ### `PUT /api/applications/:id`
 
-Aceita o corpo parcial que a UI manda. Conversões relevantes:
+Accepts the partial body the UI sends. Relevant conversions:
 
-| Campo legado | Efeito no domínio |
+| Legacy field | Effect on the domain |
 |---|---|
 | `status: "encerrado"` | `rejected` |
-| `date: "28/10/2026"` | `appliedAt` em ISO |
-| `fitRating`, `fitDimensions`, `strengths`… | merge no `Fit` existente |
-| `language` | normaliza para `en` ou `pt-br` |
+| `date: "28/10/2026"` | `appliedAt` in ISO |
+| `fitRating`, `fitDimensions`, `strengths`… | merge into the existing `Fit` |
+| `language` | normalizes to `en` or `pt-br` |
 
-Responde `{ "success": true, "application": { ... } }`.
+Responds `{ "success": true, "application": { ... } }`.
 
 ### `DELETE /api/applications/:id`
 
-Responde `{ "success": true, "message": "Candidatura removida com sucesso" }`.
+Responds `{ "success": true, "message": "Candidatura removida com sucesso" }`.
 
 ### `GET /api/processes`
 
-Lista **apenas runs com `stage != "done"`** — é o que o painel do v1 mostra como checkpoints
-pendentes. O DTO mantém `job`, `jobSnapshot`, `applicationId` e o fit achatado.
+Lists **only runs with `stage != "done"`** — that's what the v1 panel shows as pending checkpoints.
+The DTO keeps `job`, `jobSnapshot`, `applicationId` and the flattened fit.
 
 ### `PUT /api/processes/:id`
 
-Aceita `applicationId: null` para desvincular o run da vaga, `fit`, `job`, `jobSnapshot` e flags.
+Accepts `applicationId: null` to detach the run from the job, plus `fit`, `job`, `jobSnapshot` and
+flags.
 
 ### `DELETE /api/processes/:id`
 
-Responde `{ "success": true }`.
+Responds `{ "success": true }`.
 
-### Metadados
+### Metadata
 
-| Método | Rota | Formato |
+| Method | Route | Format |
 |---|---|---|
 | GET | `/api/base-resumes` | `{ "pt-br": { exists, language, sourceFile, updatedAt, charCount, preview }, ... }` |
 | GET | `/api/pdf-theme` | `{ success, theme }` |
-| PUT | `/api/pdf-theme` | valida `#RRGGBB`; devolve o tema normalizado em maiúsculas |
+| PUT | `/api/pdf-theme` | validates `#RRGGBB`; returns the theme normalized to uppercase |
 | GET | `/api/candidate-data` | `{ success, candidate }` |
-| PUT | `/api/candidate-data` | deriva `firstName`/`lastName` de `fullName` |
+| PUT | `/api/candidate-data` | derives `firstName`/`lastName` from `fullName` |
 
-## 6. Perfis (alvos) e settings
+## 6. Profiles (targets) and settings
 
-Um **alvo** é uma linha em `profiles`, identificada por `(stack, language)`. Cada alvo guarda o
-currículo base (`content`), um flag `enabled` e instruções extras de prompt (`extraPrompt`).
+A **target** is a row in `profiles`, identified by `(stack, language)`. Each target stores the base
+resume (`content`), an `enabled` flag and extra prompt instructions (`extraPrompt`).
 
-| Método | Rota | Descrição |
+| Method | Route | Description |
 |---|---|---|
-| GET | `/api/profiles` | Lista alvos. Query opcional `?enabled=true\|false` |
-| GET | `/api/profiles/:stack/:language` | Um alvo; `404` se ausente |
-| POST | `/api/profiles` | Cria alvo; `201`; `409` se a combinação já existe |
-| PUT | `/api/profiles/:stack/:language` | Atualização parcial de `content`, `enabled`, `extraPrompt` |
-| DELETE | `/api/profiles/:stack/:language` | `204`; `404` se ausente |
-| GET | `/api/settings` | Lista `{ key, value, updatedAt }` |
-| GET | `/api/settings/:key` | `404` se ausente |
+| GET | `/api/profiles` | Lists targets. Optional query `?enabled=true\|false` |
+| GET | `/api/profiles/:stack/:language` | One target; `404` if missing |
+| POST | `/api/profiles` | Creates a target; `201`; `409` if the combination already exists |
+| PUT | `/api/profiles/:stack/:language` | Partial update of `content`, `enabled`, `extraPrompt` |
+| DELETE | `/api/profiles/:stack/:language` | `204`; `404` if missing |
+| GET | `/api/settings` | Lists `{ key, value, updatedAt }` |
+| GET | `/api/settings/:key` | `404` if missing |
 | PUT | `/api/settings/:key` | `{ "value": ... }` |
 
-Exemplo de `Profile`:
+Example `Profile`:
 
 ```json
 {
@@ -295,81 +296,81 @@ Exemplo de `Profile`:
 }
 ```
 
-Regras:
+Rules:
 
-- **Stack**: `trim` + minúsculas; slug `^[a-z][a-z0-9-]{0,31}$`; inválida → `400`.
-- **Idioma**: `pt-br` ou `en`; qualquer outro → `400`.
-- **`POST` duplicado**: `409` (`Essa combinação já existe`), sem sobrescrever.
-- **`PUT` parcial**: campos ausentes preservam o valor atual; `{}` → `400`. O `PUT` também cria o
-  alvo se ele não existir (upsert).
-- **`extraPrompt`**: máximo de 8000 caracteres; string vazia/só espaços vira `null`.
-- **`DELETE`** apaga a linha e, portanto, o currículo salvo. Para pausar sem perder dados, use
+- **Stack**: `trim` + lowercase; slug `^[a-z][a-z0-9-]{0,31}$`; invalid → `400`.
+- **Language**: `pt-br` or `en`; anything else → `400`.
+- **Duplicate `POST`**: `409` (`Essa combinação já existe`), without overwriting.
+- **Partial `PUT`**: missing fields keep their current value; `{}` → `400`. `PUT` also creates the
+  target if it doesn't exist (upsert).
+- **`extraPrompt`**: up to 8000 characters; an empty/whitespace-only string becomes `null`.
+- **`DELETE`** removes the row and therefore the stored resume. To pause without losing data, use
   `PUT { "enabled": false }`.
-- **`enabled = false`**: o alvo continua editável e visível na API; o pipeline futuro deve ignorá-lo.
-- **`/api/base-resumes`** continua com o formato legado (4 chaves fixas) para o v1; a tela nova usa
+- **`enabled = false`**: the target stays editable and visible in the API; the future pipeline
+  should ignore it.
+- **`/api/base-resumes`** keeps the legacy format (4 fixed keys) for v1; the new screen uses
   `/api/profiles`.
 
-Chaves de settings conhecidas: `pdf_theme`, `candidate_form`. Chaves de API **não** são armazenadas
-aqui.
+Known settings keys: `pdf_theme`, `candidate_form`. API keys are **not** stored here.
 
-## 7. Visualizadores
+## 7. Viewers
 
 ### `GET /cv/:id`
 
-Renderiza o HTML do currículo com uma barra fixa contendo empresa, cargo, fit, botão de download
-do PDF e botão de impressão. Se o HTML não existir mas o PDF sim, tenta o `.html` de mesmo nome.
-Se nenhum dos dois existir, devolve `404` com uma página de aviso — o registro existe, mas o
-arquivo sumiu do disco.
+Renders the resume HTML with a fixed bar containing company, role, fit, a PDF download button and a
+print button. If the HTML doesn't exist but the PDF does, it tries the `.html` of the same name.
+If neither exists, it returns `404` with a warning page — the record exists, but the file is gone
+from disk.
 
 ### `GET /extras/:id/:view`
 
-`view` ∈ `email`, `recruiter`, `suggestions`. Renderiza o conteúdo em `<pre>` com link para o
-arquivo original. `404` para visão desconhecida; `200` com aviso quando não há material.
+`view` ∈ `email`, `recruiter`, `suggestions`. Renders the content in `<pre>` with a link to the
+original file. `404` for an unknown view; `200` with a warning when there is no material.
 
-### Estáticos
+### Static
 
 - `/applications/*` → `APPLICATIONS_DIR`
 - `/base_profile/*` → `BASE_PROFILE_DIR`
 
-Caminhos são resolvidos e validados contra *path traversal* (ver [security.md](./security.md)).
+Paths are resolved and validated against *path traversal* (see [security.md](./security.md)).
 
-### SPA em produção
+### SPA in production
 
-Quando `web/dist` existe, o Express serve os assets do React e devolve `index.html` nas rotas de
-navegação (`/`, `/jobs/:id`). Os prefixos `/api`, `/applications`, `/base_profile`, `/cv` e
-`/extras` ficam **fora** do fallback, para que um artefato ausente continue `404` em vez de virar
-HTML. O diretório pode ser trocado por `WEB_DIST`.
+When `web/dist` exists, Express serves the React assets and returns `index.html` for navigation
+routes (`/`, `/jobs/:id`). The `/api`, `/applications`, `/base_profile`, `/cv` and `/extras`
+prefixes stay **out** of the fallback, so a missing artifact keeps returning `404` instead of
+turning into HTML. The directory can be changed via `WEB_DIST`.
 
-## 8. Exemplos com `curl`
+## 8. `curl` examples
 
 ```bash
-# Listar vagas aplicadas
+# List applied jobs
 curl 'http://localhost:3344/api/jobs?status=applied&limit=5'
 
-# Estatísticas
+# Statistics
 curl http://localhost:3344/api/stats
 
-# Atualizar status
+# Update status
 curl -X PATCH http://localhost:3344/api/jobs/app_1 \
   -H 'content-type: application/json' \
   -d '{"status":"interview"}'
 
-# Formato legado (UI v1)
+# Legacy format (v1 UI)
 curl http://localhost:3344/api/applications
 
-# Currículo renderizado
+# Rendered resume
 open http://localhost:3344/cv/app_1
 ```
 
-## 9. O que ainda não existe
+## 9. What doesn't exist yet
 
-Rotas do pipeline pesado continuam apenas no v1:
+Heavy pipeline routes still live only in v1:
 
 - `POST /api/process-job`
 - `POST /api/fit-check`
-- upload/extração de currículo base
-- regeneração de kit (`/api/applications/:id/regenerate`)
-- fila interativa (`/api/processes/:id/question`, `/respond`)
+- base resume upload/extraction
+- kit regeneration (`/api/applications/:id/regenerate`)
+- interactive queue (`/api/processes/:id/question`, `/respond`)
 
-Elas dependem de Playwright, LLM e geração de PDF, que serão portados como serviços na Fase 3
-(ver [roadmap.md](./roadmap.md)).
+They depend on Playwright, LLM and PDF generation, which will be ported as services in Phase 3
+(see [roadmap.md](./roadmap.md)).

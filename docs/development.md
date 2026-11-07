@@ -1,20 +1,20 @@
-# Desenvolvimento
+# Development
 
-## 1. Pré-requisitos
+## 1. Prerequisites
 
-| Ferramenta | Versão | Observação |
+| Tool | Version | Notes |
 |---|---|---|
-| Node.js | 24.13.0 | Definido em `.tool-versions` |
-| pnpm | 11.3.0 | `packageManager` não é usado; ver seção 3 |
-| Python 3 | opcional | Só se você for repetir os ajustes em massa feitos na migração |
+| Node.js | 24.13.0 | Defined in `.tool-versions` |
+| pnpm | 11.3.0 | `packageManager` is not honored; see section 3 |
+| Python 3 | optional | Only if you want to redo the bulk adjustments made during the migration |
 
-Se você usa `asdf`:
+If you use `asdf`:
 
 ```bash
 asdf install
 ```
 
-## 2. Instalação
+## 2. Installation
 
 ```bash
 git clone <repo>
@@ -22,8 +22,8 @@ cd job-search-v2
 pnpm install
 ```
 
-Na primeira instalação, o pnpm compila `better-sqlite3` e `esbuild` do código-fonte. Isso é
-liberado em `pnpm-workspace.yaml`:
+On first install, pnpm compiles `better-sqlite3` and `esbuild` from source. This is allowed in
+`pnpm-workspace.yaml`:
 
 ```yaml
 packages:
@@ -34,69 +34,70 @@ allowBuilds:
   esbuild: true
 ```
 
-Sem esse bloco, o `better-sqlite3` falha com erro de binário nativo. `packages` registra `web/`
-como pacote do workspace.
+Without this block, `better-sqlite3` fails with a native binary error. `packages` registers `web/`
+as a workspace package.
 
 ## 3. pnpm 11
 
-O pnpm 11 não lê mais o campo `pnpm` do `package.json`. Configurações de build ficam em
-`pnpm-workspace.yaml`. Se você adicionar uma dependência que precise de script de instalação,
-declare-a em `allowBuilds`.
+pnpm 11 no longer reads the `pnpm` field in `package.json`. Build settings live in
+`pnpm-workspace.yaml`. If you add a dependency that needs an install script, declare it in
+`allowBuilds`.
 
-## 4. Banco de dados
+## 4. Database
 
-O banco fica em `data/job-search.db` (gitignored). Para criar do zero:
+The database lives at `data/job-search.db` (gitignored). To create it from scratch:
 
 ```bash
 pnpm db:migrate
 ```
 
-A API também roda as migrations no boot (`runMigrations(store.db)` em `src/api/server.ts`), então
-`pnpm dev` já deixa o banco pronto. Rodar `db:migrate` explicitamente é útil em CI e antes de
-importar.
+The API also runs migrations on boot (`runMigrations(store.db)` in `src/api/server.ts`), so
+`pnpm dev` already leaves the database ready. Running `db:migrate` explicitly is useful in CI and
+before importing.
 
-### Importar dados do v1
+### Import data from v1
 
 ```bash
-pnpm db:import -- --tracker ../job-search
-pnpm db:import -- --reset        # limpa e reimporta
+pnpm db:import -- --tracker <legacy-dir>   # <legacy-dir> = the v1 project directory
+pnpm db:import -- --reset        # wipe and re-import
 ```
 
-Detalhes em [migration-v1-v2.md](./migration-v1-v2.md).
+Details in [migration-v1-v2.md](./migration-v1-v2.md).
 
-## 5. Variáveis de ambiente
+## 5. Environment variables
 
-Copie `.env.example` para `.env` se quiser sobrescrever os defaults. O projeto **não** carrega
-`.env` automaticamente; exporte as variáveis ou use `dotenv` no seu shell.
+Copy `.env.example` to `.env` if you want to override the defaults. The project does **not** load
+`.env` automatically; export the variables or use `dotenv` in your shell.
 
-| Variável | Default | Descrição |
+| Variable | Default | Description |
 |---|---|---|
-| `PORT` | `3344` | Porta da API |
-| `DB_FILE` | `./data/job-search.db` | Caminho do SQLite |
-| `APPLICATIONS_DIR` | `../job-search/applications` | Artefatos gerados |
-| `BASE_PROFILE_DIR` | `../job-search/base_profile` | Perfis base |
-| `WEB_DIST` | `./web/dist` | Build do React servido pelo Express |
+| `PORT` | `3344` | API port |
+| `DB_FILE` | `./data/job-search.db` | SQLite path |
+| `APPLICATIONS_DIR` | `<legacy-dir>/applications` | Generated artifacts |
+| `BASE_PROFILE_DIR` | `<legacy-dir>/base_profile` | Base profiles |
+| `WEB_DIST` | `./web/dist` | React build served by Express |
 
-Defaults são resolvidos com `path.resolve` a partir da raiz do projeto (`src/config.ts`).
+`<legacy-dir>` is the v1 project directory. Defaults are resolved with `path.resolve` from the
+project root (`src/config.ts`).
 
-## 6. Comandos
+## 6. Commands
 
 ```bash
-pnpm dev            # API com watch em http://localhost:3344
-pnpm start          # API sem watch (serve web/dist se existir)
-pnpm dev:web        # Vite em http://localhost:5173
-pnpm build:web      # build de produção em web/dist
+pnpm dev            # API with watch on http://localhost:3344
+pnpm start          # API without watch (serves web/dist if it exists)
+pnpm dev:web        # Vite on http://localhost:5173
+pnpm build:web      # production build in web/dist
 pnpm typecheck      # backend: tsc --noEmit
 pnpm typecheck:web  # frontend: tsc --noEmit
-pnpm test           # backend: Vitest (ambiente Node)
+pnpm test           # backend: Vitest (Node environment)
 pnpm test:web       # frontend: Vitest (jsdom)
-pnpm db:migrate     # aplica migrations
-pnpm db:import      # importa o v1
+pnpm db:migrate     # apply migrations
+pnpm db:import      # import v1
 ```
 
-### Rodando o frontend
+### Running the frontend
 
-Em desenvolvimento, dois terminais:
+In development, two terminals:
 
 ```bash
 # terminal 1
@@ -106,68 +107,69 @@ pnpm dev
 pnpm dev:web
 ```
 
-O Vite faz proxy de `/api`, `/applications`, `/base_profile`, `/cv` e `/extras` para a API na
-`3344`. Não é preciso configurar CORS.
+Vite proxies `/api`, `/applications`, `/base_profile`, `/cv` and `/extras` to the API on `3344`.
+No CORS configuration is needed.
 
-Em produção:
+In production:
 
 ```bash
 pnpm build:web
 pnpm start
 ```
 
-Tudo fica em `http://localhost:3344`: API, artefatos e SPA. Detalhes em
+Everything ends up at `http://localhost:3344`: API, artifacts and SPA. Details in
 [frontend.md](./frontend.md).
 
-## 7. Rodando ao lado do v1
+## 7. Running alongside v1
 
-O v1 usa a porta `3333` e o v2 a `3344`. Os dois podem rodar juntos:
+v1 uses port `3333` and v2 uses `3344`. Both can run at the same time: start the legacy app from
+its own project directory and v2 from this repository.
 
 ```bash
-# terminal 1
-cd ../job-search && pnpm start
+# terminal 1 — v1, from its own project
+pnpm start
 
-# terminal 2
-cd ../job-search-v2 && pnpm dev
+# terminal 2 — v2, from this repository
+pnpm dev
 ```
 
-O v2 aponta por padrão para `../job-search/applications` e `../job-search/base_profile`, então os
-artefatos aparecem nos visualizadores sem cópia. **Não aponte os dois para o mesmo banco** — o v1
-não conhece o schema novo.
+v2 resolves `APPLICATIONS_DIR` and `BASE_PROFILE_DIR` to the v1 directories by default, so the
+artifacts show up in the viewers without copying. **Don't point both at the same database** — v1
+doesn't know the new schema.
 
-## 8. Fluxo de desenvolvimento
+## 8. Development flow
 
-1. Altere o domínio em `src/domain/` (tipos + schema Zod).
-2. Se mudou schema, ajuste `src/db/schema.ts` e rode `pnpm drizzle-kit generate`.
-3. Ajuste/adicione o repositório em `src/repositories/sqlite/`.
-4. Exponha na rota em `src/api/routes/`.
-5. Cubra com teste em `test/`.
+1. Change the domain in `src/domain/` (types + Zod schema).
+2. If the schema changed, adjust `src/db/schema.ts` and run `pnpm drizzle-kit generate`.
+3. Adjust/add the repository in `src/repositories/sqlite/`.
+4. Expose it in the route under `src/api/routes/`.
+5. Cover it with a test in `test/`.
 6. `pnpm typecheck && pnpm test`.
-7. Se mudou a UI, rode `pnpm typecheck:web && pnpm test:web`.
-8. Atualize a doc e, se for decisão estrutural, escreva um ADR.
+7. If the UI changed, run `pnpm typecheck:web && pnpm test:web`.
+8. Update the docs and, if it's a structural decision, write an ADR.
 
-### Alterando o frontend
+### Changing the frontend
 
-- Páginas em `web/src/pages/`, componentes em `web/src/components/`.
-- Chamadas de API em `web/src/api/client.ts`; hooks em `web/src/api/hooks.ts`.
-- Tipos espelham `src/domain/` em `web/src/api/types.ts`. Ao mudar um campo no backend, atualize os
-  dois lados.
-- Estilo único em `web/src/styles.css`.
-- Testes ao lado do código (`*.test.tsx`).
+- Pages in `web/src/pages/`, components in `web/src/components/`.
+- API calls in `web/src/api/client.ts`; hooks in `web/src/api/hooks.ts`.
+- Types mirror `src/domain/` in `web/src/api/types.ts`. When you change a field in the backend,
+  update both sides.
+- Single stylesheet in `web/src/styles.css`.
+- Tests next to the code (`*.test.tsx`).
 
-### Criando uma migration
+### Creating a migration
 
 ```bash
-pnpm drizzle-kit generate --name=minha_mudanca
+pnpm drizzle-kit generate --name=my_change
 ```
 
-O SQL vai para `drizzle/000N_minha_mudanca.sql` e o snapshot para `drizzle/meta/`. **Nunca edite
-uma migration já aplicada**; crie outra.
+The SQL goes to `drizzle/000N_my_change.sql` and the snapshot to `drizzle/meta/`. **Never edit an
+already-applied migration**; create another one.
 
-Migrations destrutivas em SQLite (drop/rename de coluna) exigem recriar a tabela. O
-`drizzle-kit` gera o SQL, mas revise antes de aplicar.
+Destructive migrations in SQLite (drop/rename of a column) require recreating the table.
+`drizzle-kit` generates the SQL, but review it before applying.
 
-### Adicionando uma rota
+### Adding a route
 
 ```ts
 // src/api/routes/exemplo.ts
@@ -188,24 +190,24 @@ export function createExemploRouter(store: Store): Router {
 }
 ```
 
-Registre em `src/api/app.ts` **antes** de `notFoundHandler`. Erros lançados como `HttpError` são
-convertidos pelo `errorHandler` central.
+Register it in `src/api/app.ts` **before** `notFoundHandler`. Errors thrown as `HttpError` are
+converted by the central `errorHandler`.
 
 ## 9. Troubleshooting
 
-| Sintoma | Causa provável | Solução |
+| Symptom | Likely cause | Fix |
 |---|---|---|
-| `Could not locate the bindings file` | `better-sqlite3` não compilou | `pnpm rebuild better-sqlite3`; confira `allowBuilds` |
-| `SQLITE_BUSY` | Dois processos escrevendo | Use um processo por banco; WAL ajuda mas não elimina |
-| `banco já contém dados` no import | Importação sem `--reset` | `pnpm db:import -- --reset` |
-| Artefato 404 | Caminho errado em `APPLICATIONS_DIR` | Confira a variável e o `relativePath` no banco |
-| `status inválido` | Enum diferente do domínio | Veja a lista em [data-model.md](./data-model.md) |
-| Porta ocupada | v1 ou instância antiga | `lsof -i :3344` ou `lsof -i :5173` |
-| SPA devolve 404 em produção | `web/dist` não existe | `pnpm build:web` |
+| `Could not locate the bindings file` | `better-sqlite3` didn't compile | `pnpm rebuild better-sqlite3`; check `allowBuilds` |
+| `SQLITE_BUSY` | Two processes writing | Use one process per database; WAL helps but doesn't eliminate it |
+| `banco já contém dados` on import | Import without `--reset` | `pnpm db:import -- --reset` |
+| Artifact 404 | Wrong path in `APPLICATIONS_DIR` | Check the variable and the `relativePath` in the database |
+| `status inválido` | Enum different from the domain | See the list in [data-model.md](./data-model.md) |
+| Port in use | v1 or an old instance | `lsof -i :3344` or `lsof -i :5173` |
+| SPA returns 404 in production | `web/dist` doesn't exist | `pnpm build:web` |
 
-## 10. Estilo
+## 10. Style
 
-- TypeScript ESM (`"type": "module"`), imports com extensão `.js`.
-- Sem framework de lint configurado; o `tsc --noEmit` é o portão.
-- Comentários e mensagens de erro em português, código em inglês.
-- Funções pequenas; regra de negócio no domínio, não na rota.
+- TypeScript ESM (`"type": "module"`), imports with a `.js` extension.
+- No lint framework configured; `tsc --noEmit` is the gate.
+- Comments and error messages in Portuguese, code in English.
+- Small functions; business logic in the domain, not in the route.

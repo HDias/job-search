@@ -1,23 +1,24 @@
-# Migração v1 → v2
+# v1 → v2 migration
 
-## 1. Estratégia
+## 1. Strategy
 
-O v1 guardava tudo em arquivos JSON no diretório `../job-search`:
+v1 kept everything in JSON files under its own project directory (called `<legacy-dir>` below):
 
-| Arquivo | Conteúdo |
+| File | Content |
 |---|---|
-| `job_tracker.json` (ou similar) | Vagas/candidaturas |
-| `job_processes.json` | Checkpoints de processamento |
-| `base_profile/*.json` | Currículos base extraídos |
-| `config.json` | Configuração, incluindo chave de LLM |
-| `applications/<slug>/*` | PDFs, HTMLs, textos e JSONs gerados |
+| `job_tracker.json` (or similar) | Jobs/applications |
+| `job_processes.json` | Processing checkpoints |
+| `base_profile/*.json` | Extracted base resumes |
+| `config.json` | Configuration, including the LLM key |
+| `applications/<slug>/*` | Generated PDFs, HTMLs, texts and JSONs |
 
-O v2 não lê esses arquivos em runtime. A migração é um **importador one-off** (`src/migrations/from-json.ts`)
-que roda antes da aplicação subir e grava tudo no SQLite. O v1 permanece intacto como fallback.
+v2 does not read these files at runtime. The migration is a **one-off importer**
+(`src/migrations/from-json.ts`) that runs before the application comes up and writes everything to
+SQLite. v1 stays intact as a fallback.
 
 ```mermaid
 flowchart LR
-  subgraph V1["v1 - arquivos"]
+  subgraph V1["v1 - files"]
     TRACKER["tracker.json"]
     PROCS["job_processes.json"]
     PROFILES["base_profile/*.json"]
@@ -31,36 +32,36 @@ flowchart LR
   TRACKER --> IMP
   PROCS --> IMP
   PROFILES --> IMP
-  APPS -.->|"apenas stat e metadados"| IMP
-  CONFIG -.->|"ignorado de propósito"| IMP
+  APPS -.->|"stat and metadata only"| IMP
+  CONFIG -.->|"ignored on purpose"| IMP
   IMP --> DB
 ```
 
-## 2. Como rodar
+## 2. How to run
 
 ```bash
-# 1. Garanta que o banco está no schema mais recente
+# 1. Make sure the database is on the latest schema
 pnpm db:migrate
 
-# 2. Importe (o banco precisa estar vazio)
-pnpm db:import -- --tracker ../job-search
+# 2. Import (the database must be empty)
+pnpm db:import -- --tracker <legacy-dir>
 
-# Ou limpe e reimporte
+# Or wipe and re-import
 pnpm db:import -- --reset
 ```
 
-Opções aceitas pelo script (via `parseArgs`):
+Options accepted by the script (via `parseArgs`):
 
-| Flag | Default | Descrição |
+| Flag | Default | Description |
 |---|---|---|
-| `--tracker` | `../job-search` | Diretório do v1 |
-| `--db` | `data/job-search.db` | Banco de destino |
-| `--reset` | `false` | Apaga jobs/runs/artifacts antes de importar |
+| `--tracker` | `<legacy-dir>` | v1 directory |
+| `--db` | `data/job-search.db` | Target database |
+| `--reset` | `false` | Wipe jobs/runs/artifacts before importing |
 
-O importador abre uma transação única: ou tudo entra, ou nada entra. Ao final imprime um relatório
-com contagens e avisos.
+The importer opens a single transaction: either everything goes in, or nothing does. At the end it
+prints a report with counts and warnings.
 
-## 3. Resultado da importação real
+## 3. Result of the real import
 
 ```text
 Importação concluída:
@@ -71,38 +72,38 @@ Importação concluída:
   settings:  2
 ```
 
-### Avisos esperados
+### Expected warnings
 
 - `config.json não importado de propósito: contém chave de API da LLM.`
 - `17 processo(s) sem vaga correspondente (jobId nulo).`
 
-Os runs órfãos não são erro: são checkpoints antigos cuja vaga foi removida no v1. Eles continuam
-válidos e aparecem em `/api/runs`; a UI do v1 não os mostra porque filtra `stage != done`.
+The orphan runs are not an error: they are old checkpoints whose job was deleted in v1. They stay
+valid and appear in `/api/runs`; the v1 UI doesn't show them because it filters `stage != done`.
 
-## 4. Mapeamento de campos
+## 4. Field mapping
 
-### Vaga → `jobs`
+### Job → `jobs`
 
-| v1 | v2 | Transformação |
+| v1 | v2 | Transformation |
 |---|---|---|
-| `id` | `id` | Mantido quando já tem prefixo; senão gera `app_<uuid>` |
+| `id` | `id` | Kept when it already has a prefix; otherwise a `app_<uuid>` is generated |
 | `date` | `appliedAt` | `dd/mm/yyyy` → ISO 8601 UTC |
 | `company` | `company` | Trim |
 | `role` | `role` | Trim |
-| `language` | `language` | `en` ou `pt-br` |
-| `languageConfirmation` | `languageConfirmation` | Preservado (`user-confirmed`) |
+| `language` | `language` | `en` or `pt-br` |
+| `languageConfirmation` | `languageConfirmation` | Preserved (`user-confirmed`) |
 | `stack` | `stack` | Lowercase; default `ruby` |
-| `channel` | `channel` | Direto |
-| `status` | `status` | Normalizado para o enum novo (ver abaixo) |
-| `fitRating`, `fitAnalysis`, `strengths`, `gaps` | `fit` | Agrupados no objeto `Fit` |
-| `fitDimensions` | `fit.dimensions` | Direto |
-| `eligibility`, `languageGate`, `logisticsNote` | `fit.*` | Direto |
-| `vacancyUrl`, `applyUrl` | `vacancyUrl`, `applyUrl` | Direto |
-| `appliedEmails` | `appliedEmails` | Array JSON |
-| `coverInCvRequired`, `coverInCvReason`, `coverLetterGuidance` | idem | Direto |
-| `hasRecruiterMessage`, `hasQuestions`, `skillGrounded`, `fitConfirmed` | idem | Booleanos |
+| `channel` | `channel` | Direct |
+| `status` | `status` | Normalized into the new enum (see below) |
+| `fitRating`, `fitAnalysis`, `strengths`, `gaps` | `fit` | Grouped into the `Fit` object |
+| `fitDimensions` | `fit.dimensions` | Direct |
+| `eligibility`, `languageGate`, `logisticsNote` | `fit.*` | Direct |
+| `vacancyUrl`, `applyUrl` | `vacancyUrl`, `applyUrl` | Direct |
+| `appliedEmails` | `appliedEmails` | JSON array |
+| `coverInCvRequired`, `coverInCvReason`, `coverLetterGuidance` | same | Direct |
+| `hasRecruiterMessage`, `hasQuestions`, `skillGrounded`, `fitConfirmed` | same | Booleans |
 
-### Normalização de status
+### Status normalization
 
 | v1 | v2 |
 |---|---|
@@ -113,93 +114,93 @@ válidos e aparecem em `/api/runs`; a UI do v1 não os mostra porque filtra `sta
 | `encerrado`, `closed`, `desistido`, `rejected` | `rejected` |
 | `arquivado`, `archived` | `archived` |
 
-Status desconhecido gera aviso e cai em `drafted`. A mesma tabela é usada em tempo de execução pelo
-DTO de compatibilidade.
+An unknown status produces a warning and falls back to `drafted`. The same table is used at
+runtime by the compatibility DTO.
 
-### Processo → `runs`
+### Process → `runs`
 
 | v1 | v2 |
 |---|---|
 | `id` | `id` (`proc_`) |
-| `applicationId` | `jobId` (nulo se a vaga não existir) |
+| `applicationId` | `jobId` (null if the job doesn't exist) |
 | `stage` | `stage` |
 | `url` | `url` |
 | `stack` | `stack` |
-| `languagePreference`, `detectedLanguage`, `suggestedLanguage` | idem |
-| `needsLanguageConfirmation`, `needsFitConfirmation`, `eligibilityBlocked` | idem |
-| `hasRawText`, `hasExtraQuestions`, `hasRecruiterMessage` | idem |
+| `languagePreference`, `detectedLanguage`, `suggestedLanguage` | same |
+| `needsLanguageConfirmation`, `needsFitConfirmation`, `eligibilityBlocked` | same |
+| `hasRawText`, `hasExtraQuestions`, `hasRecruiterMessage` | same |
 | `error` | `error` |
-| `fit` | `fit` (achatado → objeto) |
-| `job` | `job` (metadados) |
-| `jobSnapshot` | `jobSnapshot` (inclui `content`, `extraQuestions`, `recruiterMessage`) |
-| `createdAt` | `createdAt` (normalizado para ISO) |
+| `fit` | `fit` (flattened → object) |
+| `job` | `job` (metadata) |
+| `jobSnapshot` | `jobSnapshot` (includes `content`, `extraQuestions`, `recruiterMessage`) |
+| `createdAt` | `createdAt` (normalized to ISO) |
 
-### Artefatos
+### Artifacts
 
-O v1 referenciava arquivos por caminho dentro de `applications/`. O importador:
+v1 referenced files by path inside `applications/`. The importer:
 
-1. extrai o caminho relativo de cada referência;
-2. verifica se o arquivo existe no disco (`fs.stat`);
-3. grava `kind`, `relativePath`, `mime`, `sizeBytes` e `createdAt`.
+1. extracts the relative path from each reference;
+2. checks whether the file exists on disk (`fs.stat`);
+3. writes `kind`, `relativePath`, `mime`, `sizeBytes` and `createdAt`.
 
-**O conteúdo nunca é copiado para o banco.** Se o arquivo não existe, o artefato é importado
-mesmo assim? Não — referências quebradas são registradas como aviso e omitidas, para o banco não
-prometer arquivos inexistentes.
+**The content is never copied into the database.** If the file doesn't exist, is the artifact still
+imported? No — broken references are logged as a warning and omitted, so the database doesn't
+promise nonexistent files.
 
-O índice único `(job_id, kind, relative_path)` garante que reimportar não duplica.
+The unique index `(job_id, kind, relative_path)` guarantees that re-importing doesn't duplicate.
 
-### Perfis e settings
+### Profiles and settings
 
-- `base_profile/*.json` → `profiles`, com `content` guardando o JSON original.
-- `pdf_theme` e `candidate_form` → `settings`.
+- `base_profile/*.json` → `profiles`, with `content` keeping the original JSON.
+- `pdf_theme` and `candidate_form` → `settings`.
 
-## 5. O que deliberadamente não foi importado
+## 5. What was deliberately not imported
 
-| Item | Motivo |
+| Item | Reason |
 |---|---|
-| `config.json` / chave de LLM | Segredo. Reconfigurar no v2 via variável de ambiente |
-| Conteúdo dos artefatos | Ficam no filesystem; o banco só guarda metadados |
-| Caches e arquivos temporários | Sem valor histórico |
-| Logs do v1 | Não fazem parte do domínio |
+| `config.json` / LLM key | Secret. Reconfigure in v2 via environment variable |
+| Artifact content | Stays on the filesystem; the database only keeps metadata |
+| Caches and temporary files | No historical value |
+| v1 logs | Not part of the domain |
 
-## 6. Validação pós-importação
+## 6. Post-import validation
 
-O smoke test usado na migração real:
+The smoke test used during the real migration:
 
 ```bash
-pnpm dev &   # sobe na 3344
+pnpm dev &   # comes up on 3344
 curl -s localhost:3344/api/stats
 curl -s localhost:3344/api/applications | head -c 500
 curl -s localhost:3344/api/processes
 curl -s localhost:3344/cv/<id> | head
 ```
 
-Resultado esperado (com os dados reais):
+Expected result (with real data):
 
 ```text
 stats  {"total":16,"byStatus":{"applied":13,"drafted":2,"rejected":1},"averageFitRating":69.9}
-applications 16 itens, date 28/10/2026, fit 77.5
-processes pendentes 1
+applications 16 items, date 28/10/2026, fit 77.5
+pending processes 1
 /cv/:id 200 text/html
-PDF estático 200 application/pdf
+static PDF 200 application/pdf
 ```
 
 ## 7. Rollback
 
-O v1 não é alterado em nenhum momento. Para voltar:
+v1 is never modified. To go back:
 
 ```bash
-# pare o v2
-rm data/job-search.db       # ou mantenha uma cópia antes
-cd ../job-search && pnpm start
+# stop v2
+rm data/job-search.db       # or keep a copy beforehand
+cd <legacy-dir> && pnpm start
 ```
 
-O v1 continua lendo os mesmos JSONs e servindo os mesmos artefatos.
+v1 keeps reading the same JSONs and serving the same artifacts.
 
-## 8. Reimportação
+## 8. Re-import
 
-O importador recusa rodar com o banco populado, a menos que `--reset` seja passado. Isso evita
-duplicar dados por acidente. `--reset` apaga jobs, runs e artifacts, mas **não** apaga perfis,
-settings nem arquivos em `applications/`.
+The importer refuses to run against a populated database unless `--reset` is passed. This avoids
+accidentally duplicating data. `--reset` wipes jobs, runs and artifacts, but does **not** wipe
+profiles, settings or the files in `applications/`.
 
-Se o schema mudar entre importações, rode `pnpm db:migrate` antes.
+If the schema changed between imports, run `pnpm db:migrate` first.

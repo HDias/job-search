@@ -1,13 +1,13 @@
 # Roadmap
 
-## 1. Fases
+## 1. Phases
 
 ```mermaid
 flowchart LR
-  F0["Fase 0 - Dados e importação"]:::done
-  F1["Fase 1 - SQLite e API"]:::done
-  F2["Fase 2 - React"]:::active
-  F3["Fase 3 - Nuvem e pipeline"]:::next
+  F0["Phase 0 - Data and import"]:::done
+  F1["Phase 1 - SQLite and API"]:::done
+  F2["Phase 2 - React"]:::active
+  F3["Phase 3 - Cloud and pipeline"]:::next
 
   F0 --> F1 --> F2 --> F3
 
@@ -16,115 +16,115 @@ flowchart LR
   classDef next fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5
 ```
 
-### Fase 0 — Dados e importação ✅
+### Phase 0 — Data and import ✅
 
-- Modelo document-shaped validado.
-- Importador one-off dos JSONs do v1.
-- 16 vagas, 34 runs, 97 artefatos, 4 perfis, 2 settings.
-- 19 testes iniciais.
+- Document-shaped model validated.
+- One-off importer for v1's JSONs.
+- 16 jobs, 34 runs, 97 artifacts, 4 profiles, 2 settings.
+- 19 initial tests.
 
-### Fase 1 — SQLite e API ✅
+### Phase 1 — SQLite and API ✅
 
-- Drizzle + migrations versionadas.
-- Repositórios com contratos.
-- API REST (`/api/jobs`, `/api/runs`, `/api/stats`, profiles, settings).
-- Compatibilidade com a UI v1 (`/api/applications`, `/api/processes`, visualizadores).
-- 71 testes de backend; smoke test com dados reais.
+- Drizzle + versioned migrations.
+- Repositories with contracts.
+- REST API (`/api/jobs`, `/api/runs`, `/api/stats`, profiles, settings).
+- Compatibility with the v1 UI (`/api/applications`, `/api/processes`, viewers).
+- 71 backend tests; smoke test with real data.
 
-### Fase 2 — React 🚧
+### Phase 2 — React 🚧
 
-Objetivo: substituir `public/index.html` por uma SPA mantendo a API como única fonte de dados.
+Goal: replace the v1 UI with a SPA while keeping the API as the only data source.
 
-**Stack proposta**
+**Proposed stack**
 
-| Item | Escolha | Motivo |
+| Item | Choice | Reason |
 |---|---|---|
-| Build | Vite | Rápido, ESM nativo, proxy de dev simples |
-| Linguagem | TypeScript | Já é o padrão do backend |
-| Dados | TanStack Query | Cache, invalidação, estados de loading/erro |
-| Rotas | React Router | Dashboard, detalhe, admin |
-| Estilo | CSS Modules ou Tailwind | A decidir no início da fase |
+| Build | Vite | Fast, native ESM, simple dev proxy |
+| Language | TypeScript | Already the backend's standard |
+| Data | TanStack Query | Cache, invalidation, loading/error states |
+| Routes | React Router | Dashboard, detail, admin |
+| Styling | CSS Modules or Tailwind | To be decided at the start of the phase |
 
-**Entregas**
+**Deliverables**
 
-- [x] Scaffold `web/` com proxy `/api` → `http://localhost:3344`.
-- [x] Dashboard: stats + lista de vagas com filtros de status e busca.
-- [x] Detalhe da vaga: fit (rating, dimensões, forças, gaps), runs e artefatos.
-- [x] Visualização de currículo/carta via visualizadores do backend.
-- [x] Testes de componente e de integração (28 testes).
-- [x] Scripts de workspace (`dev:web`, `build:web`, `test:web`, `typecheck:web`).
-- [x] Build servido pelo Express com fallback de SPA.
-- [x] Página de admin: tema de PDF e dados do formulário.
-- [x] App Settings: alvos configuráveis (stack × idioma), currículo base e instruções extras por
-  alvo, com ativar/desativar e remover.
-- [x] Polling de runs ativos (4 s). Resposta de checkpoint ainda depende do pipeline.
-- [x] Filtros na URL e paginação visível (25 por página).
+- [x] Scaffold `web/` with proxy `/api` → `http://localhost:3344`.
+- [x] Dashboard: stats + job list with status filters and search.
+- [x] Job detail: fit (rating, dimensions, strengths, gaps), runs and artifacts.
+- [x] Resume/letter viewing via the backend viewers.
+- [x] Component and integration tests (28 tests).
+- [x] Workspace scripts (`dev:web`, `build:web`, `test:web`, `typecheck:web`).
+- [x] Build served by Express with SPA fallback.
+- [x] Admin page: PDF theme and form data.
+- [x] App Settings: configurable targets (stack × language), base resume and extra instructions
+  per target, with enable/disable and remove.
+- [x] Polling of active runs (4 s). Checkpoint response still depends on the pipeline.
+- [x] Filters in the URL and visible pagination (25 per page).
 
-**Decisões pendentes**
+**Pending decisions**
 
-- Resposta de checkpoint no v2: exige portar a fila interativa do pipeline.
-- Upload de PDF no admin: porta o extrator do v1 ou mantém só texto/arquivos leves.
+- Checkpoint response in v2: requires porting the pipeline's interactive queue.
+- PDF upload in admin: port v1's extractor or keep only text/light files.
 
-### Fase 3 — Nuvem e pipeline ⏳
+### Phase 3 — Cloud and pipeline ⏳
 
-Duas frentes independentes:
+Two independent fronts:
 
-**3a. Adaptador de nuvem**
+**3a. Cloud adapter**
 
-| Opção | Prós | Contras |
+| Option | Pros | Cons |
 |---|---|---|
-| Turso/libSQL | SQL compatível, troca quase direta | Menos recursos de consulta |
-| Supabase/Postgres | SQL completo, auth e storage integrados | Mais peças para operar |
-| Firestore | Serverless, tempo real | Sem joins; exige remodelar consultas |
+| Turso/libSQL | Compatible SQL, almost direct swap | Fewer query features |
+| Supabase/Postgres | Full SQL, integrated auth and storage | More moving parts to operate |
+| Firestore | Serverless, realtime | No joins; requires rethinking queries |
 
-Recomendação: **Turso** se o objetivo for mínima mudança; **Supabase** se auth/storage forem
-necessários; **Firestore** só se Firebase for requisito. Detalhes em
-[ADR-0003](./adr/0003-repository-pattern-e-nuvem.md).
+Recommendation: **Turso** if the goal is minimal change; **Supabase** if auth/storage are needed;
+**Firestore** only if Firebase is a requirement. Details in
+[ADR-0003](./adr/0003-repository-pattern-and-cloud.md).
 
-**3b. Pipeline pesado**
+**3b. Heavy pipeline**
 
-Portar de `server.mjs` do v1:
+Port from the v1 server:
 
-- raspagem de vaga (Playwright);
-- motor de fit híbrido;
-- chamadas de LLM (com chave em secret manager);
-- geração de HTML/PDF;
-- fila interativa de perguntas (`needs_input`).
+- job scraping (Playwright);
+- hybrid fit engine;
+- LLM calls (key in a secret manager);
+- HTML/PDF generation;
+- interactive question queue (`needs_input`).
 
-Isso exige um runtime com navegador — Cloud Run, Fly.io ou um worker dedicado. Funções serverless
-puras não atendem Playwright + Chromium para PDF.
+This requires a runtime with a browser — Cloud Run, Fly.io or a dedicated worker. Pure serverless
+functions don't cover Playwright + Chromium for PDF.
 
-## 2. Backlog técnico
+## 2. Technical backlog
 
-| Prioridade | Item | Impacto |
+| Priority | Item | Impact |
 |---|---|---|
-| Alta | Frontend React | Substituir a UI v1 |
-| Alta | Endpoint agregado para listagem (elimina N+1) | Performance |
-| Média | Portar pipeline de processamento | Paridade funcional |
-| Média | Autenticação e `owner_id` real | Nuvem |
-| Média | Testes de autorização | Segurança |
-| Baixa | Métricas e tracing | Observabilidade |
-| Baixa | Backup automatizado | Operação |
-| Baixa | CI (typecheck + test + audit) | Qualidade |
+| High | React frontend | Replace the v1 UI |
+| High | Aggregate endpoint for listings (eliminates N+1) | Performance |
+| Medium | Port the processing pipeline | Feature parity |
+| Medium | Authentication and real `owner_id` | Cloud |
+| Medium | Authorization tests | Security |
+| Low | Metrics and tracing | Observability |
+| Low | Automated backup | Operations |
+| Low | CI (typecheck + test + audit) | Quality |
 
-## 3. Critérios de conclusão da Fase 2
+## 3. Phase 2 completion criteria
 
-- [x] Dashboard lista, filtra e busca vagas via `/api/jobs`.
-- [x] Detalhe mostra fit, runs e artefatos.
-- [x] Status pode ser alterado pela UI.
-- [x] Currículo e extras abrem em nova aba via visualizadores.
-- [x] Admin lê/escreve tema e dados do formulário.
-- [x] App Settings gerencia alvos, currículos base e instruções extras.
-- [x] Nenhuma tela depende de `/api/applications`.
-- [x] Testes de frontend passando (28).
-- [ ] `public/index.html` do v1 pode ser aposentado.
+- [x] Dashboard lists, filters and searches jobs via `/api/jobs`.
+- [x] Detail shows fit, runs and artifacts.
+- [x] Status can be changed from the UI.
+- [x] Resume and extras open in a new tab via the viewers.
+- [x] Admin reads/writes theme and form data.
+- [x] App Settings manages targets, base resumes and extra instructions.
+- [x] No screen depends on `/api/applications`.
+- [x] Frontend tests passing (28).
+- [ ] The v1 UI can be retired.
 
-## 4. Riscos
+## 4. Risks
 
-| Risco | Probabilidade | Mitigação |
+| Risk | Probability | Mitigation |
 |---|---|---|
-| Pipeline pesado demorar mais que o previsto | Alta | Manter v1 rodando em paralelo |
-| Divergência de dados entre v1 e v2 | Média | v2 como fonte única após Fase 2 |
-| Custo de LLM em nuvem | Média | Cache de fit e limites por usuário |
-| Migração de banco quebrar consultas | Baixa | Testes de contrato dos repositórios |
-| Escopo crescer para multiusuário | Média | `owner_id` já preparado; auth na Fase 3 |
+| Heavy pipeline taking longer than expected | High | Keep v1 running in parallel |
+| Data divergence between v1 and v2 | Medium | v2 as single source after Phase 2 |
+| LLM cost in the cloud | Medium | Fit caching and per-user limits |
+| Database migration breaking queries | Low | Repository contract tests |
+| Scope growing to multi-user | Medium | `owner_id` already prepared; auth in Phase 3 |
