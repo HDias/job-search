@@ -1,40 +1,39 @@
 # AGENTS.md
 
-Instruções para sessões do OpenCode neste repositório. Documentação completa em
-[`docs/`](./docs/README.md); este arquivo cobre só o que costuma ser deduzido errado.
+Instructions for OpenCode sessions in this repository. Full documentation lives in
+[`docs/`](./docs/README.md). This file holds only the rules for developing in this repo;
+historical and migration context belongs in `.plans/` and the docs.
 
-## O que é
+## What this is
 
-Reescrita do app v1 (`../job-search`) em **Express + SQLite + React**. O v1 continua funcional na
-porta `3333` e é a referência do pipeline pesado (Playwright/LLM/PDF), que **ainda não foi portado**.
-Não remova as rotas de compatibilidade nem o v1: a migração é *strangler*.
+A local-first job application assistant: **Express + SQLite + React**.
 
-- Backend: `src/` (Express 5, Drizzle, Zod, repositórios)
+- Backend: `src/` (Express 5, Drizzle, Zod, repositories)
 - Frontend: `web/` (Vite 6, React 19, TanStack Query 5, React Router 7)
-- Persistência: SQLite em `data/job-search.db` (gitignored), acessado **só pelo backend**
+- Persistence: SQLite at `data/job-search.db` (gitignored), accessed **by the backend only**
 
-## Comandos
+## Commands
 
 ```bash
 pnpm dev            # API 3344 (watch)
 pnpm dev:web        # React 5173 (proxy /api → 3344)
-pnpm start          # API + SPA buildada em 3344
-pnpm build:web      # build do React em web/dist
+pnpm start          # API + built SPA on 3344
+pnpm build:web      # React build into web/dist
 pnpm typecheck      # backend
 pnpm typecheck:web  # frontend
 pnpm test           # backend (Vitest, Node)
 pnpm test:web       # frontend (Vitest, jsdom)
 ```
 
-Verificação antes de concluir qualquer mudança:
+Verification before finishing any change:
 
 ```bash
 pnpm typecheck && pnpm test
-pnpm typecheck:web && pnpm test:web   # se mexeu em web/
-pnpm build:web                        # se mudou algo que afeta o build
+pnpm typecheck:web && pnpm test:web   # if you touched web/
+pnpm build:web                        # if you changed something that affects the build
 ```
 
-Teste único:
+Single test:
 
 ```bash
 pnpm test -- test/requests.test.ts
@@ -42,58 +41,57 @@ pnpm test -- -t "stats"
 pnpm test:web -- Dashboard
 ```
 
-Não há lint, formatter, CI nem pre-commit configurados. Os comandos acima são o gate.
+There is no lint, formatter, CI or pre-commit configured. The commands above are the gate.
 
-## Quirks do toolchain
+## Toolchain quirks
 
-- **ESM + `module: NodeNext`**: todo import relativo de TypeScript precisa de extensão `.js`
-  (`import { createApp } from './app.js'`), inclusive em `src/` e `test/`.
-- **pnpm 11** ignora o campo `pnpm` do `package.json`. Permissões de build nativo ficam em
-  `pnpm-workspace.yaml` (`allowBuilds`); sem isso `better-sqlite3` falha.
-- **Dois Vitest**: `vitest.config.ts` da raiz inclui só `test/**/*.test.ts`. Testes do frontend
-  rodam por `web/vite.config.ts` com jsdom. Não adicione testes de `web/` ao config da raiz.
-- O backend roda migrations no boot; `pnpm db:migrate` é opcional fora de CI/import.
+- **ESM + `module: NodeNext`**: every relative TypeScript import needs the `.js` extension
+  (`import { createApp } from './app.js'`), in `src/` and `test/` alike.
+- **pnpm 11** ignores the `pnpm` field in `package.json`. Native build permissions live in
+  `pnpm-workspace.yaml` (`allowBuilds`); without this, `better-sqlite3` fails.
+- **Two Vitests**: the root `vitest.config.ts` only includes `test/**/*.test.ts`. Frontend tests
+  run via `web/vite.config.ts` with jsdom. Don't add `web/` tests to the root config.
+- The backend runs migrations on boot; `pnpm db:migrate` is optional outside CI/imports.
 
-## Banco e migrations
+## Database and migrations
 
-- Schema em `src/db/schema.ts`. Depois de editar:
-  `pnpm exec drizzle-kit generate --name=...`. **Nunca edite SQL já aplicado** em `drizzle/`.
-- Colunas de documento (`fit_json`, `job_json`, `job_snapshot`) existem para facilitar a futura
-  migração para Firestore/Turso. Mantenha o padrão *document-shaped*.
-- Persistência é acessada apenas via `src/repositories/types.ts`. Código novo não deve importar
-  Drizzle direto; adicione método à interface e implemente em `src/repositories/sqlite/`.
-- Import do v1: `pnpm db:import --reset` (exige banco vazio sem `--reset`).
+- Schema in `src/db/schema.ts`. After editing it:
+  `pnpm exec drizzle-kit generate --name=...`. **Never edit already-applied SQL** in `drizzle/`.
+- Document columns (`fit_json`, `job_json`, `job_snapshot`) exist so the storage engine can be
+  swapped later. Keep the *document-shaped* pattern.
+- Persistence is accessed only through `src/repositories/types.ts`. New code must not import
+  Drizzle directly; add a method to the interface and implement it in `src/repositories/sqlite/`.
+- Bulk JSON import: `pnpm db:import --reset` (requires an empty database without `--reset`).
 
-## Caminhos e portas
+## Paths and ports
 
-- Defaults apontam para o v1: `APPLICATIONS_DIR=../job-search/applications`,
-  `BASE_PROFILE_DIR=../job-search/base_profile`. **Não copie** esses arquivos para este repo.
-- Portas: API v2 `3344`, Vite `5173`, v1 `3333`. `WEB_DIST` troca o diretório do build.
-- Artefatos ficam no disco; o banco guarda caminho relativo + metadados.
+- Generated artifacts and base resumes live **outside** the repo, resolved from
+  `APPLICATIONS_DIR` and `BASE_PROFILE_DIR` (defaults in `src/config.ts`). **Do not copy** those
+  files into this repo.
+- Ports: API `3344`, Vite `5173`. `WEB_DIST` changes the build directory.
+- Artifacts live on disk; the database stores the relative path plus metadata.
 
 ## API
 
-- Rotas novas: `/api/jobs`, `/api/runs`, `/api/stats`, `/api/profiles`, `/api/settings`.
-- `/api/applications` e `/api/processes` são **DTOs legados** para a UI v1. Não construa features
-  novas sobre eles.
-- O SPA fallback em `src/api/app.ts` exclui `/api`, `/applications`, `/base_profile`, `/cv` e
-  `/extras`; um artefato ausente deve continuar `404`, não virar HTML.
-- Visualizadores: `/cv/:id` e `/extras/:id/:view`. `404` com página amigável quando o arquivo sumiu.
+- App routes: `/api/jobs`, `/api/runs`, `/api/stats`, `/api/profiles`, `/api/settings`.
+- `/api/applications` and `/api/processes` are **compatibility DTOs** with an external consumer:
+  do not remove them, and don't build new features on top of them.
+- The SPA fallback in `src/api/app.ts` excludes `/api`, `/applications`, `/base_profile`, `/cv` and
+  `/extras`; a missing artifact must stay `404`, not turn into HTML.
+- Viewers: `/cv/:id` and `/extras/:id/:view`. `404` with a friendly page when the file is gone.
 
-## Convenções
+## Frontend
 
-- Docs, mensagens de erro e UI em **pt-BR**; identificadores de código em inglês.
-- Commits no estilo conventional com descrição em português (ex.:
+- `useJob` polls every 4 s while a run is active; dashboard filters/page live in the URL — keep
+  them there when adding views.
+- Resume editing is text-based (`.txt`/`.md`/`.html` or pasted). There is no PDF upload or
+  extraction in this app.
+
+## Conventions
+
+- Documentation in **English**; error messages and UI in **pt-BR**; code identifiers in English.
+- Commits in conventional-commits style with a Portuguese description (e.g.:
   `feat(web): dashboard e detalhe da vaga em React`).
-- Não introduza biblioteca de UI, Redux/Zustand nem `dangerouslySetInnerHTML` sem necessidade
-  explícita; o padrão atual é CSS próprio + cache do TanStack Query.
-- Ao mudar um campo do domínio, atualize os dois lados: `src/domain/` e `web/src/api/types.ts`.
-
-## Pendências conhecidas
-
-- Pipeline pesado (`/api/process-job`, `/api/fit-check`, upload/regenerate, checkpoints
-  interativos) existe **só no v1**.
-- Fase 2 incompleta: responder checkpoint dentro do v2 (depende do pipeline).
-- `useJob` faz polling a cada 4 s enquanto houver run ativo; filtros/página do dashboard ficam na URL.
-- Admin edita currículo como texto (`.txt`/`.md`/`.html` ou colado); extração de PDF ainda depende
-  do v1. Não há upload de PDF no v2.
+- Don't introduce a UI library, Redux/Zustand or `dangerouslySetInnerHTML` without an explicit
+  need; the current standard is own CSS + TanStack Query caching.
+- When changing a domain field, update both sides: `src/domain/` and `web/src/api/types.ts`.
