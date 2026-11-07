@@ -10,8 +10,9 @@ import type {
   Job,
   JobDetailResponse,
   JobFilters,
+  NewProfile,
   PdfTheme,
-  ProfileContent,
+  ProfilePatch,
 } from './types';
 import { hasActiveRuns } from '../lib/runs';
 
@@ -82,12 +83,37 @@ export function useSaveProfile() {
     mutationFn: ({
       stack,
       language,
-      content,
+      patch,
     }: {
       stack: string;
       language: string;
-      content: ProfileContent;
-    }) => api.saveProfile(stack, language, content),
+      patch: ProfilePatch;
+    }) => api.saveProfile(stack, language, patch),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      void queryClient.invalidateQueries({ queryKey: ['base-resumes'] });
+    },
+  });
+}
+
+export function useCreateProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: NewProfile) => api.createProfile(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      void queryClient.invalidateQueries({ queryKey: ['base-resumes'] });
+    },
+  });
+}
+
+export function useDeleteProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ stack, language }: { stack: string; language: string }) =>
+      api.deleteProfile(stack, language),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['profiles'] });
       void queryClient.invalidateQueries({ queryKey: ['base-resumes'] });

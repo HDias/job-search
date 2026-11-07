@@ -161,9 +161,27 @@ export interface ProfileContent {
 export interface Profile {
   stack: string;
   language: string;
-  content: ProfileContent;
+  content: ProfileContent | null;
+  enabled: boolean;
+  extraPrompt: string | null;
   updatedAt: string;
 }
+
+export interface ProfilePatch {
+  content?: ProfileContent;
+  enabled?: boolean;
+  extraPrompt?: string | null;
+}
+
+export interface NewProfile {
+  stack: string;
+  language: 'pt-br' | 'en';
+  content?: ProfileContent;
+  enabled?: boolean;
+  extraPrompt?: string | null;
+}
+
+export const EXTRA_PROMPT_MAX_LENGTH = 8000;
 
 export interface PdfThemeStack {
   accent?: string;

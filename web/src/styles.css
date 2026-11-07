@@ -1075,6 +1075,39 @@ a:focus-visible {
   gap: 8px;
 }
 
+.target-active {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.target-active input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.target-extra {
+  min-height: 110px;
+}
+
+.target-counter {
+  margin-top: -6px;
+  font-size: 0.74rem;
+}
+
+.button.target-remove {
+  margin-left: auto;
+  border-color: color-mix(in srgb, #f87171 55%, var(--border));
+  color: #fca5a5;
+}
+
+.button.target-remove:hover {
+  background: color-mix(in srgb, #f87171 16%, transparent);
+}
+
 .button:disabled {
   opacity: 0.5;
   cursor: not-allowed;

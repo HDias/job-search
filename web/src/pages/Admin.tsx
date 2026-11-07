@@ -1,17 +1,13 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  useBaseResumes,
   useCandidateData,
   usePdfTheme,
-  useProfiles,
   useSaveCandidateData,
   useSavePdfTheme,
 } from '../api/hooks';
-import type { BaseResumeKey, CandidateData } from '../api/types';
-import { BaseResumeCard } from '../components/BaseResumeCard';
+import type { CandidateData } from '../api/types';
 import { ErrorState, LoadingState } from '../components/StateMessage';
-
-const RESUME_KEYS: BaseResumeKey[] = ['pt-br', 'en', 'php-pt-br', 'php-en'];
 
 const DEFAULT_RUBY = '#B56A6A';
 const DEFAULT_PHP = '#4F5B93';
@@ -29,8 +25,6 @@ const CANDIDATE_FIELDS: Array<{
 ];
 
 export function Admin() {
-  const baseResumes = useBaseResumes();
-  const profiles = useProfiles();
   const pdfTheme = usePdfTheme();
   const candidate = useCandidateData();
   const savePdfTheme = useSavePdfTheme();
@@ -50,14 +44,6 @@ export function Admin() {
     if (candidate.data?.candidate) setForm(candidate.data.candidate);
   }, [candidate.data]);
 
-  function profileFor(key: BaseResumeKey) {
-    const [stack, language] =
-      key.startsWith('php') ? ['php', key.slice(4)] : ['ruby', key];
-    return (profiles.data ?? []).find(
-      (profile) => profile.stack === stack && profile.language === language,
-    );
-  }
-
   function saveTheme(ruby: string, php: string) {
     savePdfTheme.mutate({
       ruby: { accent: ruby },
@@ -69,9 +55,6 @@ export function Admin() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
-  const loading = baseResumes.isLoading || profiles.isLoading;
-  const baseError = baseResumes.error ?? profiles.error;
-
   return (
     <div className="page">
       <div className="page-heading">
@@ -79,47 +62,25 @@ export function Admin() {
           <p className="eyebrow">Configuração</p>
           <h1>Admin</h1>
           <p className="muted">
-            Currículos base, aparência do PDF e dados usados nos formulários de candidatura.
+            Aparência do PDF e dados usados nos formulários de candidatura.
           </p>
         </div>
       </div>
 
       <section className="panel">
         <div className="panel-header">
-          <h2>Currículos base</h2>
-          <span className="muted">fonte única da verdade</span>
+          <h2>Alvos e currículos base</h2>
+          <span className="muted">agora em App Settings</span>
         </div>
         <p className="muted">
-          Ruby é o padrão; PHP é usado só nas vagas marcadas como PHP. O texto salvo aqui é a
-          base factual que o pipeline usa para adaptar currículos.
+          As combinações stack × idioma, o currículo base e as instruções extras
+          de prompt ficam na página App Settings.
         </p>
-
-        {loading ? <LoadingState label="Carregando currículos…" /> : null}
-
-        {baseError ? (
-          <ErrorState
-            message={
-              baseError instanceof Error ? baseError.message : 'Erro desconhecido'
-            }
-            onRetry={() => {
-              void baseResumes.refetch();
-              void profiles.refetch();
-            }}
-          />
-        ) : null}
-
-        {baseResumes.data ? (
-          <div className="admin-grid">
-            {RESUME_KEYS.map((key) => (
-              <BaseResumeCard
-                key={key}
-                comboKey={key}
-                info={baseResumes.data[key]}
-                profile={profileFor(key)}
-              />
-            ))}
-          </div>
-        ) : null}
+        <div className="admin-actions">
+          <Link className="button" to="/admin/settings">
+            Abrir App Settings
+          </Link>
+        </div>
       </section>
 
       <section className="panel">

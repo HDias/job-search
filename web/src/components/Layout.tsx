@@ -22,9 +22,16 @@ export function Layout() {
             </NavLink>
             <NavLink
               to="/admin"
+              end
               className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
             >
               Admin
+            </NavLink>
+            <NavLink
+              to="/admin/settings"
+              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+            >
+              App Settings
             </NavLink>
             <a className="nav-link" href="/api/health" target="_blank" rel="noreferrer">
               API

@@ -6,9 +6,10 @@ import type {
   JobFilters,
   JobList,
   JobStats,
+  NewProfile,
   PdfTheme,
   Profile,
-  ProfileContent,
+  ProfilePatch,
 } from './types';
 
 export class ApiError extends Error {
@@ -71,13 +72,25 @@ export const api = {
 
   profiles: () => request<Profile[]>('/api/profiles'),
 
-  saveProfile: (stack: string, language: string, content: ProfileContent) =>
+  saveProfile: (stack: string, language: string, patch: ProfilePatch) =>
     request<Profile>(
       `/api/profiles/${encodeURIComponent(stack)}/${encodeURIComponent(language)}`,
       {
         method: 'PUT',
-        body: JSON.stringify({ content }),
+        body: JSON.stringify(patch),
       },
+    ),
+
+  createProfile: (input: NewProfile) =>
+    request<Profile>('/api/profiles', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  deleteProfile: (stack: string, language: string) =>
+    request<void>(
+      `/api/profiles/${encodeURIComponent(stack)}/${encodeURIComponent(language)}`,
+      { method: 'DELETE' },
     ),
 
   pdfTheme: () => request<{ success: boolean; theme: PdfTheme }>('/api/pdf-theme'),
