@@ -6,6 +6,8 @@ export interface AppConfig {
   applicationsDir: string;
   baseProfileDir: string;
   webDist: string;
+  /** Skill assets (SKILL.md, references, templates) versioned in v2. */
+  skillsDir: string;
 }
 
 /**
@@ -21,5 +23,6 @@ export function loadConfig(): AppConfig {
     baseProfileDir:
       process.env.BASE_PROFILE_DIR ?? path.resolve('..', 'job-search', 'base_profile'),
     webDist: process.env.WEB_DIST ?? path.resolve('web', 'dist'),
+    skillsDir: process.env.SKILLS_DIR ?? path.resolve('skills'),
   };
 }

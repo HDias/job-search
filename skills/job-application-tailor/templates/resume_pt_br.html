@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{FULL_NAME}} - Currículo</title>
+  <link rel="stylesheet" href="resume_style.css">
+</head>
+<body>
+  <div class="resume-container">
+    <header>
+      <div>
+        <h1 class="candidate-name">{{FULL_NAME}}</h1>
+        <div class="target-title">{{TARGET_ROLE_TITLE}}</div>
+        <div class="location-line">{{LOCATION}}</div>
+      </div>
+      <div class="contact-info">
+        <span>Celular: {{PHONE}}</span>
+        <span>Email: {{EMAIL}}</span>
+        {{LINKEDIN_HTML}}
+        {{GITHUB_HTML}}
+      </div>
+    </header>
+
+    <section id="resumo">
+      <h2 class="section-title">Resumo</h2>
+      <p class="summary-text">{{PROFESSIONAL_SUMMARY}}</p>
+    </section>
+
+    <section id="destaques">
+      <h2 class="section-title">Destaques</h2>
+      <div class="skills">{{SKILLS_PILLS}}</div>
+    </section>
+
+    <section id="experiencia">
+      <h2 class="section-title">Experiência</h2>
+      {{EXPERIENCE_CONTENT}}
+    </section>
+
+    <section id="formacao">
+      <h2 class="section-title">Formação & Certificações</h2>
+      {{EDUCATION_CONTENT}}
+    </section>
+
+    <footer class="languages">{{LANGUAGES_FOOTER}}</footer>
+  </div>
+</body>
+</html>

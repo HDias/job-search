@@ -1,7 +1,9 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { LANGUAGES } from '../../domain/job.js';
+import { llmConfigPatchSchema, toPublicLlmConfig } from '../../domain/llm.js';
 import { EXTRA_PROMPT_MAX_LENGTH } from '../../domain/profile.js';
+import { loadLlmConfig, saveLlmConfig } from '../../pipeline/llm/config.js';
 import type { Store } from '../../repositories/types.js';
 import { HttpError, parseBody } from '../http.js';
 
@@ -283,6 +285,23 @@ export function createMetaRouter(store: Store): Router {
 
     res.status(204).end();
   });
+
+  /* ------------------------------ llm-config ---------------------------- */
+
+  router.get('/llm-config', (_req, res) => {
+    // Never returns the key: only `hasKey` and `maskedKey` (v1 shape).
+    res.json(toPublicLlmConfig(loadLlmConfig(store.settings)));
+  });
+
+  const saveLlmConfigHandler = (req: Request, res: Response): void => {
+    const patch = parseBody(llmConfigPatchSchema, req.body);
+    saveLlmConfig(store.settings, patch);
+    res.json({ success: true, message: 'Configuração de IA salva com sucesso!' });
+  };
+
+  router.put('/llm-config', saveLlmConfigHandler);
+  // Alias for the v1 UI, which POSTs to this route.
+  router.post('/llm-config', saveLlmConfigHandler);
 
   router.get('/settings', (_req, res) => {
     res.json(store.settings.list());

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{FULL_NAME}} - {{TARGET_ROLE_TITLE}}</title>
+<style>
+:root { --accent: {{ACCENT_COLOR}}; --accent-dark: {{ACCENT_DARK}}; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: #1a1a1a; background: #fff; line-height: 1.55; font-size: 10pt; }
+.accent { height: 8px; background: var(--accent); }
+.resume-container, .page { width: 100%; max-width: 800px; margin: 0 auto; padding: 32px 36px; }
+h1.candidate-name, .name { font-size: 30px; font-weight: 600; line-height: 1.1; }
+.target-title, .headline { font-size: 10.5pt; color: #333; margin-top: 6px; }
+.location-line { color: #333; font-size: 9.5pt; margin-top: 2px; }
+.contact-info, .contact { font-size: 9pt; color: #444; margin-top: 6px; }
+.contact-info a, .contact a { color: var(--accent-dark); text-decoration: none; }
+h2.section-title, .section-title { font-size: 17px; font-weight: 600; margin: 26px 0 10px; padding-top: 12px; border-top: 2px solid var(--accent); border-bottom: none; color: #1a1a1a; }
+.summary-text, .summary { font-size: 10pt; color: #333; }
+.skills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; font-size: 9.5pt; color: #333; }
+.skill { background: #f3f3f3; padding: 4px 10px; border-radius: 4px; font-size: 8.5pt; color: #333; }
+.skills-group { margin-bottom: 3px; font-size: 9pt; color: #333; }
+.job-entry, .job { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #f0f0f0; }
+.job-title, .job .role { font-weight: 600; font-size: 10.5pt; color: #1a1a1a; }
+.job-company, .job .company { font-weight: 600; color: #1a1a1a; }
+.job-meta, .job .dates, .meta { color: #666; font-size: 8.5pt; font-style: italic; margin-bottom: 6px; }
+.bullet-list, .job ul, ul.clean { padding-left: 18px; margin: 6px 0; line-height: 1.6; list-style-type: disc; }
+.bullet-list li, .job ul li, ul.clean li { margin-bottom: 4px; font-size: 9pt; color: #333; }
+.edu-entry { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 9pt; }
+.edu-degree { font-weight: 600; color: #111; }
+.edu-school, .edu-meta { color: #555; }
+.two-col { display: table; width: 100%; }
+.two-col > div { display: table-cell; width: 50%; vertical-align: top; padding-right: 16px; font-size: 9.5pt; }
+footer.languages { border-top: 1px solid #eee; padding-top: 8px; margin-top: 16px; color: #666; font-size: 8.5pt; }
+@page { size: A4; margin: 14mm 15mm; }
+@media (max-width: 600px) { .edu-entry { flex-direction: column; } }
+@media print {
+  body { background: #fff; }
+  .accent { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  a { color: inherit; text-decoration: none; }
+  h2.section-title, .section-title { border-top-color: #000; }
+}
+</style>
+</head>
+<body>
+<div class="accent"></div>
+<div class="resume-container">
+  <header>
+    <div>
+      <h1 class="candidate-name">{{FULL_NAME}}</h1>
+      <div class="target-title">{{TARGET_ROLE_TITLE}}</div>
+      <div class="location-line">{{LOCATION}}</div>
+    </div>
+    <div class="contact-info">{{CONTACT_HTML}}</div>
+  </header>
+
+  <section id="summary">
+    <h2 class="section-title">{{SUMMARY_HEADING}}</h2>
+    <p class="summary-text">{{PROFESSIONAL_SUMMARY}}</p>
+  </section>
+
+  <section id="highlights">
+    <h2 class="section-title">{{HIGHLIGHTS_HEADING}}</h2>
+    <div class="skills">{{SKILLS_PILLS}}</div>
+  </section>
+
+  <section id="experience">
+    <h2 class="section-title">{{EXPERIENCE_HEADING}}</h2>
+    {{EXPERIENCE_CONTENT}}
+  </section>
+
+  <section id="education">
+    <h2 class="section-title">{{EDUCATION_HEADING}}</h2>
+    {{EDUCATION_CONTENT}}
+  </section>
+
+  <footer class="languages">{{LANGUAGES_FOOTER}}</footer>
+</div>
+</body>
+</html>
+<!--
+TOKENS:
+  {{LANG}} pt-BR|en · {{ACCENT_COLOR}} e.g. #B56A6A · {{ACCENT_DARK}} e.g. #9E4A4A
+  {{FULL_NAME}} {{TARGET_ROLE_TITLE}} {{LOCATION}} {{CONTACT_HTML}}
+  {{SUMMARY_HEADING}} {{PROFESSIONAL_SUMMARY}}
+  {{HIGHLIGHTS_HEADING}} {{SKILLS_PILLS}} (spans .skill or .skills-group groups)
+  {{EXPERIENCE_HEADING}} {{EXPERIENCE_CONTENT}} (.job-entry blocks: .job-title + .job-company + .job-meta + ul.bullet-list)
+  {{EDUCATION_HEADING}} {{EDUCATION_CONTENT}} (.edu-entry or textual .two-col)
+  {{LANGUAGES_FOOTER}}
+-->
