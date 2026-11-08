@@ -89,9 +89,6 @@ There is no lint, formatter, CI or pre-commit configured. The commands above are
 
 ## Conventions
 
-- Documentation in **English**; error messages and UI in **pt-BR**; code identifiers in English.
-- Commits in conventional-commits style with a Portuguese description (e.g.:
-  `feat(web): dashboard e detalhe da vaga em React`).
 - Don't introduce a UI library, Redux/Zustand or `dangerouslySetInnerHTML` without an explicit
   need; the current standard is own CSS + TanStack Query caching.
 - When changing a domain field, update both sides: `src/domain/` and `web/src/api/types.ts`.
