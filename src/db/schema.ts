@@ -12,7 +12,7 @@ import type { JobSnapshot } from '../domain/run.js';
 
 /**
  * Modelo "document-shaped": entidades agregadas ficam em uma linha, com os
- * campos aninhados em JSON. Menos JOINs e migração quase direta para Firestore.
+ * campos aninhados em JSON. Menos JOINs e sem normalização excessiva.
  */
 export const jobs = sqliteTable(
   'jobs',

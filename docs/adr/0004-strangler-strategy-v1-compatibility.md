@@ -18,7 +18,7 @@ Apply the **strangler** pattern: v2 grows around v1, taking over responsibilitie
    (`/api/applications`, `/api/processes`) that returns exactly the old DTO.
 3. **UI last.** React replaces screens one by one; the compatibility layer is only removed when the
    last screen migrates.
-4. **Pipeline last.** Playwright/LLM/PDF stay in v1 until Phase 3.
+4. **Pipeline last.** Playwright/LLM/PDF stay in the previous server until the pipeline port.
 
 ```mermaid
 flowchart TB

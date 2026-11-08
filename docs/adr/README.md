@@ -6,8 +6,8 @@ and **is not rewritten** — when a decision changes, another ADR is created tha
 | # | Decision | Status |
 |---|---|---|
 | [0001](./0001-sqlite-in-backend.md) | SQLite in the backend, not in the browser | Accepted |
-| [0002](./0002-document-shaped-model.md) | Document-shaped model to ease the cloud move | Accepted |
-| [0003](./0003-repository-pattern-and-cloud.md) | Repository pattern and cloud path | Accepted |
+| [0002](./0002-document-shaped-model.md) | Document-shaped model | Accepted |
+| [0003](./0003-repository-pattern.md) | Repository pattern | Accepted |
 | [0004](./0004-strangler-strategy-v1-compatibility.md) | Strangler with a compatibility layer | Accepted |
 | [0005](./0005-identity-datas-and-nulls.md) | Prefixed IDs, ISO 8601 and `null` | Accepted |
 | [0006](./0006-artifacts-on-the-filesystem.md) | Artifacts on the filesystem, metadata in the database | Accepted |
