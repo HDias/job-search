@@ -10,7 +10,6 @@ migration history and next steps.
 | 0 | Data model, normalization and import of existing JSON files | ✅ Complete |
 | 1 | SQLite + Drizzle, repositories, REST API and UI compatibility | ✅ Complete |
 | 2 | React frontend (Vite + TS + TanStack Query) | 🚧 Dashboard, detail, admin and app settings done |
-| 3 | Cloud adapter (Turso, Supabase or Firestore) | ⏳ Planned |
 
 **Current numbers:** 16 jobs, 34 runs (17 orphans), 97 artifacts, 4 profiles and 2 settings
 imported; 103 backend tests + 28 frontend tests; API and SPA on port `3344`, Vite on `5173`.
@@ -101,7 +100,7 @@ quotes (`["My label"]`, `-->|"yes"|`); no HTML inside labels; `classDef` only wi
 
 - Dates persisted in **ISO 8601 UTC**; the `dd/mm/yyyy` conversion exists only at the compatibility
   boundary.
-- Missing fields are `null`, never `undefined` (Firestore doesn't accept `undefined`).
+- Missing fields are `null`, never `undefined`.
 - IDs have a prefix (`app_`, `proc_`, `art_`) followed by a UUID.
 - Every schema change generates a migration in `drizzle/` and is recorded in an ADR when it changes
   a structural decision.

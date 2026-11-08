@@ -274,28 +274,7 @@ The old UI doesn't talk to the database: it talks to routes that translate the n
 old DTO. Once React takes over, the compatibility layer can be removed without touching the
 repositories.
 
-## 10. Evolution to the cloud
-
-```mermaid
-flowchart LR
-  CONTRACTS["Interfaces in repositories/types.ts"]
-  SQLITE["SQLite - today"]
-  TURSO["Turso or libSQL"]
-  SUPA["Supabase or Postgres"]
-  FIRE["Firestore"]
-
-  CONTRACTS --> SQLITE
-  CONTRACTS -.->|"same SQL"| TURSO
-  CONTRACTS -.->|"SQL and joins"| SUPA
-  CONTRACTS -.->|"documents"| FIRE
-```
-
-The current model was designed to make the swap cheap: JSON aggregates, no mandatory joins, stable
-IDs and `owner_id` from the start. The details are in
-[ADR-0002](./adr/0002-document-shaped-model.md) and
-[ADR-0003](./adr/0003-repository-pattern-and-cloud.md).
-
-## 11. Quality attributes
+## 10. Quality attributes
 
 | Attribute | How it is addressed | Current limit |
 |---|---|---|
@@ -306,7 +285,7 @@ IDs and `owner_id` from the start. The details are in
 | Performance | Indexes on status, date, company and job_id; WAL | No cache; N+1 when listing artifacts per job |
 | Observability | Error logs in the global handler; health check | No metrics or tracing |
 
-## 12. Known limits
+## 11. Known limits
 
 - The runtime **does not run** Playwright scraping, LLM fit/tailoring or PDF generation yet. Only
   the LLM client, the LLM configuration and the skill prompt loader are ported.
@@ -316,11 +295,11 @@ IDs and `owner_id` from the start. The details are in
 - The old UI still calls processing routes that only exist on the previous server.
 - React covers dashboard, detail, admin and app settings.
 
-## 13. Related decisions
+## 12. Related decisions
 
 - [ADR-0001 — SQLite in the backend](./adr/0001-sqlite-in-backend.md)
 - [ADR-0002 — Document-shaped model](./adr/0002-document-shaped-model.md)
-- [ADR-0003 — Repositories and cloud](./adr/0003-repository-pattern-and-cloud.md)
+- [ADR-0003 — Repository pattern](./adr/0003-repository-pattern.md)
 - [ADR-0004 — Strangler strategy](./adr/0004-strangler-strategy-v1-compatibility.md)
 - [ADR-0005 — Identity, dates and nulls](./adr/0005-identity-datas-and-nulls.md)
 - [ADR-0006 — Artifacts on the filesystem](./adr/0006-artifacts-on-the-filesystem.md)

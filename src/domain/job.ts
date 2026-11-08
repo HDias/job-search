@@ -46,8 +46,7 @@ export type Fit = z.infer<typeof fitSchema>;
 
 /**
  * Formato "document-shaped": os dados aninhados da análise ficam em um único
- * objeto JSON. Isso evita normalização excessiva e facilita a futura troca por
- * Firestore (onde o job vira um documento).
+ * objeto JSON. Isso evita normalização excessiva.
  */
 export interface Job {
   id: string;

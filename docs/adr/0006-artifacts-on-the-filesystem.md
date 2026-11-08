@@ -29,7 +29,6 @@ the database, worsen read performance and make serving over HTTP harder.
 - Small and fast database; backing up the database doesn't include PDFs.
 - Serving files is `express.static`'s job: efficient, with HTTP caching.
 - v1 and v2 share the same files during the migration.
-- Moving to object storage (S3, Supabase Storage) means replacing `relativePath` with a URL/key.
 
 **Negative**
 
@@ -38,7 +37,6 @@ the database, worsen read performance and make serving over HTTP harder.
 - Backups must include both.
 - No transaction between the INSERT and the file write. Acceptable because the pipeline writes the
   file before registering it.
-- In the cloud, object storage and signed URLs will be required.
 
 **Invariants**
 

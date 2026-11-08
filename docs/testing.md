@@ -155,7 +155,7 @@ is tested in isolation in `runs.test.ts`.
 |---|---|---|
 | Playwright scraping and PDF generation | High | Not ported |
 | Live LLM calls | Medium | The client is tested with a fake `fetch`; the suite never hits a provider |
-| Authentication | High when there is a cloud | Doesn't exist today |
+| Authentication | High when exposed beyond localhost | Doesn't exist today |
 | Write concurrency | Medium | Local single-user use |
 | Real database migration | Medium | Manual smoke test, not automated |
 | Checkpoint response in v2 | Medium | Depends on the ported pipeline |
@@ -188,8 +188,8 @@ it('responde 404 para vaga inexistente', async () => {
 Prefer testing at the **HTTP boundary** when the behavior involves validation or DTOs; test the
 repository directly when the target is SQL/filters/cascades.
 
-## 7. Contract for the cloud
+## 7. Contract for adapters
 
-The repository tests are the contract any future adapter (Turso, Supabase, Firestore) must
-satisfy. The idea is to run the same suite against the new adapter before switching the production
-default. See [ADR-0003](./adr/0003-repository-pattern-and-cloud.md).
+The repository tests are the contract any future storage adapter must satisfy. The idea is to run
+the same suite against the new adapter before switching the production default. See
+[ADR-0003](./adr/0003-repository-pattern.md).

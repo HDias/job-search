@@ -103,7 +103,7 @@ Base resume per stack (`ruby`, `php`) and language (`pt-br`, `en`). Keeps the or
 **Repository pattern**
 Layer that isolates the domain from the database. Contracts in `src/repositories/types.ts`; SQLite
 implementation in `src/repositories/sqlite/`. Allows swapping the database without touching
-routes. See [ADR-0003](./adr/0003-repository-pattern-and-cloud.md).
+routes. See [ADR-0003](./adr/0003-repository-pattern.md).
 
 **Run / Process**
 Checkpoint of a processing run. Stores stage, URL, language, flags, error, fit and snapshot. It can

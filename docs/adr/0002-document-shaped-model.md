@@ -10,8 +10,8 @@ gaps; a run carries `job`, `jobSnapshot` (with the full vacancy text), fit and f
 normalized model would require several tables (`fit_dimensions`, `strengths`, `gaps`,
 `job_snapshots`) and many joins.
 
-The stated goal is to migrate to the cloud later. Document databases (Firestore) don't do joins;
-relational databases do. An intermediate model reduces the cost of both options.
+The stated goal is to avoid excessive normalization. An intermediate model keeps an aggregate in
+one row while leaving room for relational queries when they are needed.
 
 ## Decision
 
@@ -45,8 +45,7 @@ erDiagram
 
 **Positive**
 
-- Few joins; reading an aggregate is one row.
-- Migration to Firestore becomes an almost 1:1 mapping.
+- Reading an aggregate is one row; no mandatory joins.
 - Stable schema: new `Fit` fields don't require a migration.
 - History preserved: the run's snapshot doesn't change when the job is edited.
 
@@ -65,4 +64,4 @@ erDiagram
 ## References
 
 - [data-model.md](../data-model.md)
-- [ADR-0003 — Repository pattern and cloud path](./0003-repository-pattern-and-cloud.md)
+- [ADR-0003 — Repository pattern](./0003-repository-pattern.md)

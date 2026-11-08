@@ -4,7 +4,7 @@
 
 v2 is a **local, single-user** application without authentication. The model assumes only the
 machine's owner accesses `localhost:3344`. This is acceptable for the current stage and
-**unacceptable** for any network or cloud exposure.
+**unacceptable** for any network exposure.
 
 | Asset | Sensitivity | Where it lives |
 |---|---|---|
@@ -24,7 +24,7 @@ machine's owner accesses `localhost:3344`. This is acceptable for the current st
   the only place the API key is persisted.
 - No secret is logged. The global handler prints the error, not the request body.
 
-### Rule for Phase 3
+### Rule before remote exposure
 
 When the LLM pipeline is exposed beyond localhost, the key must come from an environment variable
 or a secret manager — never be readable from the database by an untrusted process. See
@@ -95,7 +95,7 @@ PORT=3344 HOST=127.0.0.1 pnpm dev
 > `HOST` is not yet read by `src/config.ts`; today the bind is Node's default. If this matters,
 > adjust to `app.listen(config.port, '127.0.0.1')`.
 
-In the cloud, you will need:
+Before exposing the app beyond localhost, you will need:
 
 1. authentication (identity provider);
 2. a real `owner_id` in every query, not the default `local`;
@@ -106,11 +106,11 @@ In the cloud, you will need:
 ## 7. Personal data (LGPD)
 
 The app stores resume, email, phone and application history. Today everything stays on the user's
-machine. When moving to the cloud:
+machine. Before storing personal data outside the local machine:
 
 - define a legal basis and a retention period;
 - allow export and deletion per data subject;
-- encrypt at rest (the database provider and storage do this);
+- encrypt at rest (the database and storage layer do this);
 - restrict logs so resume content is never recorded;
 - be careful with artifacts in public buckets — use signed URLs.
 
