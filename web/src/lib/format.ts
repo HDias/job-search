@@ -10,13 +10,14 @@ export const STATUS_LABELS: Record<JobStatus, string> = {
 };
 
 export const STAGE_LABELS: Record<string, string> = {
-  draft: 'Rascunho',
+  queued: 'Na fila',
+  scraping: 'Raspando a vaga',
+  'scrape-thin': 'Conteúdo insuficiente',
   'fit-checked': 'Fit calculado',
-  processing: 'Processando',
-  'awaiting-language': 'Aguardando idioma',
-  'awaiting-fit': 'Aguardando fit',
+  generating: 'Gerando kit',
+  needs_input: 'Aguardando resposta',
   done: 'Concluído',
-  error: 'Erro',
+  failed: 'Falhou',
 };
 
 export const ARTIFACT_LABELS: Record<string, string> = {

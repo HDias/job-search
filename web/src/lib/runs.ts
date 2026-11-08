@@ -1,6 +1,6 @@
 import type { Run } from '../api/types';
 
-const FINISHED_STAGES = new Set(['done', 'error']);
+const FINISHED_STAGES = new Set(['done', 'failed']);
 
 /** Um run está ativo enquanto não terminou ou enquanto espera confirmação. */
 export function isRunActive(run: Run): boolean {

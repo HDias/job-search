@@ -6,7 +6,12 @@ import {
   type Language,
   type JobStatus,
 } from '../../domain/job.js';
-import type { JobSnapshot, Run } from '../../domain/run.js';
+import type {
+  ClarificationEntry,
+  JobSnapshot,
+  LlmQuestion,
+  Run,
+} from '../../domain/run.js';
 import type {
   ArtifactRow,
   JobRow,
@@ -45,6 +50,24 @@ export function parseJobSnapshot(value: unknown): JobSnapshot | null {
   if (value === null || value === undefined) return null;
   if (typeof value !== 'object' || Array.isArray(value)) return null;
   return value as JobSnapshot;
+}
+
+export function parseLlmQuestion(value: unknown): LlmQuestion | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as LlmQuestion;
+}
+
+export function parseClarificationHistory(
+  value: unknown,
+): ClarificationEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (entry): entry is ClarificationEntry =>
+      typeof entry === 'object' &&
+      entry !== null &&
+      typeof (entry as ClarificationEntry).answer === 'string',
+  );
 }
 
 /**
@@ -134,6 +157,11 @@ export function rowToRun(row: RunRow): Run {
     fit: parseFit(row.fitJson),
     job: parseJobSnapshot(row.jobJson),
     jobSnapshot: parseJobSnapshot(row.jobSnapshot),
+    llmQuestion: parseLlmQuestion(row.llmQuestion),
+    needsInputRounds: row.needsInputRounds ?? 0,
+    clarificationHistory: parseClarificationHistory(row.clarificationHistory),
+    coverLetterGuidance: row.coverLetterGuidance,
+    includeCoverInCv: row.includeCoverInCv,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -159,6 +187,14 @@ export function runToRow(run: Run): NewRunRow {
     fitJson: parseFit(run.fit),
     jobJson: nullify(run.job),
     jobSnapshot: nullify(run.jobSnapshot),
+    llmQuestion: nullify(run.llmQuestion),
+    needsInputRounds: run.needsInputRounds ?? 0,
+    clarificationHistory:
+      run.clarificationHistory && run.clarificationHistory.length > 0
+        ? run.clarificationHistory
+        : null,
+    coverLetterGuidance: nullify(run.coverLetterGuidance),
+    includeCoverInCv: nullify(run.includeCoverInCv),
     createdAt: run.createdAt,
     updatedAt: run.updatedAt,
   };

@@ -74,6 +74,7 @@ export interface JobSnapshot {
   content?: string;
   extraQuestions?: string;
   recruiterMessage?: string;
+  contentThin?: boolean;
 }
 
 export interface Run {
@@ -95,8 +96,35 @@ export interface Run {
   fit: Fit | null;
   job: JobSnapshot | null;
   jobSnapshot: JobSnapshot | null;
+  llmQuestion: LlmQuestion | null;
+  needsInputRounds: number;
+  clarificationHistory: ClarificationEntry[];
+  coverLetterGuidance: string | null;
+  includeCoverInCv: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LlmInference {
+  skill: string;
+  inferredFrom: string;
+  confidence: 'high';
+}
+
+export interface LlmQuestion {
+  question: string;
+  options: string[];
+  blockingField: string;
+  kind: 'missing_fact' | 'inference_approval';
+  inferences: LlmInference[];
+  rawExcerpt: string;
+}
+
+export interface ClarificationEntry {
+  answer: string;
+  approvedInferences: string[];
+  rejectedInferences: string[];
+  at: string;
 }
 
 export interface Artifact {

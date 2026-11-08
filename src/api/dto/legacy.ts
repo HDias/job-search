@@ -159,6 +159,11 @@ export function toLegacyProcess(run: Run): Record<string, unknown> {
     job: run.job,
     jobSnapshot: run.jobSnapshot,
     fit: run.fit ? toLegacyFit(run.fit, snapshot) : null,
+    llmQuestion: run.llmQuestion,
+    needsInputRounds: run.needsInputRounds,
+    clarificationHistory: run.clarificationHistory,
+    coverLetterGuidance: run.coverLetterGuidance,
+    includeCoverInCv: run.includeCoverInCv,
     error: run.error,
     createdAt: run.createdAt,
     updatedAt: run.updatedAt,
@@ -275,7 +280,7 @@ export function legacyApplicationPatch(
 export function legacyProcessPatch(body: Record<string, unknown>): RunPatch {
   const patch: RunPatch = {};
 
-  if ('stage' in body) patch.stage = stringOrNull(body.stage) ?? 'draft';
+  if ('stage' in body) patch.stage = stringOrNull(body.stage) ?? 'queued';
   if ('url' in body) patch.url = stringOrNull(body.url);
   if ('stack' in body) patch.stack = stringOrNull(body.stack);
   if ('languagePreference' in body) {
@@ -308,6 +313,20 @@ export function legacyProcessPatch(body: Record<string, unknown>): RunPatch {
   if ('fit' in body) patch.fit = body.fit;
   if ('job' in body) patch.job = body.job;
   if ('jobSnapshot' in body) patch.jobSnapshot = body.jobSnapshot;
+  if ('llmQuestion' in body) patch.llmQuestion = body.llmQuestion as RunPatch['llmQuestion'];
+  if ('needsInputRounds' in body) {
+    patch.needsInputRounds = Number(body.needsInputRounds) || 0;
+  }
+  if ('clarificationHistory' in body) {
+    patch.clarificationHistory =
+      body.clarificationHistory as RunPatch['clarificationHistory'];
+  }
+  if ('coverLetterGuidance' in body) {
+    patch.coverLetterGuidance = stringOrNull(body.coverLetterGuidance);
+  }
+  if ('includeCoverInCv' in body) {
+    patch.includeCoverInCv = stringOrNull(body.includeCoverInCv);
+  }
 
   return patch;
 }

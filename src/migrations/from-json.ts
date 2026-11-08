@@ -450,7 +450,7 @@ export function importFromJson(options: ImportOptions): ImportReport {
         const run: NewRun = {
           id: legacy.id,
           jobId,
-          stage: stringOrNull(legacy.stage) ?? 'draft',
+          stage: stringOrNull(legacy.stage) ?? 'queued',
           url,
           stack: stringOrNull(legacy.stack)?.toLowerCase() ?? null,
           languagePreference: stringOrNull(legacy.languagePreference),
