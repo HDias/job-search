@@ -19,7 +19,7 @@ flowchart LR
 ### Phase 0 — Data and import ✅
 
 - Document-shaped model validated.
-- One-off importer for v1's JSONs.
+- One-off importer for the existing JSON files.
 - 16 jobs, 34 runs, 97 artifacts, 4 profiles, 2 settings.
 - 19 initial tests.
 
@@ -28,12 +28,12 @@ flowchart LR
 - Drizzle + versioned migrations.
 - Repositories with contracts.
 - REST API (`/api/jobs`, `/api/runs`, `/api/stats`, profiles, settings).
-- Compatibility with the v1 UI (`/api/applications`, `/api/processes`, viewers).
-- 71 backend tests; smoke test with real data.
+- Compatibility with the old UI (`/api/applications`, `/api/processes`, viewers).
+- 103 backend tests; smoke test with real data.
 
 ### Phase 2 — React 🚧
 
-Goal: replace the v1 UI with a SPA while keeping the API as the only data source.
+Goal: replace the old UI with a SPA while keeping the API as the only data source.
 
 **Proposed stack**
 
@@ -63,7 +63,7 @@ Goal: replace the v1 UI with a SPA while keeping the API as the only data source
 **Pending decisions**
 
 - Checkpoint response in v2: requires porting the pipeline's interactive queue.
-- PDF upload in admin: port v1's extractor or keep only text/light files.
+- PDF upload in admin: port the existing extractor or keep only text/light files.
 
 ### Phase 3 — Cloud and pipeline ⏳
 
@@ -83,7 +83,7 @@ Recommendation: **Turso** if the goal is minimal change; **Supabase** if auth/st
 
 **3b. Heavy pipeline**
 
-Port from the v1 server:
+Port from the previous server:
 
 - job scraping (Playwright);
 - hybrid fit engine;
@@ -98,7 +98,7 @@ functions don't cover Playwright + Chromium for PDF.
 
 | Priority | Item | Impact |
 |---|---|---|
-| High | React frontend | Replace the v1 UI |
+| High | React frontend | Replace the old UI |
 | High | Aggregate endpoint for listings (eliminates N+1) | Performance |
 | Medium | Port the processing pipeline | Feature parity |
 | Medium | Authentication and real `owner_id` | Cloud |
@@ -117,14 +117,14 @@ functions don't cover Playwright + Chromium for PDF.
 - [x] App Settings manages targets, base resumes and extra instructions.
 - [x] No screen depends on `/api/applications`.
 - [x] Frontend tests passing (28).
-- [ ] The v1 UI can be retired.
+- [ ] The old UI can be retired.
 
 ## 4. Risks
 
 | Risk | Probability | Mitigation |
 |---|---|---|
-| Heavy pipeline taking longer than expected | High | Keep v1 running in parallel |
-| Data divergence between v1 and v2 | Medium | v2 as single source after Phase 2 |
+| Heavy pipeline taking longer than expected | High | Keep the old app running in parallel |
+| Data divergence between the old app and v2 | Medium | v2 as single source after Phase 2 |
 | LLM cost in the cloud | Medium | Fit caching and per-user limits |
 | Database migration breaking queries | Low | Repository contract tests |
 | Scope growing to multi-user | Medium | `owner_id` already prepared; auth in Phase 3 |

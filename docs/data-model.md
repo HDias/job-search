@@ -102,7 +102,7 @@ language, stack and fit analysis.
 | `language` | TEXT | `pt-br` or `en` |
 | `stack` | TEXT | `ruby`, `php` etc. |
 | `channel` | TEXT | `linkedin`, `portal`, `email`… |
-| `language_confirmation` | TEXT | Preserves v1's `user-confirmed` |
+| `language_confirmation` | TEXT | Preserves the imported `user-confirmed` value |
 | `status` | TEXT | `drafted`, `applied`, `interview`, `offer`, `rejected`, `archived` |
 | `applied_at` | TEXT | ISO 8601 UTC |
 | `fit_rating` | REAL | Indexable copy of `fit.rating` |
@@ -164,14 +164,14 @@ A unique index on `(job_id, kind, relative_path)` prevents duplicates on re-impo
 ### `profiles`
 
 Application targets per stack and language. Each row combines `(stack, language)` and keeps the
-base resume in `content` (v1's original JSON + `rawText` edited in v2).
+base resume in `content` (the imported original JSON + `rawText` edited here).
 
 | Column | Type | Notes |
 |---|---|---|
 | `stack` | TEXT PK | Slug (`ruby`, `php`, `elixir`…); `^[a-z][a-z0-9-]{0,31}$` |
 | `language` | TEXT PK | `pt-br` or `en` |
 | `content` | TEXT JSON | Base resume; `null` while there is no text |
-| `enabled` | INTEGER bool | Default `true`; targets imported from v1 stay active |
+| `enabled` | INTEGER bool | Default `true`; imported targets stay active |
 | `extra_prompt` | TEXT | Extra instructions for the fit/tailor prompts; `null` if empty |
 | `updated_at` | TEXT | ISO 8601 UTC |
 
@@ -180,7 +180,8 @@ base resume. The pipeline (Phase 3) should only consider targets with `enabled =
 
 ### `settings`
 
-Key/value pairs for PDF theme, computed profile and form data. API keys **do not** go here.
+Key/value pairs for PDF theme, form data and LLM configuration. It stores `llm_config`,
+**including the API key**; the API only exposes `hasKey` and `maskedKey`.
 
 ## 3. Nested JSONs
 

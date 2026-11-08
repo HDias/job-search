@@ -14,8 +14,8 @@ recruiter message, answer suggestions. The content lives in `applications/`; the
 only metadata (`kind`, relative path, mime, size).
 
 **`applications/`**
-v1's directory where the artifacts live. v2 references this directory via `APPLICATIONS_DIR`,
-without copying the files.
+Directory where generated artifacts live, resolved via `APPLICATIONS_DIR`. By default it points at
+the previous project's `applications/`, so files are referenced without copying.
 
 ## B
 
@@ -29,7 +29,7 @@ the `profiles` table.
 See **Run**.
 
 **Compatibility layer**
-Routes and DTOs that translate the v2 domain into the format the v1 UI consumes. They live in
+Routes and DTOs that translate the v2 domain into the format the old UI consumes. They live in
 `src/api/dto/legacy.ts` and `src/api/routes/compat.ts`. Temporary.
 
 ## D
@@ -40,8 +40,8 @@ normalized tables. Eases migration to a document database. See
 [ADR-0002](./adr/0002-document-shaped-model.md).
 
 **DTO (Data Transfer Object)**
-Response/input structure of a route. The legacy DTO is v1's format; the new DTO is the domain's
-`Job`.
+Response/input structure of a route. The compatibility DTO keeps the old format; the new DTO is the
+domain's `Job`.
 
 ## F
 
@@ -51,7 +51,7 @@ Alignment assessment between candidate and job. Contains `rating` (0–100), `an
 `eligibility`, `languageGate` and `logisticsNote`.
 
 **Hybrid fit**
-v1's engine that combines deterministic rules with an LLM. Not yet ported to v2.
+Previous engine that combines deterministic rules with an LLM. Not ported yet.
 
 ## J
 
@@ -66,8 +66,11 @@ Copy of the job data at processing time: title, company, location, URLs, detecte
 ## L
 
 **Legacy**
-Everything that belongs to v1: its single-file UI, its server, the JSON data files and the
-`dd/mm/yyyy` format.
+The previous single-file application: its UI, server, JSON data files and the `dd/mm/yyyy` format.
+
+**LLM config**
+Object stored in `settings['llm_config']`: provider, model, `baseUrl`, sampling fields and the API
+key. `GET /api/llm-config` returns it with the key masked.
 
 ## M
 
@@ -85,6 +88,11 @@ Run whose `job_id` is `NULL` because the corresponding job no longer exists. Val
 Field present in `jobs` to prepare for multi-user. Today it is always `local`.
 
 ## P
+
+**Pipeline**
+Sequence that turns a job URL into an application kit: scrape → fit → generate kit → write
+artifacts. Only the LLM client, its configuration and the skill prompt loader are ported; the
+steps themselves still run in the previous server.
 
 **Profile**
 Base resume per stack (`ruby`, `php`) and language (`pt-br`, `en`). Keeps the original JSON in
@@ -104,19 +112,23 @@ exist without a job (`job_id = NULL`), preserving history.
 ## S
 
 **Setting**
-Key/value pair in `settings`. Used for `pdf_theme` and `candidate_form`.
+Key/value pair in `settings`. Used for `pdf_theme`, `candidate_form` and `llm_config`.
+
+**Skill**
+Prompt package in `skills/<name>/`: `SKILL.md` plus `references/` and `templates/`. The loader
+concatenates the references into the fit, tailor and email system prompts.
 
 **Stack**
 Main technology of the resume/job: `ruby` or `php`. Defines which base profile is used.
 
 **Strangler**
-Strategy of replacing v1 by parts, keeping it functional until the last slice migrates. See
-[ADR-0004](./adr/0004-strangler-strategy-v1-compatibility.md).
+Strategy of replacing the old app by parts, keeping it functional until the last slice migrates.
+See [ADR-0004](./adr/0004-strangler-strategy-v1-compatibility.md).
 
 ## T
 
 **TanStack Query**
-Data cache and synchronization library planned for Phase 2.
+Data cache and synchronization library used by the React app.
 
 ## V
 

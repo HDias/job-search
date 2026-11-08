@@ -154,7 +154,7 @@ They cover:
 ## 9. Decisions
 
 - **No Redux/Zustand.** The TanStack Query cache covers server state; the rest is local.
-- **No UI library.** Own CSS to keep the bundle small and the look close to v1.
+- **No UI library.** Own CSS to keep the bundle small and the look consistent.
 - **No `dangerouslySetInnerHTML`.** Job content and messages are rendered as text.
 - **Filters and page in the URL.** Filtered links are shareable; the search uses `replace` to keep
   the history clean.
@@ -162,8 +162,8 @@ They cover:
 - **Configurable targets in App Settings.** Each target is a row in `profiles` (`stack × language`),
   editable in the UI: base resume, extra instructions, enable/disable and remove. Full description
   in [ADR-0009](./adr/0009-configurable-targets.md).
-- **Admin edits text, not PDF.** Upload with PDF extraction depends on v1's pipeline; in v2 the
-  page accepts `.txt`, `.md` and `.html` (read in the browser) or pasted text, and saves via
+- **Admin edits text, not PDF.** Upload with PDF extraction depends on the previous pipeline; in v2
+  the page accepts `.txt`, `.md` and `.html` (read in the browser) or pasted text, and saves via
   `PUT /api/profiles/:stack/:language`.
 
 ## 10. Next steps
@@ -171,4 +171,4 @@ They cover:
 1. Checkpoint response inside v2 (depends on porting the pipeline).
 2. Optimistic status updates.
 3. Resume upload with PDF extraction (depends on the pipeline).
-4. Retire the v1 UI for good and remove the compatibility routes.
+4. Retire the old UI for good and remove the compatibility routes.
