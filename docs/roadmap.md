@@ -7,13 +7,11 @@ flowchart LR
   F0["Phase 0 - Data and import"]:::done
   F1["Phase 1 - SQLite and API"]:::done
   F2["Phase 2 - React"]:::active
-  F3["Phase 3 - Cloud and pipeline"]:::next
 
-  F0 --> F1 --> F2 --> F3
+  F0 --> F1 --> F2
 
   classDef done fill:#14532d,stroke:#22c55e,color:#dcfce7
   classDef active fill:#1e3a8a,stroke:#3b82f6,color:#dbeafe
-  classDef next fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5
 ```
 
 ### Phase 0 — Data and import ✅
@@ -65,35 +63,6 @@ Goal: replace the old UI with a SPA while keeping the API as the only data sourc
 - Checkpoint response in v2: requires porting the pipeline's interactive queue.
 - PDF upload in admin: port the existing extractor or keep only text/light files.
 
-### Phase 3 — Cloud and pipeline ⏳
-
-Two independent fronts:
-
-**3a. Cloud adapter**
-
-| Option | Pros | Cons |
-|---|---|---|
-| Turso/libSQL | Compatible SQL, almost direct swap | Fewer query features |
-| Supabase/Postgres | Full SQL, integrated auth and storage | More moving parts to operate |
-| Firestore | Serverless, realtime | No joins; requires rethinking queries |
-
-Recommendation: **Turso** if the goal is minimal change; **Supabase** if auth/storage are needed;
-**Firestore** only if Firebase is a requirement. Details in
-[ADR-0003](./adr/0003-repository-pattern-and-cloud.md).
-
-**3b. Heavy pipeline**
-
-Port from the previous server:
-
-- job scraping (Playwright);
-- hybrid fit engine;
-- LLM calls (key in a secret manager);
-- HTML/PDF generation;
-- interactive question queue (`needs_input`).
-
-This requires a runtime with a browser — Cloud Run, Fly.io or a dedicated worker. Pure serverless
-functions don't cover Playwright + Chromium for PDF.
-
 ## 2. Technical backlog
 
 | Priority | Item | Impact |
@@ -101,7 +70,7 @@ functions don't cover Playwright + Chromium for PDF.
 | High | React frontend | Replace the old UI |
 | High | Aggregate endpoint for listings (eliminates N+1) | Performance |
 | Medium | Port the processing pipeline | Feature parity |
-| Medium | Authentication and real `owner_id` | Cloud |
+| Medium | Authentication and real `owner_id` | Multi-user |
 | Medium | Authorization tests | Security |
 | Low | Metrics and tracing | Observability |
 | Low | Automated backup | Operations |
@@ -125,6 +94,6 @@ functions don't cover Playwright + Chromium for PDF.
 |---|---|---|
 | Heavy pipeline taking longer than expected | High | Keep the old app running in parallel |
 | Data divergence between the old app and v2 | Medium | v2 as single source after Phase 2 |
-| LLM cost in the cloud | Medium | Fit caching and per-user limits |
+| LLM cost | Medium | Fit caching and per-user limits |
 | Database migration breaking queries | Low | Repository contract tests |
-| Scope growing to multi-user | Medium | `owner_id` already prepared; auth in Phase 3 |
+| Scope growing to multi-user | Medium | `owner_id` already prepared; auth when multi-user support arrives |

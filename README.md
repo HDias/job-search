@@ -1,6 +1,6 @@
 # Job Search Assistant v2
 
-Incremental rewrite of the v1 app: **API + SQLite + React now, cloud later**.
+Incremental rewrite of the v1 app: **API + SQLite + React**.
 v1 stays intact as a fallback. Full documentation lives in [`docs/`](./docs/README.md).
 
 ## Stack
@@ -74,14 +74,14 @@ docs/              architecture, ADRs, API, model and guides
 - `profiles` — base resumes per `(stack, language)`.
 - `settings` — PDF theme, computed profile, form data. **API keys are not imported.**
 
-### Decisions that ease the move to the cloud
+### Data model decisions
 
 - Dates in **ISO 8601** (v1 used `dd/mm/yyyy`).
-- Prefixed IDs (`app_`, `proc_`, `art_`) with UUID — they work as doc IDs in Firestore.
+- Prefixed IDs (`app_`, `proc_`, `art_`) with UUID — they stay stable across imports.
 - `owner_id` already exists (default `local`): avoids a backfill when auth arrives.
 - No `undefined`: missing fields become `null`.
-- Data access only via interfaces in `src/repositories/types.ts`. Swapping SQLite for Turso,
-  Supabase or Firestore means implementing another class, without touching the UI.
+- Data access only via interfaces in `src/repositories/types.ts`; another storage engine means
+  implementing another class, without touching the UI.
 
 ## API
 

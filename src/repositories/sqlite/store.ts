@@ -6,8 +6,8 @@ import { SqliteRunRepository } from './run-repository.js';
 import { SqliteSettingsRepository } from './settings-repository.js';
 
 /**
- * Única porta de entrada para a persistência. Para migrar para Firestore/Turso
- * depois, basta criar outra implementação das interfaces de repositório.
+ * Única porta de entrada para a persistência. Para trocar o storage depois,
+ * basta criar outra implementação das interfaces de repositório.
  */
 export function createStore(file = defaultDbFile()) {
   const { db, sqlite, file: resolvedFile } = openDb(file);

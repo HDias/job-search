@@ -28,7 +28,7 @@ losing the resume.
 - Removing a target deletes the row and the stored resume. The non-destructive alternative is
   `enabled = false`.
 - `/api/base-resumes` keeps the legacy four-key format for v1; the new UI uses `/api/profiles`.
-- Consuming `extraPrompt` in the pipeline is deferred to Phase 3.
+- Consuming `extraPrompt` in the pipeline is deferred to the pipeline port.
 
 ## Consequences
 
@@ -47,7 +47,7 @@ losing the resume.
 - Natural language stays restricted to `pt-br`/`en`; adding `es`/`fr` requires extending
   `LANGUAGES`, the language gate and the UI.
 - Removing is destructive for the resume; the UI confirms, but there is no trash or soft delete.
-- The pipeline does not read `enabled`/`extraPrompt` yet; until Phase 3 the effect is purely
+- The pipeline does not read `enabled`/`extraPrompt` yet; until the pipeline port the effect is purely
   configuration.
 
 ## References

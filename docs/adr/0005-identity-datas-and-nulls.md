@@ -7,7 +7,7 @@
 
 v1 used numeric IDs coupled to `Date.now()` (`app_1793504688485`), display dates (`28/10/2026`)
 and `undefined` in several places. This creates theoretical collisions, incorrect ordering and
-problems when persisting to databases that reject `undefined` (Firestore).
+problems when persisting to databases that reject `undefined`.
 
 ## Decision
 
@@ -36,7 +36,7 @@ problems when persisting to databases that reject `undefined` (Firestore).
 
 - Lexicographic ordering of ISO equals chronological ordering.
 - No timezone ambiguity: everything is UTC; the UI formats locally.
-- Compatible with Firestore, which rejects `undefined`.
+- Compatible with storage engines that reject `undefined`.
 - UUIDs avoid collisions in imports and in a possible multi-user future.
 
 **Negative**

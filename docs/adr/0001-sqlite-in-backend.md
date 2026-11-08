@@ -14,7 +14,8 @@ The alternatives considered were:
 1. **SQLite in the browser** (sql.js, wa-sqlite, OPFS) — removes the backend, but duplicates rules
    and gets in the way of the Playwright/LLM pipeline, which is server-side.
 2. **SQLite in the backend** — the server keeps owning the data and the pipeline.
-3. **Postgres from the start** — closer to the cloud, but adds infrastructure for a local app.
+3. **Postgres from the start** — closer to a hosted deployment, but adds infrastructure for a
+   local app.
 
 ## Decision
 
@@ -28,7 +29,6 @@ never SQL. The file lives at `data/job-search.db` and is gitignored.
 - A single process and a single file; trivial setup.
 - The heavy pipeline stays in the same runtime as the database.
 - Real transactions and referential integrity.
-- Direct path to Turso/libSQL in the cloud (same language).
 
 **Negative**
 
@@ -43,4 +43,4 @@ never SQL. The file lives at `data/job-search.db` and is gitignored.
 ## References
 
 - [architecture.md](../architecture.md)
-- [ADR-0003 — Repository pattern and cloud path](./0003-repository-pattern-and-cloud.md)
+- [ADR-0003 — Repository pattern](./0003-repository-pattern.md)

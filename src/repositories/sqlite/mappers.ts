@@ -48,8 +48,8 @@ export function parseJobSnapshot(value: unknown): JobSnapshot | null {
 }
 
 /**
- * O Firestore não tem `undefined`: convertemos tudo para `null`, o que também
- * deixa o JSON do SQLite previsível.
+ * Bancos que não aceitam `undefined` exigem `null`: convertemos tudo para
+ * `null`, o que também deixa o JSON do SQLite previsível.
  */
 function nullify<T>(value: T | undefined | null): T | null {
   return value ?? null;
