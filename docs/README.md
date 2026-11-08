@@ -1,30 +1,30 @@
 # Documentation — Job Search Assistant v2
 
-This folder holds v2's technical documentation: decisions, architecture, data model, API, the v1
-migration and next steps.
+This folder holds the technical documentation: decisions, architecture, data model, API, the
+migration history and next steps.
 
 ## Project status
 
 | Phase | Scope | Status |
 |---|---|---|
-| 0 | Data model, normalization and import of v1's JSONs | ✅ Complete |
-| 1 | SQLite + Drizzle, repositories, REST API and v1 UI compatibility | ✅ Complete |
-| 2 | React frontend (Vite + TS + TanStack Query) | 🚧 Dashboard, detail and admin done |
+| 0 | Data model, normalization and import of existing JSON files | ✅ Complete |
+| 1 | SQLite + Drizzle, repositories, REST API and UI compatibility | ✅ Complete |
+| 2 | React frontend (Vite + TS + TanStack Query) | 🚧 Dashboard, detail, admin and app settings done |
 | 3 | Cloud adapter (Turso, Supabase or Firestore) | ⏳ Planned |
 
 **Current numbers:** 16 jobs, 34 runs (17 orphans), 97 artifacts, 4 profiles and 2 settings
-imported; 64 backend tests + 23 frontend tests; API and SPA on port `3344`, Vite on `5173`, and
-v1 intact on `3333`.
+imported; 103 backend tests + 28 frontend tests; API and SPA on port `3344`, Vite on `5173`.
 
 ## Where to start
 
 | If you want to… | Read |
 |---|---|
 | Understand the architecture in 10 minutes | [architecture.md](./architecture.md) |
+| Understand the LLM and skill pipeline | [architecture.md §7](./architecture.md#7-pipeline-llm-and-skills) |
 | Get to know the React app | [frontend.md](./frontend.md) |
 | See tables, columns and relations | [data-model.md](./data-model.md) |
 | Consume or evolve the API | [api.md](./api.md) |
-| Understand how v1 data was migrated | [migration-v1-v2.md](./migration-v1-v2.md) |
+| Understand how data was migrated | [migration-v1-v2.md](./migration-v1-v2.md) |
 | Run the project locally | [development.md](./development.md) |
 | Know what is covered (and what isn't) | [testing.md](./testing.md) |
 | Review security and secrets | [security.md](./security.md) |
@@ -72,13 +72,14 @@ flowchart TB
 
 ## Principles guiding v2
 
-1. **Strangling, not a big-bang rewrite.** v1 keeps working; v2 takes over responsibilities in
-   slices (data → API → UI).
+1. **Strangling, not a big-bang rewrite.** The app grows in slices (data → API → UI) instead of
+   being rewritten at once.
 2. **Portability before optimization.** The model avoids excessive normalization so swapping
    SQLite for a document database stays cheap.
 3. **Domain isolated from persistence.** Routes and UI don't know SQL; everything goes through
    repositories.
-4. **Secrets out of the database.** LLM keys stay in a local file and are not imported.
+4. **Secrets never leave the server.** The LLM key is stored locally and the API only ever
+   returns it masked (`hasKey` + `maskedKey`).
 5. **Tests as contract.** When the database adapter changes, the repository tests tell you whether
    behavior was preserved.
 
@@ -98,8 +99,8 @@ quotes (`["My label"]`, `-->|"yes"|`); no HTML inside labels; `classDef` only wi
 
 ## Conventions
 
-- Dates persisted in **ISO 8601 UTC**; the `dd/mm/yyyy` conversion exists only at the v1
-  compatibility boundary.
+- Dates persisted in **ISO 8601 UTC**; the `dd/mm/yyyy` conversion exists only at the compatibility
+  boundary.
 - Missing fields are `null`, never `undefined` (Firestore doesn't accept `undefined`).
 - IDs have a prefix (`app_`, `proc_`, `art_`) followed by a UUID.
 - Every schema change generates a migration in `drizzle/` and is recorded in an ADR when it changes

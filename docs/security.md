@@ -11,20 +11,24 @@ machine's owner accesses `localhost:3344`. This is acceptable for the current st
 | Resumes and cover letters | High (personal data) | `applications/` |
 | Base profiles | High | `base_profile/` or `profiles.content` |
 | Application data | Medium | `data/job-search.db` |
-| LLM key | Critical | v1's `config.json`, **outside** v2 |
+| LLM key | Critical | `settings['llm_config']` in the local SQLite file; never returned by the API |
 | Theme configuration | Low | `settings` |
 
 ## 2. Secrets
 
-- v1's `config.json` **is not imported**. The LLM key remains only in the old file.
+- The LLM key is stored in `settings['llm_config']` in the local SQLite file. The API never returns
+  it: `GET /api/llm-config` exposes only `hasKey` and `maskedKey`, and the client reads it
+  server-side.
 - `.env` and `.env.*` are gitignored; `.env.example` is versioned without real values.
-- `settings` only stores preferences (`pdf_theme`, `candidate_form`); never tokens.
+- `settings` stores preferences (`pdf_theme`, `candidate_form`) and the `llm_config` object, which is
+  the only place the API key is persisted.
 - No secret is logged. The global handler prints the error, not the request body.
 
 ### Rule for Phase 3
 
-When the LLM pipeline is ported, the key must come from an environment variable or a secret
-manager — never from the database or the repository. See [roadmap.md](./roadmap.md).
+When the LLM pipeline is exposed beyond localhost, the key must come from an environment variable
+or a secret manager — never be readable from the database by an untrusted process. See
+[roadmap.md](./roadmap.md).
 
 ## 3. Input validation
 
@@ -35,9 +39,9 @@ Every write goes through Zod at the boundary (`parseBody` in `src/api/http.ts`):
 - Theme color validated by regex `^#[0-9a-fA-F]{6}$`.
 - JSON body limited to **4 MB** (`express.json({ limit: '4mb' })`).
 
-The legacy DTO (`/api/applications`, `/api/processes`) accepts looser bodies because it replicates
-what the v1 UI used to send, but it still converts types and ignores unknown fields. **It is not a
-surface for new code.**
+The compatibility DTO (`/api/applications`, `/api/processes`) accepts looser bodies because it
+replicates what the old UI sends, but it still converts types and ignores unknown fields. **It is
+not a surface for new code.**
 
 ### SQL injection
 

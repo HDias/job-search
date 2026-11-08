@@ -5,8 +5,8 @@ route families:
 
 | Family | Prefix | Audience |
 |---|---|---|
-| New REST | `/api/jobs`, `/api/runs`, `/api/profiles`, `/api/settings`, `/api/stats`, `/api/llm-config` | React UI (Phase 2) and integrations |
-| v1 compatibility | `/api/applications`, `/api/processes`, `/api/base-resumes`, `/api/pdf-theme`, `/api/candidate-data` | the v1 UI |
+| New REST | `/api/jobs`, `/api/runs`, `/api/profiles`, `/api/settings`, `/api/stats`, `/api/llm-config` | React UI and integrations |
+| Legacy compatibility | `/api/applications`, `/api/processes`, `/api/base-resumes`, `/api/pdf-theme`, `/api/candidate-data` | the legacy UI |
 | Viewers | `/applications/*`, `/cv/:id`, `/extras/:id/:view` | Links opened by the user |
 
 ## 1. Conventions
@@ -187,9 +187,9 @@ Accepts `stage`, flags (`hasRawText`, `needsFitConfirmation`…), `error`, `fit`
 
 `204`.
 
-## 5. Compatibility with v1
+## 5. Legacy compatibility
 
-These routes exist so the v1 UI keeps working during the migration. They
+These routes exist so the legacy UI keeps working during the migration. They
 translate the new domain into the DTO the UI already knows. **Do not use them in new code.**
 
 ### `GET /api/applications`
@@ -223,7 +223,7 @@ Lists all jobs in the legacy format:
 ```
 
 - The flattened fit (`fitRating`, `fitDimensions`, `strengths`…) undoes the `Fit` object.
-- `recruiterNoteFile` and `linkedInNoteFile` fall back to each other, as in v1.
+- `recruiterNoteFile` and `linkedInNoteFile` fall back to each other, as in the legacy app.
 - File paths are public (`/applications/...`), served by `express.static`.
 
 ### `PUT /api/applications/:id`
@@ -245,8 +245,8 @@ Responds `{ "success": true, "message": "Candidatura removida com sucesso" }`.
 
 ### `GET /api/processes`
 
-Lists **only runs with `stage != "done"`** — that's what the v1 panel shows as pending checkpoints.
-The DTO keeps `job`, `jobSnapshot`, `applicationId` and the flattened fit.
+Lists **only runs with `stage != "done"`** — that's what the legacy panel shows as pending
+checkpoints. The DTO keeps `job`, `jobSnapshot`, `applicationId` and the flattened fit.
 
 ### `PUT /api/processes/:id`
 
@@ -308,21 +308,21 @@ Rules:
   `PUT { "enabled": false }`.
 - **`enabled = false`**: the target stays editable and visible in the API; the future pipeline
   should ignore it.
-- **`/api/base-resumes`** keeps the legacy format (4 fixed keys) for v1; the new screen uses
-  `/api/profiles`.
+- **`/api/base-resumes`** keeps the legacy format (4 fixed keys) for the legacy UI; the new screen
+  uses `/api/profiles`.
 
 ### LLM configuration — `/api/llm-config`
 
 | Method | Route | Description |
 |---|---|---|
 | GET | `/api/llm-config` | `{ provider, model, baseUrl, temperature, top_p, maxTokens, hasKey, maskedKey }` — the key itself is never returned |
-| PUT/POST | `/api/llm-config` | Partial update; returns `{ success, message }`. `POST` is an alias for the v1 UI |
+| PUT/POST | `/api/llm-config` | Partial update; returns `{ success, message }`. `POST` is an alias for the legacy UI |
 
 - Stored in `settings` under the key `llm_config`. The local database keeps the saved key; the API
   exposes it only masked (`ABCDEF...WXYZ`).
 - Partial semantics: missing fields keep their current value; `null` clears a sampling field;
-  `apiKey: ""` keeps the current key (parity with the v1 UI, which resends an empty field when the
-  user did not change the key).
+  `apiKey: ""` keeps the current key (parity with the legacy UI, which resends an empty field when
+  the user did not change the key).
 - Changing `provider` without `model` falls back to the new provider's default model
   (`gemini-2.5-flash`, `gpt-4o`, `gpt-4o-mini`, `openai/gpt-oss-20b`, `claude-3-5-sonnet-20241022`).
 - With no saved key and provider `gemini`, the client uses `GEMINI_API_KEY` from the environment.
@@ -373,7 +373,7 @@ curl -X PATCH http://localhost:3344/api/jobs/app_1 \
   -H 'content-type: application/json' \
   -d '{"status":"interview"}'
 
-# Legacy format (v1 UI)
+# Legacy format
 curl http://localhost:3344/api/applications
 
 # Rendered resume
@@ -382,7 +382,7 @@ open http://localhost:3344/cv/app_1
 
 ## 9. What doesn't exist yet
 
-Heavy pipeline routes still live only in v1:
+Heavy pipeline routes still live only in the legacy server:
 
 - `POST /api/process-job`
 - `POST /api/fit-check`
@@ -391,6 +391,6 @@ Heavy pipeline routes still live only in v1:
 - interactive queue (`/api/processes/:id/question`, `/respond`)
 
 They depend on Playwright, LLM and PDF generation and are being ported slice by slice; the LLM
-client, the skill prompt loader and `/api/llm-config` already live in v2
-(`src/pipeline/`). The step plan is in `.plans/pipeline-port-v1-v2.md` and the phase goals in
-[roadmap.md](./roadmap.md).
+client, the skill prompt loader and `/api/llm-config` already live in v2 (`src/pipeline/`). See
+[architecture.md §7](./architecture.md#7-pipeline-llm-and-skills), the step plan in
+`.plans/pipeline-port-v1-v2.md` and the phase goals in [roadmap.md](./roadmap.md).

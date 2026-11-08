@@ -55,10 +55,10 @@ The API also runs migrations on boot (`runMigrations(store.db)` in `src/api/serv
 `pnpm dev` already leaves the database ready. Running `db:migrate` explicitly is useful in CI and
 before importing.
 
-### Import data from v1
+### Import legacy data
 
 ```bash
-pnpm db:import -- --tracker <legacy-dir>   # <legacy-dir> = the v1 project directory
+pnpm db:import -- --tracker <legacy-dir>   # <legacy-dir> = the legacy project directory
 pnpm db:import -- --reset        # wipe and re-import
 ```
 
@@ -77,7 +77,7 @@ Copy `.env.example` to `.env` if you want to override the defaults. The project 
 | `BASE_PROFILE_DIR` | `<legacy-dir>/base_profile` | Base profiles |
 | `WEB_DIST` | `./web/dist` | React build served by Express |
 
-`<legacy-dir>` is the v1 project directory. Defaults are resolved with `path.resolve` from the
+`<legacy-dir>` is the legacy project directory. Defaults are resolved with `path.resolve` from the
 project root (`src/config.ts`).
 
 ## 6. Commands
@@ -92,7 +92,7 @@ pnpm typecheck:web  # frontend: tsc --noEmit
 pnpm test           # backend: Vitest (Node environment)
 pnpm test:web       # frontend: Vitest (jsdom)
 pnpm db:migrate     # apply migrations
-pnpm db:import      # import v1
+pnpm db:import      # import legacy data
 ```
 
 ### Running the frontend
@@ -120,22 +120,22 @@ pnpm start
 Everything ends up at `http://localhost:3344`: API, artifacts and SPA. Details in
 [frontend.md](./frontend.md).
 
-## 7. Running alongside v1
+## 7. Running alongside the legacy app
 
-v1 uses port `3333` and v2 uses `3344`. Both can run at the same time: start the legacy app from
-its own project directory and v2 from this repository.
+The legacy app uses port `3333` and v2 uses `3344`. Both can run at the same time: start the legacy
+app from its own project directory and v2 from this repository.
 
 ```bash
-# terminal 1 — v1, from its own project
+# terminal 1 — legacy app, from its own project
 pnpm start
 
 # terminal 2 — v2, from this repository
 pnpm dev
 ```
 
-v2 resolves `APPLICATIONS_DIR` and `BASE_PROFILE_DIR` to the v1 directories by default, so the
-artifacts show up in the viewers without copying. **Don't point both at the same database** — v1
-doesn't know the new schema.
+v2 resolves `APPLICATIONS_DIR` and `BASE_PROFILE_DIR` to the legacy directories by default, so the
+artifacts show up in the viewers without copying. **Don't point both at the same database** — the
+legacy app doesn't know the new schema.
 
 ## 8. Development flow
 
@@ -202,7 +202,7 @@ converted by the central `errorHandler`.
 | `banco já contém dados` on import | Import without `--reset` | `pnpm db:import -- --reset` |
 | Artifact 404 | Wrong path in `APPLICATIONS_DIR` | Check the variable and the `relativePath` in the database |
 | `status inválido` | Enum different from the domain | See the list in [data-model.md](./data-model.md) |
-| Port in use | v1 or an old instance | `lsof -i :3344` or `lsof -i :5173` |
+| Port in use | The legacy app or an old instance | `lsof -i :3344` or `lsof -i :5173` |
 | SPA returns 404 in production | `web/dist` doesn't exist | `pnpm build:web` |
 
 ## 10. Style

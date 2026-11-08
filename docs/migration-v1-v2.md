@@ -158,7 +158,7 @@ The unique index `(job_id, kind, relative_path)` guarantees that re-importing do
 
 | Item | Reason |
 |---|---|
-| `config.json` / LLM key | Secret. Reconfigure in v2 via environment variable |
+| `config.json` / LLM key | Secret. Reconfigure in v2 via `PUT /api/llm-config` or `GEMINI_API_KEY` |
 | Artifact content | Stays on the filesystem; the database only keeps metadata |
 | Caches and temporary files | No historical value |
 | v1 logs | Not part of the domain |
