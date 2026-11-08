@@ -89,6 +89,8 @@ There is no lint, formatter, CI or pre-commit configured. The commands above are
 
 ## Conventions
 
+- **Write all code comments, docs, commit messages and test descriptions in English** — never in
+  Portuguese, even when the surrounding code or the conversation is in Portuguese.
 - Don't introduce a UI library, Redux/Zustand or `dangerouslySetInnerHTML` without an explicit
   need; the current standard is own CSS + TanStack Query caching.
 - When changing a domain field, update both sides: `src/domain/` and `web/src/api/types.ts`.

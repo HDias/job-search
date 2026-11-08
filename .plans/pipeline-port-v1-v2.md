@@ -101,32 +101,35 @@ Legenda: `[x]` feito · `[ ]` pendente · `[~]` parcial.
 - [x] Docs: `docs/api.md` (llm-config + formato), este plano.
 - [x] Gates: `pnpm typecheck && pnpm test`.
 
-### Fase 2 — Scrape + fit-check
+### Fase 2 — Scrape + fit-check ✅
 
-- [ ] **Pré-requisitos**: `pnpm add playwright`; gerar a migração `0003_pipeline_runs.sql`
-      (ver `pipeline-port-review.md` §4) e reconciliar `src/domain/run.ts` (D7) +
-      `web/src/api/types.ts` + `src/api/dto/legacy.ts`.
-- [ ] `src/pipeline/scrape/job.ts`: port de `scrape_job.mjs` (Greenhouse API-first via `fetch`,
+- [x] **Pré-requisitos**: `pnpm add playwright`; migração `0003_pipeline_runs.sql` (ver
+      `pipeline-port-review.md` §4) e reconciliação de `src/domain/run.ts` (D7) +
+      `web/src/api/types.ts` + `src/api/dto/legacy.ts` + mappers/repositório.
+- [x] `src/pipeline/scrape/job.ts`: port de `scrape_job.mjs` (Greenhouse API-first via `fetch`,
       senão Chromium headless; args UA/viewport/locale; waits e timeouts idênticos; retorno
       `{url, scrapedAt, title, company, location, applyUrl, detectedLanguage, languageConfidence, content}`).
-      Browser injetável (`chromium` da lib ou stub em testes).
-- [ ] `src/pipeline/content.ts`: `isJobContentThin`, `detectLangFromText`,
-      `hasExplicitLanguageRequirement` (regex do v1), `detectLogisticsNote`
-      (`job_processor.mjs:203`), truncations (12000/6000).
-- [ ] `src/pipeline/fit/**`: port de `src/fit` (semântico/temporal/evidência) +
-      `analyze_profile.mjs` coberto por testes dos `scripts/*.test.mjs` do v1; **não** portar
-      `calculateFitHybridSync` (está quebrado no v1 — missing import).
-- [ ] `src/pipeline/kit/fit.ts`: `checkJobFit` (LLM call com `buildFitSystemPrompt` +
-      `withExtraPrompt` do alvo; envelope do fit no schema da skill; gate de elegibilidade;
-      sugestão de idioma).
-- [ ] `POST /api/evaluate-fit` (D12): fit híbrido determinístico síncrono (sem fila), lê
-      `profiles` PT/EN + texto da vaga; mantém o alias "Retry fit" do v1, separado do fit por LLM.
-- [ ] `POST /api/fit-check` v2: valida body, cria `run` `queued`, fila executa; `scrape-thin`
-      persistido como no v1 (sem chamada de LLM quando conteúdo raso).
-- [ ] Fila: `src/pipeline/queue.ts` (FIFO, 1 slot, erros → `failed` com `error` e `resumable`);
-      um browser/contexto Playwright reutilizado por worker (injetável para testes).
-- [ ] Testes com `fetchImpl`/`browserFactory` stub (sem lançar Chromium): fit-check feliz,
-      thin content, gate de idioma, retry de run falho.
+      Browser injetável (`ScrapeBrowser`/`launchBrowser`); quando o worker compartilha um browser,
+      `scrapeJob` fecha só a página/contexto.
+- [x] `src/pipeline/content.ts`: `isJobContentThin`, `detectLangFromText`,
+      `hasExplicitLanguageRequirement`, `detectLogisticsNote`, `detectLanguageScores` e
+      truncations (12000/6000/3000/15000).
+- [x] `src/pipeline/fit/**`: port de `src/fit` (semântico/temporal/evidência) +
+      `profile.ts` (port de `analyze_profile.mjs`, sem cache em arquivo) coberto pelos cenários
+      dos `scripts/*.test.mjs` do v1; `calculateFitHybridSync` não foi portado.
+- [x] `src/pipeline/kit/fit.ts`: `checkJobFit` (LLM call com `buildFitSystemPrompt` +
+      `withExtraPrompt` do alvo habilitado; envelope do fit; `needsFitConfirmation`;
+      `logisticsNote`), com `resolveProfileWithFallback` (stack/idioma + fallback Ruby).
+- [x] `POST /api/evaluate-fit` (D12): fit híbrido determinístico síncrono (sem fila), lê
+      `profiles` PT/EN habilitados e o texto da vaga; atualiza `jobs.fit` quando
+      `applicationId` é informado.
+- [x] `POST /api/fit-check` v2: valida body, cria/retoma `run` `queued`, fila executa;
+      `scrape-thin` persistido sem chamada de LLM.
+- [x] Fila: `src/pipeline/queue.ts` (FIFO, 1 slot, erros viram `failed` com `error`);
+      `src/pipeline/service.ts` injeta LLM/scrape/browser; runner em `src/pipeline/runs/fit-check.ts`.
+- [x] Testes: `test/pipeline-content.test.ts`, `test/pipeline-fit.test.ts`,
+      `test/pipeline-fit-check.test.ts`, `test/pipeline-queue.test.ts` e
+      `test/pipeline-requests.test.ts` (LLM/scrape stub, sem Chromium).
 
 ### Fase 3 — Geração do kit + PDF
 

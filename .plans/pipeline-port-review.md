@@ -97,18 +97,17 @@ aplicado) e ajustar em conjunto:
 
 ## 5. Deltas por fase
 
-### Fase 2 — Scrape + fit-check
+### Fase 2 — Scrape + fit-check ✅
 
-- [ ] **Pré-requisitos**: `pnpm add playwright`; migração `0003_pipeline_runs.sql` (seção 4) +
+- [x] **Pré-requisitos**: `pnpm add playwright`; migração `0003_pipeline_runs.sql` (seção 4) +
       reconciliação de `src/domain/run.ts` (seção 3), `web/src/api/types.ts` e
       `src/api/dto/legacy.ts`.
-- [ ] `src/pipeline/content.ts` passa a incluir também `detectLogisticsNote`
-      (`job_processor.mjs:203`), hoje sem destino no plano.
-- [ ] `src/pipeline/fit/**` + `scripts/analyze_profile.mjs` (como já previsto).
-- [ ] `POST /api/evaluate-fit` síncrono (D12).
-- [ ] `POST /api/fit-check` → `202 {runId}` + `src/pipeline/queue.ts` (FIFO, 1 slot), com um
-      browser/contexto Playwright reutilizado por worker.
-- [ ] Testes com `fetchImpl`/`browserFactory` stub — nunca lançar Chromium na suíte.
+- [x] `src/pipeline/content.ts` inclui `detectLogisticsNote` (`job_processor.mjs:203`).
+- [x] `src/pipeline/fit/**` + `profile.ts` (port de `scripts/analyze_profile.mjs`).
+- [x] `POST /api/evaluate-fit` síncrono (D12).
+- [x] `POST /api/fit-check` → `202 {runId}` + `src/pipeline/queue.ts` (FIFO, 1 slot), com um
+      browser/contexto Playwright reutilizável e injetável.
+- [x] Testes com `llm`/`scrape`/`browser` stub — nunca lançar Chromium na suíte.
 
 ### Fase 3 — Geração do kit + PDF
 

@@ -69,7 +69,7 @@ Goal: replace the old UI with a SPA while keeping the API as the only data sourc
 |---|---|---|
 | High | React frontend | Replace the old UI |
 | High | Aggregate endpoint for listings (eliminates N+1) | Performance |
-| Medium | Port the processing pipeline | Feature parity |
+| Medium | Port the processing pipeline (scrape/fit done; kit, PDF, queue checkpoints pending) | Feature parity |
 | Medium | Authentication and real `owner_id` | Multi-user |
 | Medium | Authorization tests | Security |
 | Low | Metrics and tracing | Observability |

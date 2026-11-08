@@ -20,6 +20,8 @@ asdf install
 git clone <repo>
 cd job-search-v2
 pnpm install
+# Playwright browser used by the scraping step (not downloaded by pnpm install):
+pnpm exec playwright install chromium
 ```
 
 On first install, pnpm compiles `better-sqlite3` and `esbuild` from source. This is allowed in
