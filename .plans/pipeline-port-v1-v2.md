@@ -1,8 +1,13 @@
 # Plano — Portar o pipeline pesado (v1 → v2)
 
 > Mapa de arquitetura obtido por leitura integral de `server.mjs`, `job_processor.mjs`,
-> `llm_client.mjs`, `skill_loader.mjs`, `src/fit/**`, `scripts/analyze_profile.mjs` e
-> `skills` em `.agents/skills/` (v1).
+> `llm_client.mjs`, `skill_loader.mjs`, `src/fit/**`, `scripts/analyze_profile.mjs` e dos assets
+> da skill do projeto anterior.
+
+> **Revisão (2026-11-07):** ver
+> [`pipeline-port-review.md`](./pipeline-port-review.md) para as lacunas encontradas e as
+> decisões de reconciliação (vocabulário de estágios de `runs`, migração `0003`, destino de
+> `/api/evaluate-fit`, `scrape_application_questions.mjs` e `extractCandidateFromBase`).
 
 ## 1. O que existe no v1 e precisa ser portado
 
@@ -10,8 +15,8 @@
 |---|---|---|
 | Cliente LLM (Gemini/OpenAI/NVIDIA/Anthropic + retry/backoff) | `llm_client.mjs` | `src/pipeline/llm/client.ts` |
 | Config de LLM (`base_profile/config.json`, key plaintext) | `getLlmConfig`/`saveLlmConfig` + rotas `/api/llm-config` | tabela `settings` (`llm_config`) + rotas em `/api` com key mascarada |
-| System prompts vivos da skill | `skill_loader.mjs` + `.agents/skills/job-application-tailor` | `src/pipeline/skills/loader.ts` + assets em `skills/` no v2 |
-| Scrape de vaga (Playwright + atalho Greenhouse API) | `.agents/skills/.../scripts/scrape_job.mjs` | `src/pipeline/scrape/job.mjs`-equivalente TS (Fase 2) |
+| System prompts vivos da skill | `skill_loader.mjs` + assets da skill | `src/pipeline/skills/loader.ts` + assets em `skills/` no v2 |
+| Scrape de vaga (Playwright + atalho Greenhouse API) | `scripts/scrape_job.mjs` na skill anterior | `src/pipeline/scrape/job.mjs`-equivalente TS (Fase 2) |
 | Fit híbrido determinístico | `src/fit/**` + `scripts/analyze_profile.mjs` | `src/pipeline/fit/**` (Fase 2) |
 | Fit por LLM (`checkJobFit`), language gate, thin content | `job_processor.mjs:516–694` | `src/pipeline/kit/fit.ts` (Fase 2) |
 | Geração do kit (prompt gigante, `needs_input`, validator retry) | `job_processor.mjs:701–1124` | `src/pipeline/kit/generate.ts` (Fase 3) |
@@ -38,8 +43,10 @@
   O v1 permanece intocado.
 - **D4 — Config de LLM na tabela `settings`** (chave `llm_config`), nunca exposta pela API:
   `GET /api/llm-config` devolve só `hasKey` + `maskedKey` (formato v1: `abc123...wxyz`).
-  Fallback `GEMINI_API_KEY` (env) quando não há key salva. `PUT`/`POST` com semântica parcial
-  (ausente preserva; `apiKey: ''` preserva — paridade com o POST do v1).
+  A chave vive **exclusivamente no DB** — não é necessário configurar env. O `GEMINI_API_KEY`
+  legado permanece apenas como fallback opcional (não requerido). Nunca logar o objeto de
+  config nem a key; `PUT`/`POST` com semântica parcial (ausente preserva; `apiKey: ''` preserva —
+  paridade com o POST do v1).
 - **D5 — Consumo dos alvos configuráveis**: o pipeline só usa
   `profiles` com `enabled = true` e injeta `extraPrompt` nos system prompts de fit e tailor via
   `withExtraPrompt` (`src/pipeline/prompts.ts`). Texto extra é instrução de estilo, nunca fato.
@@ -49,15 +56,19 @@
   com as últimas 2.
 - **D7 — Estágios de `run`** (coluna `stage` já existe): `queued` → `scraping` → `scrape-thin` |
   `fit-checked` → `generating` ⇄ `needs_input` → `done` | `failed`. `error` guarda a mensagem;
-  runs `failed`/`needs_input` são retomáveis ("continuar de onde parou").
+  runs `failed`/`needs_input` são retomáveis ("continuar de onde parou"). **Alinhar
+  `src/domain/run.ts` na Fase 2** — hoje ele usa `draft`/`processing`/`awaiting-*`/`error`, que não
+  batem com a UI antiga nem com o DTO de compat.
 - **D8 — Endpoints v2-nativos** (REST novo, não nas rotas de compat):
   - `POST /api/fit-check` → `202 {runId}`
   - `POST /api/generate-kit` → `202 {runId}` (equivalente ao `process-job`)
   - `GET /api/runs/:id/question` / `POST /api/runs/:id/respond` → fila interativa
   - `POST /api/jobs/:id/regenerate` → `202 {runId}`
   - `POST /api/profiles/:stack/:language/upload` → multipart (`multer`), extração `pdftotext`
-- **D9 — Dependências novas por fase**: Fase 1 não adiciona nada; Fase 2+ adiciona `playwright`,
-  `multer` (e `@types/multer`); `pdftotext` segue dependência de sistema (poppler-utils).
+- **D9 — Dependências novas por fase**: Fase 1 não adiciona nada; **Fase 2** adiciona
+  `playwright`; **Fase 5** adiciona `multer` (e `@types/multer`); `pdftotext` segue dependência
+  de sistema (poppler-utils). O browser do Playwright é **reutilizado por worker da fila**
+  (não abre/fecha por PDF), injetável (`browserFactory`) para testes.
 - **D10 — Slug/candidato**: `getCandidateFileSlug` lê `settings.candidate_form` (já existe no v2),
   com fallback `Horecio-Dias`; tema de PDF vem de `settings.pdf_theme` (centraliza as 3 leituras
   duplicadas do v1).
@@ -92,23 +103,30 @@ Legenda: `[x]` feito · `[ ]` pendente · `[~]` parcial.
 
 ### Fase 2 — Scrape + fit-check
 
+- [ ] **Pré-requisitos**: `pnpm add playwright`; gerar a migração `0003_pipeline_runs.sql`
+      (ver `pipeline-port-review.md` §4) e reconciliar `src/domain/run.ts` (D7) +
+      `web/src/api/types.ts` + `src/api/dto/legacy.ts`.
 - [ ] `src/pipeline/scrape/job.ts`: port de `scrape_job.mjs` (Greenhouse API-first via `fetch`,
       senão Chromium headless; args UA/viewport/locale; waits e timeouts idênticos; retorno
       `{url, scrapedAt, title, company, location, applyUrl, detectedLanguage, languageConfidence, content}`).
       Browser injetável (`chromium` da lib ou stub em testes).
 - [ ] `src/pipeline/content.ts`: `isJobContentThin`, `detectLangFromText`,
-      `hasExplicitLanguageRequirement` (regex do v1), truncations (12000/6000).
+      `hasExplicitLanguageRequirement` (regex do v1), `detectLogisticsNote`
+      (`job_processor.mjs:203`), truncations (12000/6000).
 - [ ] `src/pipeline/fit/**`: port de `src/fit` (semântico/temporal/evidência) +
       `analyze_profile.mjs` coberto por testes dos `scripts/*.test.mjs` do v1; **não** portar
       `calculateFitHybridSync` (está quebrado no v1 — missing import).
 - [ ] `src/pipeline/kit/fit.ts`: `checkJobFit` (LLM call com `buildFitSystemPrompt` +
       `withExtraPrompt` do alvo; envelope do fit no schema da skill; gate de elegibilidade;
       sugestão de idioma).
+- [ ] `POST /api/evaluate-fit` (D12): fit híbrido determinístico síncrono (sem fila), lê
+      `profiles` PT/EN + texto da vaga; mantém o alias "Retry fit" do v1, separado do fit por LLM.
 - [ ] `POST /api/fit-check` v2: valida body, cria `run` `queued`, fila executa; `scrape-thin`
       persistido como no v1 (sem chamada de LLM quando conteúdo raso).
-- [ ] Fila: `src/pipeline/queue.ts` (FIFO, 1 slot, erros → `failed` com `error` e `resumable`).
-- [ ] Testes com `fetchImpl`/browser fake: fit-check feliz, thin content, gate de idioma, retry de
-      run falho.
+- [ ] Fila: `src/pipeline/queue.ts` (FIFO, 1 slot, erros → `failed` com `error` e `resumable`);
+      um browser/contexto Playwright reutilizado por worker (injetável para testes).
+- [ ] Testes com `fetchImpl`/`browserFactory` stub (sem lançar Chromium): fit-check feliz,
+      thin content, gate de idioma, retry de run falho.
 
 ### Fase 3 — Geração do kit + PDF
 
@@ -117,22 +135,30 @@ Legenda: `[x]` feito · `[ ]` pendente · `[~]` parcial.
       idioma/stack como no v1), pre-pass determinístico (`extractCoverageTerms`, ammo,
       approved-fit, clarifications), prompt do kit (com `buildTailorSystemPrompt` +
       `withExtraPrompt`), `parseKitOrQuestion` tolerante, validator retry (máx. 2 fix-prompts).
+- [ ] `src/pipeline/kit/slug.ts`: `getCandidateFileSlug` (D10), `sanitizeName` e
+      `shortRoleFileSlug` (nomes de pasta de artefato).
 - [ ] `src/pipeline/kit/validate.ts`: port de `validate_resume_html` + `validateResumeContent`
       (coverage/hallucination/cliché/ammo/acento) usando `settings['pdf_theme']` centralizado.
-- [ ] `src/pipeline/pdf.ts`: `generatePdf` (Chromium `page.pdf` A4 15mm printBackground) +
-      `pdftotext -layout` → `_ats_layer.txt` + `atsCompatible`; port de
-      `buildCombinedCvWithCoverHtml` (capa primeiro após `.accent`, acento único) e
-      `detectCoverLetterInCvRequirement`.
+- [ ] `src/pipeline/pdf.ts`: `generatePdf` (Chromium `page.pdf` A4 15mm printBackground,
+      browser injetado/reutilizado — D9) + `pdftotext -layout` → `_ats_layer.txt` +
+      `atsCompatible`; port de `buildCombinedCvWithCoverHtml` (capa primeiro após `.accent`,
+      acento único) e `detectCoverLetterInCvRequirement`.
 - [ ] `src/pipeline/kit/artifacts.ts`: pasta `applications/<company>_<role>[_N]`, grava
       `job_posting.md`, `fit_check.json`, HTML/PDF, e-mails/mensagens,
-      `application_questions.json`, `materiais_extras/sugestoes_respostas.{json,md}`; registra no
-      repositório `artifacts` (caminho relativo + mime + size) e atualiza o `job` (fit, arquivos).
+      `application_questions.json`, `materiais_extras/sugestoes_respostas.{json,md}` +
+      `README.md` (renderização que no v1 vive em `generate_question_suggestions.mjs`); registra
+      no repositório `artifacts` (caminho relativo + mime + size) e atualiza o `job` (fit, arquivos).
 - [ ] `src/pipeline/kit/suggestions.ts`: port de `question_suggestion_engine.mjs` (determinístico).
 - [ ] Testes: port dos 3 `node --test` do v1 para Vitest (`coverage`, `thin-content`,
       `cover-in-cv`) usando fixtures.
+- [ ] Notas: `parse_resume.mjs` já coberto pela Fase 5 (upload → `profiles.content`); o
+      `render_pdf.mjs` do v1 (contagem de páginas) é cosmético e pode ser ignorado.
 
 ### Fase 4 — Fila interativa + regenerar
 
+- [ ] **Migração já aplicada na Fase 2** (`0003_pipeline_runs.sql`, ver
+      `pipeline-port-review.md` §4): aqui só consumir `llm_question`, `needs_input_rounds`,
+      `clarification_history`, `cover_letter_guidance` e `include_cover_in_cv`.
 - [ ] `POST /api/generate-kit` (process-job): gates 409 (idioma não explícito, fit<50/eligibility
       sem `fitConfirmed`, idioma divergente do requerido), replay de `needs_input` sem LLM,
       roda de `generating`, transição para `done` (com `jobId`/application) ou `needs_input`
@@ -143,21 +169,26 @@ Legenda: `[x]` feito · `[ ]` pendente · `[~]` parcial.
 - [ ] `POST /api/jobs/:id/regenerate`: re-scrape ou reaproveita `job_posting.md` do diretório,
       reconstrói language gate, preserva `id/date/status/createdAt`, leva `questions` +
       `mensagem_recrutador_origem.txt` do diretório antigo, copia extras faltantes.
-- [ ] Compat: `/api/processes/:id` PATCH continua escrevendo nos mesmos campos de `runs`
-      (checkpoints v1 UI não quebram).
+- [ ] Compat: `/api/processes/:id` PATCH continua escrevendo nos mesmos campos de `runs`;
+      adicionar shims `/api/processes/:id/question` e `/api/processes/:id/respond` delegando aos
+      equivalentes de `runs` (checkpoints v1 UI não quebram).
 - [ ] Testes de requisição cobrindo todos os gates 409/400 e retomadas.
 
 ### Fase 5 — Upload, UI de checkpoint e polimento
 
-- [ ] `pnpm add playwright multer` (+ types); `pnpm-workspace.yaml` `allowBuilds` já cobre
-      better-sqlite3 — verificar build nativo do playwright.
+- [ ] `pnpm add multer` + `pnpm add -D @types/multer` (o `playwright` já entrou na Fase 2);
+      `pnpm-workspace.yaml` `allowBuilds` já cobre better-sqlite3.
 - [ ] `POST /api/profiles/:stack/:language/upload`: multipart 10 MB, `pdftotext` para PDF, grava
       `profiles.content = {sourceFile, language, stack, extractedAt, rawLength, rawText}`.
 - [ ] React: responder checkpoint no `JobDetail` (pergunta + opções + aprovar/rejeitar
       inferências), disparar fit-check/geração (formulário existe? criar entrypoint discreto),
       painel de LLM config no Admin (com key mascarada).
 - [ ] Pre-fill dry-run (opcional, última fatia): port de `apply_assistant.mjs` mantendo o
-      contrato "nunca clica Submit".
+      contrato "nunca clica Submit"; opcionalmente portar `scrape_application_questions.mjs`
+      (D11) na mesma fatia de preenchimento assistido.
+- [ ] `candidate-data` GET: portar `extractCandidateFromBase()` (`server.mjs:106–159`) para
+      auto-extrair nome/e-mail/telefone/LinkedIn/GitHub de `profiles.content.rawText` (hoje o
+      v2 só devolve `settings.candidate_form`).
 - [ ] Docs: `docs/api.md`, `docs/frontend.md`, `docs/architecture.md` (remove "não roda
       Playwright/LLM"), roadmap Fase 2/3, ADR-0010 (pipeline assíncrono no v2).
 - [ ] Critério final: v1 UI pode ser aposentada (roadmap §3 último item).
