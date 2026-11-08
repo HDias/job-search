@@ -2,10 +2,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Express } from 'express';
 import type { Store } from '../repositories/types.js';
+import {
+  createPipelineService,
+  type PipelineService,
+} from '../pipeline/service.js';
 import { errorHandler, notFoundHandler } from './http.js';
 import { createCompatRouter } from './routes/compat.js';
 import { createJobsRouter } from './routes/jobs.js';
 import { createMetaRouter } from './routes/meta.js';
+import { createPipelineRouter } from './routes/pipeline.js';
 import { createRunsRouter } from './routes/runs.js';
 import { createViewersRouter } from './routes/viewers.js';
 
@@ -15,12 +20,22 @@ export interface CreateAppOptions {
   baseProfileDir?: string;
   /** Build do React; quando presente, o Express serve a SPA. */
   webDist?: string;
+  /** Skill assets directory (defaults to `<cwd>/skills`). */
+  skillsDir?: string;
+  /** Injectable pipeline (tests stub the LLM and the scraper). */
+  pipeline?: PipelineService;
 }
 
 const RESERVED_PREFIX = /^\/(api|applications|base_profile|cv|extras)(\/|$)/;
 
 export function createApp(options: CreateAppOptions): Express {
   const { store, applicationsDir, baseProfileDir, webDist } = options;
+  const pipeline =
+    options.pipeline ??
+    createPipelineService({
+      store,
+      skillsDir: options.skillsDir ?? path.resolve('skills'),
+    });
   const app = express();
 
   app.disable('x-powered-by');
@@ -41,6 +56,7 @@ export function createApp(options: CreateAppOptions): Express {
 
   app.use('/api/jobs', createJobsRouter(store));
   app.use('/api/runs', createRunsRouter(store));
+  app.use('/api', createPipelineRouter(store, pipeline));
   app.use('/api', createMetaRouter(store));
   app.use('/api', createCompatRouter(store));
 

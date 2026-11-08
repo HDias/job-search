@@ -2,9 +2,48 @@ import { and, desc, eq, type SQL } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { runs } from '../../db/schema.js';
 import { newId, nowIso } from '../../domain/ids.js';
-import type { NewRun, Run, RunFilter, RunPatch } from '../../domain/run.js';
+import type {
+  ClarificationEntry,
+  LlmQuestion,
+  NewRun,
+  Run,
+  RunFilter,
+  RunPatch,
+} from '../../domain/run.js';
 import type { RunRepository } from '../types.js';
-import { parseFit, parseJobSnapshot, rowToRun, runToRow } from './mappers.js';
+import {
+  parseFit,
+  parseJobSnapshot,
+  rowToRun,
+  runToRow,
+} from './mappers.js';
+
+/** Zod defaults are applied by the repository, not by the input type. */
+function normalizeQuestion(
+  value: NewRun['llmQuestion'] | RunPatch['llmQuestion'],
+): LlmQuestion | null {
+  if (!value) return null;
+  return {
+    question: value.question,
+    options: value.options ?? [],
+    blockingField: value.blockingField ?? '',
+    kind: value.kind,
+    inferences: value.inferences ?? [],
+    rawExcerpt: value.rawExcerpt ?? '',
+  };
+}
+
+function normalizeHistory(
+  value: NewRun['clarificationHistory'] | RunPatch['clarificationHistory'],
+): ClarificationEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((entry) => ({
+    answer: entry.answer,
+    approvedInferences: entry.approvedInferences ?? [],
+    rejectedInferences: entry.rejectedInferences ?? [],
+    at: entry.at,
+  }));
+}
 
 export class SqliteRunRepository implements RunRepository {
   constructor(private readonly db: Db) {}
@@ -40,7 +79,7 @@ export class SqliteRunRepository implements RunRepository {
     const run: Run = {
       id: input.id ?? newId('proc'),
       jobId: input.jobId ?? null,
-      stage: input.stage ?? 'draft',
+      stage: input.stage ?? 'queued',
       url: input.url ?? null,
       stack: input.stack ?? null,
       languagePreference: input.languagePreference ?? null,
@@ -56,6 +95,11 @@ export class SqliteRunRepository implements RunRepository {
       fit: parseFit(input.fit),
       job: parseJobSnapshot(input.job),
       jobSnapshot: parseJobSnapshot(input.jobSnapshot),
+      llmQuestion: normalizeQuestion(input.llmQuestion),
+      needsInputRounds: input.needsInputRounds ?? 0,
+      clarificationHistory: normalizeHistory(input.clarificationHistory),
+      coverLetterGuidance: input.coverLetterGuidance ?? null,
+      includeCoverInCv: input.includeCoverInCv ?? null,
       createdAt,
       updatedAt: input.updatedAt ?? createdAt,
     };
@@ -77,6 +121,23 @@ export class SqliteRunRepository implements RunRepository {
         patch.jobSnapshot === undefined
           ? current.jobSnapshot
           : parseJobSnapshot(patch.jobSnapshot),
+      llmQuestion:
+        patch.llmQuestion === undefined
+          ? current.llmQuestion
+          : normalizeQuestion(patch.llmQuestion),
+      needsInputRounds: patch.needsInputRounds ?? current.needsInputRounds,
+      clarificationHistory:
+        patch.clarificationHistory === undefined
+          ? current.clarificationHistory
+          : normalizeHistory(patch.clarificationHistory),
+      coverLetterGuidance:
+        patch.coverLetterGuidance === undefined
+          ? current.coverLetterGuidance
+          : patch.coverLetterGuidance,
+      includeCoverInCv:
+        patch.includeCoverInCv === undefined
+          ? current.includeCoverInCv
+          : patch.includeCoverInCv,
       id: current.id,
       createdAt: current.createdAt,
       updatedAt: nowIso(),

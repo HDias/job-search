@@ -46,7 +46,7 @@ const runs: Run[] = [
   {
     id: 'proc_1',
     jobId: 'app_1',
-    stage: 'processing',
+    stage: 'generating',
     url: 'https://example.com/acme',
     stack: 'ruby',
     languagePreference: 'en',
@@ -66,6 +66,11 @@ const runs: Run[] = [
       company: 'Acme',
       content: 'Descrição completa da vaga.',
     },
+    llmQuestion: null,
+    needsInputRounds: 0,
+    clarificationHistory: [],
+    coverLetterGuidance: null,
+    includeCoverInCv: null,
     createdAt: '2026-10-28T12:00:00.000Z',
     updatedAt: '2026-10-28T12:00:00.000Z',
   },
@@ -143,7 +148,7 @@ describe('JobDetail', () => {
     expect(screen.getByText('Kubernetes')).toBeInTheDocument();
     expect(screen.getByText('72%')).toBeInTheDocument();
 
-    expect(screen.getByText('Processando')).toBeInTheDocument();
+    expect(screen.getByText('Gerando kit')).toBeInTheDocument();
     expect(screen.getByText('Ver snapshot da vaga')).toBeInTheDocument();
     expect(screen.getByText('atualizando…')).toBeInTheDocument();
 

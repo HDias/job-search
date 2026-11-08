@@ -171,21 +171,71 @@ Returns a plain array (no pagination envelope).
 ```json
 {
   "jobId": "app_1",
-  "stage": "draft",
+  "stage": "queued",
   "url": "https://example.com/job/1",
   "stack": "ruby",
   "languagePreference": "en"
 }
 ```
 
+Stages follow the v1 vocabulary plus the async model:
+`queued → scraping → scrape-thin | fit-checked → generating ⇄ needs_input → done | failed`.
+A `failed` or `needs_input` run is resumable.
+
 ### `PATCH /api/runs/:id`
 
-Accepts `stage`, flags (`hasRawText`, `needsFitConfirmation`…), `error`, `fit`, `job` and
-`jobSnapshot`.
+Accepts `stage`, flags (`hasRawText`, `needsFitConfirmation`…), `error`, `fit`, `job`,
+`jobSnapshot`, `llmQuestion`, `needsInputRounds`, `clarificationHistory`,
+`coverLetterGuidance` and `includeCoverInCv`.
 
 ### `DELETE /api/runs/:id`
 
 `204`.
+
+### `POST /api/fit-check`
+
+Native async fit check (Phase 2). Validates the body, creates a `queued` run and answers
+**`202 { "runId": "proc_..." }`**. The in-process FIFO worker (one execution at a time) scrapes
+or reuses a snapshot, calls the LLM with the live skill framework and persists the result:
+
+- success → stage `fit-checked`, `fit`, `job`, `jobSnapshot`;
+- thin scrape → stage `scrape-thin`, `jobSnapshot.contentThin: true`, no fit and no LLM call;
+- failure → stage `failed` with `error`, resumable.
+
+```json
+{
+  "url": "https://example.com/job/1",
+  "rawText": null,
+  "extraQuestions": null,
+  "recruiterMessage": null,
+  "languagePreference": "auto",
+  "stack": "ruby",
+  "processId": null,
+  "jobSnapshot": null
+}
+```
+
+Poll `GET /api/runs/:id`. `processId` resumes an existing checkpoint and resets it to `queued`.
+
+### `POST /api/evaluate-fit`
+
+Synchronous, deterministic hybrid fit ("Retry fit" in v1). It never calls the LLM and never
+uses the queue. Loads the **enabled** PT/EN targets of the stack and returns the v1 shape:
+
+```json
+{
+  "success": true,
+  "fitPercentage": 72,
+  "language": "en",
+  "breakdown": { "semantic": 0.61, "temporal": 0.8, "evidence": 0.5 },
+  "explanation": "...",
+  "details": { "semantic": {}, "temporal": {}, "evidence": [], "jobRequirements": {} },
+  "metadata": { "algorithm": "hybrid-v1", "latencyMs": 42 }
+}
+```
+
+When `applicationId` is informed, the job's `fit` is updated (rating, dimensions, analysis).
+`400` when `jobText` is empty or no enabled base resume exists.
 
 ## 5. Legacy compatibility
 
@@ -382,15 +432,15 @@ open http://localhost:3344/cv/app_1
 
 ## 9. What doesn't exist yet
 
-Heavy pipeline routes still live only in the legacy server:
+The remaining heavy pipeline routes still live only in the legacy server:
 
-- `POST /api/process-job`
-- `POST /api/fit-check`
+- `POST /api/generate-kit` (`process-job`)
 - base resume upload/extraction
-- kit regeneration (`/api/applications/:id/regenerate`)
-- interactive queue (`/api/processes/:id/question`, `/respond`)
+- kit regeneration (`/api/jobs/:id/regenerate`)
+- interactive queue (`GET /api/runs/:id/question`, `POST /api/runs/:id/respond`)
 
-They depend on Playwright, LLM and PDF generation and are being ported slice by slice; the LLM
-client, the skill prompt loader and `/api/llm-config` already live in v2 (`src/pipeline/`). See
+Phase 2 already ships in v2: async `POST /api/fit-check`, deterministic
+`POST /api/evaluate-fit`, Playwright scraping, the hybrid fit engine and the LLM fit check.
+The LLM client, the skill prompt loader and `/api/llm-config` live in `src/pipeline/`. See
 [architecture.md §7](./architecture.md#7-pipeline-llm-and-skills), the step plan in
 `.plans/pipeline-port-v1-v2.md` and the phase goals in [roadmap.md](./roadmap.md).

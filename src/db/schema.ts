@@ -8,7 +8,11 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 import type { Fit } from '../domain/job.js';
-import type { JobSnapshot } from '../domain/run.js';
+import type {
+  ClarificationEntry,
+  JobSnapshot,
+  LlmQuestion,
+} from '../domain/run.js';
 
 /**
  * Modelo "document-shaped": entidades agregadas ficam em uma linha, com os
@@ -61,7 +65,7 @@ export const runs = sqliteTable(
   {
     id: text('id').primaryKey(),
     jobId: text('job_id').references(() => jobs.id, { onDelete: 'set null' }),
-    stage: text('stage').notNull().default('draft'),
+    stage: text('stage').notNull().default('queued'),
     url: text('url'),
     stack: text('stack'),
     languagePreference: text('language_preference'),
@@ -93,6 +97,17 @@ export const runs = sqliteTable(
     jobJson: text('job_json', { mode: 'json' }).$type<JobSnapshot>(),
     /** Snapshot completo, incluindo `content` (v1: `jobSnapshot`). */
     jobSnapshot: text('job_snapshot', { mode: 'json' }).$type<JobSnapshot>(),
+    /** Pergunta pendente da fila interativa (`needs_input`). */
+    llmQuestion: text('llm_question', { mode: 'json' }).$type<LlmQuestion>(),
+    /** Rodadas de `needs_input` consumidas (máx. 2 no domínio). */
+    needsInputRounds: integer('needs_input_rounds').notNull().default(0),
+    /** Últimas 2 respostas do usuário. */
+    clarificationHistory: text('clarification_history', {
+      mode: 'json',
+    }).$type<ClarificationEntry[]>(),
+    coverLetterGuidance: text('cover_letter_guidance'),
+    /** `auto` | `true` | `false` | `never` | `force` */
+    includeCoverInCv: text('include_cover_in_cv'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },

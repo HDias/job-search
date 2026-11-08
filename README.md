@@ -96,6 +96,8 @@ Main REST (new format):
 | POST/PATCH/DELETE | `/api/jobs` and `/api/jobs/:id` | CRUD |
 | GET | `/api/runs?jobId=&stage=` | checkpoints |
 | GET/POST/PATCH/DELETE | `/api/runs` and `/api/runs/:id` | CRUD |
+| POST | `/api/fit-check` | async LLM fit check (`202 {runId}`) |
+| POST | `/api/evaluate-fit` | synchronous deterministic hybrid fit |
 | GET/POST | `/api/profiles` | targets (`stack × language`), `?enabled=` filter |
 | GET/PUT/DELETE | `/api/profiles/:stack/:language` | base resume, `extraPrompt`, enable/disable |
 | GET/PUT | `/api/llm-config` | LLM provider config (`POST` alias for v1; the key is never returned) |
@@ -110,8 +112,8 @@ Compatibility with the v1 UI:
 - `GET/PUT /api/base-resumes`, `/api/pdf-theme`, `/api/candidate-data`, `/api/llm-config` (`POST`
   alias).
 - `/applications/*` (static), `/cv/:id` and `/extras/:id/:view`.
-- Heavy processing routes (Playwright/LLM: `/api/process-job`, `/api/fit-check`, etc.) stay in v1
-  for now.
+- Kit generation (`/api/process-job`), PDF rendering and the interactive checkpoint routes still
+  stay in v1 for now (Phases 3–4 of the port).
 
 ## Frontend
 
@@ -144,5 +146,6 @@ with `job_id = null` and the job snapshot.
 
 ## Next steps
 
-1. Port the heavy pipeline (Playwright/LLM/PDF) and the checkpoint response to v2.
+1. Finish the pipeline port: kit generation, PDF/artifacts (Phase 3), interactive checkpoints and
+   regenerate (Phase 4), upload + React controls (Phase 5).
 2. Keep the repository tests as a contract when swapping the database adapter.

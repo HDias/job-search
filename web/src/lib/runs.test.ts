@@ -6,7 +6,7 @@ function run(overrides: Partial<Run>): Run {
   return {
     id: 'proc_1',
     jobId: 'app_1',
-    stage: 'processing',
+    stage: 'generating',
     url: null,
     stack: null,
     languagePreference: null,
@@ -22,6 +22,11 @@ function run(overrides: Partial<Run>): Run {
     fit: null,
     job: null,
     jobSnapshot: null,
+    llmQuestion: null,
+    needsInputRounds: 0,
+    clarificationHistory: [],
+    coverLetterGuidance: null,
+    includeCoverInCv: null,
     createdAt: '2026-10-28T12:00:00.000Z',
     updatedAt: '2026-10-28T12:00:00.000Z',
     ...overrides,
@@ -30,22 +35,22 @@ function run(overrides: Partial<Run>): Run {
 
 describe('runs', () => {
   it('considera ativo tudo que não terminou', () => {
-    expect(isRunActive(run({ stage: 'processing' }))).toBe(true);
-    expect(isRunActive(run({ stage: 'awaiting-language' }))).toBe(true);
+    expect(isRunActive(run({ stage: 'generating' }))).toBe(true);
+    expect(isRunActive(run({ stage: 'needs_input' }))).toBe(true);
     expect(isRunActive(run({ stage: 'done' }))).toBe(false);
-    expect(isRunActive(run({ stage: 'error' }))).toBe(false);
+    expect(isRunActive(run({ stage: 'failed' }))).toBe(false);
   });
 
   it('mantém ativo quando falta confirmação mesmo com stage terminal', () => {
     expect(isRunActive(run({ stage: 'done', needsFitConfirmation: true }))).toBe(true);
-    expect(isRunActive(run({ stage: 'error', needsLanguageConfirmation: true }))).toBe(true);
+    expect(isRunActive(run({ stage: 'failed', needsLanguageConfirmation: true }))).toBe(true);
   });
 
   it('detecta runs ativos em uma lista', () => {
     expect(hasActiveRuns(undefined)).toBe(false);
     expect(hasActiveRuns([])).toBe(false);
     expect(hasActiveRuns([run({ stage: 'done' })])).toBe(false);
-    expect(hasActiveRuns([run({ stage: 'done' }), run({ stage: 'processing' })])).toBe(true);
+    expect(hasActiveRuns([run({ stage: 'done' }), run({ stage: 'generating' })])).toBe(true);
   });
 
   it('prioriza confirmação de idioma sobre fit', () => {

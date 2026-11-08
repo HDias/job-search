@@ -12,6 +12,7 @@ const app = createApp({
   applicationsDir: config.applicationsDir,
   baseProfileDir: config.baseProfileDir,
   webDist: config.webDist,
+  skillsDir: config.skillsDir,
 });
 
 const server = app.listen(config.port, () => {

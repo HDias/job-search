@@ -9,10 +9,10 @@ v2 is a **local-first** application with three blocks:
 3. **Persistence** — SQLite for structured data and the filesystem for generated artifacts
    (PDF, HTML, TXT).
 
-The heavy pipeline (Playwright scraping, LLM fit and tailoring, PDF generation) is not fully
-ported yet. The **LLM client**, the **LLM configuration** and the **skill prompt loader** already
-live in `src/pipeline/`; scraping, fit-check, kit generation and PDF generation still run in the
-previous server. v2 is today the source of truth for job, run and artifact data.
+The pipeline is being ported slice by slice. Phase 2 is done: **Playwright scraping**, the
+**deterministic hybrid fit**, the **LLM fit check** and the **async run queue** live in
+`src/pipeline/` and are exposed by v2. Kit generation, PDF rendering and the interactive queue
+still run in the previous server. v2 is today the source of truth for job, run and artifact data.
 
 ## 2. Context
 
@@ -160,9 +160,8 @@ sequenceDiagram
 
 ## 7. Pipeline: LLM and skills
 
-The pipeline building blocks that were ported live in `src/pipeline/` and consume the skill assets
-in `skills/`. **No HTTP route calls the LLM yet**: in the current phase these modules are covered
-by unit tests only. The previous server still performs scraping, fit-check and kit generation.
+The pipeline modules live in `src/pipeline/` and consume the skill assets in `skills/`.
+Phase 2 wired the fit path end to end; Phase 3 (kit + PDF) is still in the previous server.
 
 ```mermaid
 flowchart LR
@@ -171,42 +170,44 @@ flowchart LR
     TEMPLATES["skills/resume-pdf-renderer - templates"]
   end
 
-  subgraph PORT["Ported modules - src/pipeline"]
+  subgraph PORT["Pipeline - src/pipeline"]
     LOADER["createSkillLoader"]
     PROMPTS["targetSystemPrompts + withExtraPrompt"]
     CLIENT["createLlmClient"]
     CONFIG["settings.llm_config + GEMINI_API_KEY"]
-  end
-
-  subgraph CALLERS["Callers today"]
-    TESTS["Vitest - fake fetch"]
-    ROUTES["HTTP routes - none yet"]
-  end
-
-  subgraph PLANNED["Planned request flow - Phase 2/3"]
-    FIT["POST /api/fit-check"]
-    KIT["POST /api/generate-kit"]
-    WORKER["Run worker - queue"]
+    FITENGINE["Hybrid fit engine - deterministic"]
     SCRAPE["Playwright scrape"]
-    STORE["Run + artifacts"]
+    QUEUE["FIFO run queue"]
+  end
+
+  subgraph ROUTES["HTTP routes"]
+    FIT["POST /api/fit-check - 202"]
+    EVAL["POST /api/evaluate-fit - sync"]
+    KIT["POST /api/generate-kit - Phase 4"]
+  end
+
+  subgraph PLANNED["Planned flow - Phase 3/4"]
+    ARTIFACTS["Kit + PDF artifacts"]
+    INTERACTIVE["Interactive queue /question /respond"]
   end
 
   SKILL --> LOADER
   LOADER --> PROMPTS
   PROMPTS --> CLIENT
   CONFIG --> CLIENT
-  TESTS --> LOADER
-  TESTS --> CLIENT
-  ROUTES -.->|"not wired"| CLIENT
-  FIT -.-> WORKER
-  KIT -.-> WORKER
-  WORKER -.-> SCRAPE
-  WORKER -.-> CLIENT
-  CLIENT -.-> STORE
-  TEMPLATES -.->|"PDF phase"| STORE
+  FIT --> QUEUE
+  QUEUE --> SCRAPE
+  QUEUE --> CLIENT
+  EVAL --> FITENGINE
+  CLIENT --> STORE["runs + jobs"]
+  QUEUE --> STORE
+  KIT -.-> QUEUE
+  QUEUE -.-> ARTIFACTS
+  QUEUE -.-> INTERACTIVE
+  TEMPLATES -.->|"PDF phase"| ARTIFACTS
 ```
 
-Solid edges are wired today; dotted edges are planned.
+Solid edges are wired; dotted edges are planned.
 
 | Module | Responsibility |
 |---|---|
@@ -214,14 +215,23 @@ Solid edges are wired today; dotted edges are planned.
 | `src/pipeline/llm/config.ts` | `loadLlmConfig()` / `saveLlmConfig()` — persists in `settings['llm_config']`, merges partial patches and falls back to `GEMINI_API_KEY` |
 | `src/pipeline/skills/loader.ts` | `createSkillLoader()` — reads `SKILL.md` and `references/*.md` under `skills/job-application-tailor/`, caches them and builds the fit, tailor and email system prompts |
 | `src/pipeline/prompts.ts` | `resolveTargetProfile()`, `withExtraPrompt()`, `targetSystemPrompts()` — only enabled targets participate and `extraPrompt` is appended as style guidance |
+| `src/pipeline/content.ts` | Thin-content detection, PT/EN heuristic, explicit language requirement and logistics note — all deterministic |
+| `src/pipeline/scrape/job.ts` | Greenhouse API-first scrape, Playwright fallback, injectable browser |
+| `src/pipeline/fit/**` | Port of the v1 hybrid engine: semantic similarity, temporal experience, evidence and final calibration |
+| `src/pipeline/kit/fit.ts` | `checkJobFit()` — LLM fit check with the skill framework and the enabled target's `extraPrompt` |
+| `src/pipeline/queue.ts` | FIFO queue, one pipeline execution at a time |
+| `src/pipeline/service.ts` | Wires store, loader, LLM, scraper and queue; injectable in tests |
+| `src/api/routes/pipeline.ts` | `POST /api/fit-check` (202) and `POST /api/evaluate-fit` (sync) |
 | `src/domain/llm.ts` | Provider enum, defaults, `llmConfigPatchSchema` and the public (masked) config shape |
 | `src/api/routes/meta.ts` | `GET/PUT/POST /api/llm-config`; the key is never returned |
 
-Planned flow (Phase 2–3): a route receives a fit or kit request → enqueues a run → the worker
-scrapes the job, builds the target's system prompts (`targetSystemPrompts`) → calls
-`createLlmClient().call(prompt, system)` → persists the run and artifacts. The full port map is in
-`.plans/pipeline-port-v1-v2.md`; the current surface is in [api.md](./api.md) and the phase goals in
-[roadmap.md](./roadmap.md).
+Flow today (Phase 2): `POST /api/fit-check` validates the body, creates a `queued` run and answers
+`202 {runId}` → the FIFO worker scrapes (or reuses a snapshot), builds the enabled target's system
+prompt → calls `createLlmClient().call(prompt, system)` → persists the checkpoint on `runs`
+(`fit-checked`, `scrape-thin` or `failed`). `POST /api/evaluate-fit` bypasses both the queue and the
+LLM and runs the deterministic engine. Planned for Phase 3/4: kit generation, PDF and checkpoints.
+The full port map is in `.plans/pipeline-port-v1-v2.md`; the current surface is in
+[api.md](./api.md) and the phase goals in [roadmap.md](./roadmap.md).
 
 ## 8. Import of existing data
 
@@ -280,15 +290,16 @@ repositories.
 |---|---|---|
 | Simplicity | One Node process, one SQLite file, no infrastructure | Doesn't scale to multiple concurrent users |
 | Portability | Repositories + JSON columns + ISO + `owner_id` | The compatibility DTO still couples the old UI |
-| Testability | 103 backend tests + 28 frontend tests; temporary database and Supertest | Scraping, fit-check and PDF generation are not covered |
+| Testability | 134 backend tests + 28 frontend tests; temporary database and Supertest | PDF generation and kit generation are not covered yet |
 | Security | Zod validation, path traversal blocked, LLM key masked by the API | No authentication; assumes local use |
 | Performance | Indexes on status, date, company and job_id; WAL | No cache; N+1 when listing artifacts per job |
 | Observability | Error logs in the global handler; health check | No metrics or tracing |
 
 ## 11. Known limits
 
-- The runtime **does not run** Playwright scraping, LLM fit/tailoring or PDF generation yet. Only
-  the LLM client, the LLM configuration and the skill prompt loader are ported.
+- Scraping, deterministic fit and LLM fit-check are ported; **kit generation, PDF rendering and
+  the interactive queue** still live in the previous server (Phases 3–4).
+- The queue is in-process and lost on restart; only `runs` already persisted survive.
 - There is no authentication; `owner_id` exists but is always `local`.
 - The `/api/applications` listing runs one artifact query per job (N+1). For 16 jobs it's
   irrelevant; it will be solved with an aggregate endpoint or `IN (...)`.
