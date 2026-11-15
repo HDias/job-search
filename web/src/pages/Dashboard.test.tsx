@@ -83,6 +83,12 @@ function stubApi(items: Job[] = jobs, total = items.length) {
           },
         });
       }
+      if (method === 'PATCH' && url.startsWith('/api/jobs/')) {
+        const id = url.split('/').at(-1);
+        const job = items.find((entry) => entry.id === id);
+        const patch = JSON.parse(String(init?.body ?? '{}'));
+        return jsonResponse({ ...job, ...patch });
+      }
       if (url.startsWith('/api/stats')) return jsonResponse(stats);
       if (url.startsWith('/api/jobs')) {
         return jsonResponse({ items, total });
@@ -115,30 +121,23 @@ describe('Dashboard', () => {
 
     const table = screen.getByRole('table');
     expect(within(table).getByText('Backend Engineer')).toBeInTheDocument();
-    expect(within(table).getByText('Rascunho')).toBeInTheDocument();
+    expect(within(table).getAllByLabelText('Status da vaga')).toHaveLength(2);
+    expect(within(table).getByDisplayValue('Aplicado')).toBeInTheDocument();
+    expect(within(table).getByDisplayValue('Rascunho')).toBeInTheDocument();
     expect(within(table).getByText('72%')).toBeInTheDocument();
   });
 
-  it('marca uma vaga como aplicada direto da lista', async () => {
+  it('muda o status pela lista e confirma a aplicação em "Aplicado"', async () => {
     const user = userEvent.setup();
     const fetchMock = stubApi();
     renderWithProviders(<App />);
 
-    const betaRow = (await screen.findByText('Beta')).closest('tr');
-    const acmeRow = screen.getByText('Acme').closest('tr');
-    expect(betaRow).not.toBeNull();
-    expect(acmeRow).not.toBeNull();
+    const betaRow = (await screen.findByText('Beta')).closest('tr') as HTMLElement;
+    const acmeRow = screen.getByText('Acme').closest('tr') as HTMLElement;
 
-    expect(
-      within(acmeRow as HTMLElement).queryByRole('button', {
-        name: 'Marcar como aplicada',
-      }),
-    ).not.toBeInTheDocument();
-
-    await user.click(
-      within(betaRow as HTMLElement).getByRole('button', {
-        name: 'Marcar como aplicada',
-      }),
+    await user.selectOptions(
+      within(betaRow).getByLabelText('Status da vaga'),
+      'applied',
     );
 
     await waitFor(() => {
@@ -150,6 +149,23 @@ describe('Dashboard', () => {
       expect(call).toBeTruthy();
       expect(JSON.parse(String((call?.[1] as RequestInit).body))).toEqual({
         approved: true,
+      });
+    });
+
+    await user.selectOptions(
+      within(acmeRow).getByLabelText('Status da vaga'),
+      'interview',
+    );
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(
+        ([input, init]) =>
+          String(input).endsWith('/api/jobs/app_1') &&
+          (init as RequestInit | undefined)?.method === 'PATCH',
+      );
+      expect(call).toBeTruthy();
+      expect(JSON.parse(String((call?.[1] as RequestInit).body))).toEqual({
+        status: 'interview',
       });
     });
   });

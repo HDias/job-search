@@ -3,8 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useJobs, useStats } from '../api/hooks';
 import { JOB_STATUSES, type JobStatus } from '../api/types';
 import { StatCard } from '../components/StatCard';
-import { ApplyRowAction } from '../components/ApplyRowAction';
-import { StatusBadge } from '../components/StatusBadge';
+import { JobStatusSelect } from '../components/JobStatusSelect';
+import { NewJobModal } from '../components/NewJobModal';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateMessage';
 import { STATUS_LABELS, fitTone, formatDate, formatFit } from '../lib/format';
 
@@ -21,6 +21,7 @@ function parsePage(value: string | null): number {
 
 export function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [newJobOpen, setNewJobOpen] = useState(false);
   const query = searchParams.get('q') ?? '';
   const status = parseStatus(searchParams.get('status'));
   const page = parsePage(searchParams.get('page'));
@@ -99,7 +100,21 @@ export function Dashboard() {
             Acompanhe candidaturas, fits e os artefatos gerados pelo pipeline.
           </p>
         </div>
+
+        <div className="link-row">
+          <button
+            type="button"
+            className="button"
+            onClick={() => setNewJobOpen(true)}
+          >
+            ✨ Nova vaga com IA
+          </button>
+        </div>
       </div>
+
+      {newJobOpen ? (
+        <NewJobModal open onClose={() => setNewJobOpen(false)} />
+      ) : null}
 
       <section className="stats-grid" aria-label="Estatísticas">
         <StatCard
@@ -206,7 +221,6 @@ export function Dashboard() {
                   <th scope="col">Fit</th>
                   <th scope="col">Aplicada em</th>
                   <th scope="col">Canal</th>
-                  <th scope="col">Aplicar</th>
                 </tr>
               </thead>
               <tbody>
@@ -223,7 +237,7 @@ export function Dashboard() {
                       </Link>
                     </td>
                     <td>
-                      <StatusBadge status={job.status} />
+                      <JobStatusSelect job={job} />
                     </td>
                     <td>
                       <span className={`fit-pill tone-${fitTone(job.fit?.rating)}`}>
@@ -232,9 +246,6 @@ export function Dashboard() {
                     </td>
                     <td className="nowrap">{formatDate(job.appliedAt ?? job.createdAt)}</td>
                     <td className="nowrap muted">{job.channel ?? '—'}</td>
-                    <td>
-                      <ApplyRowAction job={job} />
-                    </td>
                   </tr>
                 ))}
               </tbody>
