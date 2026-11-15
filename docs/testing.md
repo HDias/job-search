@@ -151,7 +151,7 @@ A suite dedicated to exercising **every HTTP route** and the edge cases the UI w
 - Candidate data: contact extraction from `profiles.content.rawText`, with the saved form filling
   only the blanks.
 - Pre-fill/questions (`pipeline-apply.test.ts`): field plans and name splitting, selector order,
-  the dry-run filling fields and attaching the PDF while a page stub throws on any click, report and
+  the question extraction while a page stub asserts no click happens, report and
   screenshot files, platform detection, categorisation (LinkedIn is not an upload), standard-field
   mapping, dedupe/noise filters and the written `application_questions.json`.
 

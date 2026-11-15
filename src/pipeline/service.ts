@@ -14,18 +14,13 @@ import {
 import { createFitCheckRunner } from './runs/fit-check.js';
 import { createGenerateKitRunner } from './runs/generate-kit.js';
 import {
-  assistApplication,
   type ApplyBrowser,
-  type CandidateData,
-  type FilledField,
-  type SubmitButtonInfo,
 } from './apply/assistant.js';
 import {
   QUESTIONS_FILE,
   scrapeApplicationQuestions,
   type QuestionsResult,
 } from './apply/questions.js';
-import { candidateFromStore } from './candidate-data.js';
 import type { PdfRenderer } from './kit/artifacts.js';
 import type { ScrapeBrowser, ScrapeDeps } from './scrape/job.js';
 import type { Store } from '../repositories/types.js';
@@ -57,36 +52,12 @@ export interface PipelineService {
   enqueueFitCheck(runId: string, payload: FitCheckPayload): void;
   enqueueGenerateKit(runId: string, payload: GenerateKitPayload): void;
   checkFit(input: FitCheckPayload): Promise<FitCheckResult>;
-  prefill(jobId: string, input: PrefillInput): Promise<PrefillOutcome>;
   scrapeQuestions(
     jobId: string,
     input: { applyUrl?: string },
   ): Promise<QuestionsOutcome>;
   chat(jobId: string, message: string): Promise<ChatOutcome>;
 }
-
-/** v1 prefill response, minus the absolute paths. */
-export interface PrefillSummary {
-  status: string;
-  filledFields: FilledField[];
-  resumeAttached: boolean;
-  submitButtonDetected: SubmitButtonInfo;
-  screenshotUrl: string;
-  reportUrl: string;
-  notice: string;
-}
-
-export interface PrefillInput {
-  applyUrl?: string;
-  candidateData?: Record<string, unknown>;
-  headed?: boolean;
-}
-
-export type PrefillOutcome =
-  | { status: 'not_found' }
-  | { status: 'no_url' }
-  | { status: 'no_pdf' }
-  | { status: 'ok'; prefill: PrefillSummary };
 
 export type QuestionsOutcome =
   | { status: 'not_found' }
@@ -189,60 +160,6 @@ export function createPipelineService(
     checkFit,
 
     chat: (jobId, message) => respondToChat({ store, loader, llm }, jobId, message),
-
-    async prefill(jobId, input) {
-      const job = store.jobs.get(jobId);
-      if (!job) return { status: 'not_found' };
-
-      const url = String(input.applyUrl ?? job.applyUrl ?? job.vacancyUrl ?? '');
-      if (!url.startsWith('http')) return { status: 'no_url' };
-
-      const folder = jobFolder(job.id);
-      const cv = store.artifacts
-        .listByJob(job.id)
-        .find((artifact) => artifact.kind === 'cv_pdf');
-      const resumePath = cv
-        ? path.join(applicationsDir, ...cv.relativePath.split('/'))
-        : null;
-      if (!folder || !resumePath || !fs.existsSync(resumePath)) {
-        return { status: 'no_pdf' };
-      }
-
-      const candidate: CandidateData = {
-        ...candidateFromStore(store),
-        ...(input.candidateData ?? {}),
-      };
-      store.settings.set('candidate_form', {
-        ...candidate,
-        updatedAt: new Date().toISOString(),
-      });
-
-      const report = await assistApplication({
-        url,
-        candidate,
-        resumePath,
-        outputDir: folder.abs,
-        headed: input.headed,
-        browser: applyBrowser,
-      });
-
-      return {
-        status: 'ok',
-        prefill: {
-          status: report.status,
-          filledFields: report.filledFields,
-          resumeAttached: report.resumeAttached,
-          submitButtonDetected: report.submitButtonDetected,
-          screenshotUrl: publicUrl(
-            path.join(folder.rel.split('/').join(path.sep), path.basename(report.screenshotPath)),
-          ),
-          reportUrl: publicUrl(
-            path.join(folder.rel.split('/').join(path.sep), path.basename(report.reportPath)),
-          ),
-          notice: report.notice,
-        },
-      };
-    },
 
     async scrapeQuestions(jobId, input) {
       const job = store.jobs.get(jobId);

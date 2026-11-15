@@ -58,7 +58,7 @@ export function createApp(options: CreateAppOptions): Express {
     res.json(store.jobs.stats());
   });
 
-  app.use('/api/jobs', createJobsRouter(store));
+  app.use('/api/jobs', createJobsRouter(store, { applicationsDir }));
   app.use('/api/runs', createRunsRouter(store));
   app.use('/api', createPipelineRouter(store, pipeline));
   app.use(

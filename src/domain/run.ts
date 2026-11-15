@@ -155,6 +155,8 @@ export type RunPatch = z.input<typeof runPatchSchema>;
 export interface RunFilter {
   jobId?: string;
   stage?: string;
+  /** Excludes `done` runs (unfinished checkpoints, including failures). */
+  unfinished?: boolean;
   limit?: number;
   offset?: number;
 }

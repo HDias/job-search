@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { ARTIFACT_KINDS } from '../../domain/artifact.js';
 import type { Fit } from '../../domain/job.js';
 import type { JobSnapshot } from '../../domain/run.js';
 import { newId } from '../../domain/ids.js';
@@ -75,6 +76,7 @@ const generateKitSchema = z
     needsInputRounds: z.number().int().min(0).max(2).optional(),
     coverLetterGuidance: z.string().optional(),
     includeCoverInCv: z.union([z.string(), z.boolean()]).optional(),
+    artifacts: z.array(z.enum([...ARTIFACT_KINDS])).optional(),
   })
   .refine(
     (body) =>
@@ -84,12 +86,6 @@ const generateKitSchema = z
       path: ['processId'],
     },
   );
-
-const prefillSchema = z.object({
-  applyUrl: z.string().trim().optional(),
-  candidateData: z.record(z.string(), z.unknown()).optional(),
-  headed: z.boolean().optional(),
-});
 
 const questionsSchema = z.object({
   applyUrl: z.string().trim().optional(),
@@ -106,7 +102,9 @@ const regenerateSchema = z.object({
   extraQuestions: z.string().optional(),
   recruiterMessage: z.string().optional(),
   coverLetterGuidance: z.string().optional(),
+  guidance: z.string().optional(),
   includeCoverInCv: z.union([z.string(), z.boolean()]).optional(),
+  artifacts: z.array(z.enum([...ARTIFACT_KINDS])).optional(),
 });
 
 /**
@@ -372,6 +370,7 @@ export function createPipelineRouter(
       needsInputRounds: body.needsInputRounds,
       coverLetterGuidance: body.coverLetterGuidance,
       includeCoverInCv: body.includeCoverInCv,
+      artifacts: body.artifacts,
     };
 
     pipeline.enqueueGenerateKit(run.id, payload);
@@ -417,29 +416,6 @@ export function createPipelineRouter(
     });
     pipeline.enqueueGenerateKit(plan.run.id, plan.payload);
     res.status(202).json({ runId: plan.run.id });
-  });
-
-  router.post('/jobs/:id/prefill', async (req, res) => {
-    const body = parseBody(prefillSchema, req.body ?? {});
-    const outcome = await pipeline.prefill(req.params.id, body);
-
-    if (outcome.status === 'not_found') {
-      throw new HttpError(404, 'Vaga não encontrada');
-    }
-    if (outcome.status === 'no_url') {
-      throw new HttpError(
-        400,
-        'Informe a URL do formulário de candidatura (applyUrl).',
-      );
-    }
-    if (outcome.status === 'no_pdf') {
-      throw new HttpError(
-        400,
-        'PDF do currículo não encontrado para anexar.',
-      );
-    }
-
-    res.json({ success: true, prefill: outcome.prefill });
   });
 
   router.post('/jobs/:id/questions', async (req, res) => {

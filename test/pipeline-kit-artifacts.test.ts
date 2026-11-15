@@ -171,10 +171,10 @@ describe('writeKitArtifacts', () => {
         byPath.get(`${result.folder}/materiais_extras/sugestoes_respostas.md`)?.kind,
       ).toBe('suggestions');
       expect(byPath.get(`${result.folder}/mensagem_recrutador.txt`)?.kind).toBe(
-        'linkedin_note',
+        'recruiter_note',
       );
       expect(byPath.get(`${result.folder}/mensagem_linkedin.txt`)?.kind).toBe(
-        'recruiter_note',
+        'linkedin_note',
       );
       expect(artifacts).toHaveLength(EXPECTED_FILES.length);
       for (const artifact of artifacts) {

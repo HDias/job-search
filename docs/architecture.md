@@ -233,13 +233,13 @@ flowchart LR
 | `src/pipeline/pdf.ts` | Chromium `page.pdf` (A4, 15 mm, `printBackground`) plus `pdftotext -layout` → `_ats_layer.txt` and `atsCompatible` |
 | `src/pipeline/resume-text.ts` | `createResumeTextExtractor()` — `pdftotext` for PDFs, UTF-8 for text files; injectable in tests |
 | `src/pipeline/candidate-data.ts` | `extractCandidateFromTexts()` / `candidateFromStore()` — contact data derived from the base resume |
-| `src/pipeline/apply/assistant.ts` | `assistApplication()` — dry-run pre-fill: fills standard fields, attaches the PDF, screenshots and reports; never clicks Submit |
+| `src/pipeline/apply/assistant.ts` | Browser contract and Chromium launcher shared by the application-question extractor |
 | `src/pipeline/apply/questions.ts` | `scrapeApplicationQuestions()` — one DOM walk plus pure platform detection, standard-field mapping and categorisation |
 | `src/pipeline/apply/confirm.ts` | `confirmApplication()` — manual apply confirmation behind the `approved: true` lock; sanitizes channel, note and e-mails |
 | `src/pipeline/chat.ts` | `respondToChat()` — synchronous, grounded post-response chat; persists the thread per job and redacts provider errors |
 | `src/pipeline/queue.ts` | FIFO queue, one pipeline execution at a time |
 | `src/pipeline/service.ts` | Wires store, loader, LLM, scraper and queue; injectable in tests |
-| `src/api/routes/pipeline.ts` | `POST /api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond`, `/api/jobs/:id/regenerate`, `/api/jobs/:id/prefill`, `/api/jobs/:id/questions` and `/api/jobs/:id/chat` |
+| `src/api/routes/pipeline.ts` | `POST /api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond`, `/api/jobs/:id/regenerate`, `/api/jobs/:id/questions` and `/api/jobs/:id/chat` |
 | `src/domain/llm.ts` | Provider enum, defaults, `llmConfigPatchSchema` and the public (masked) config shape |
 | `src/api/routes/meta.ts` | `GET/PUT/POST /api/llm-config`, the profile/target CRUD and the base resume upload; the key is never returned |
 
@@ -319,7 +319,7 @@ repositories.
 
 - The whole pipeline is ported: scraping, deterministic fit, LLM fit-check, kit generation, PDF
   rendering, the interactive queue, regeneration and base resume upload.
-- The React job detail also exposes the prefill dry-run, the question extraction, the manual apply
+- The React job detail also exposes the question extraction, the manual apply
   confirmation and the post-response chat (synchronous, grounded on the posting + fit).
 - The chat thread is stored per job and only the last 12 turns reach the prompt; the column itself
   is not pruned yet.
@@ -329,7 +329,7 @@ repositories.
   irrelevant; it will be solved with an aggregate endpoint or `IN (...)`.
 - The old UI still calls its own processing routes; retiring it depends on the roadmap checklist.
 - React covers dashboard, detail, admin, app settings, the interactive checkpoint, the pipeline
-  entrypoints, prefill/questions, apply confirmation and the post-response chat.
+  entrypoints, question extraction, apply confirmation and the post-response chat.
 
 ## 12. Related decisions
 

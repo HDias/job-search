@@ -275,6 +275,8 @@ export interface KitPromptInput {
   approvedInferences?: string[];
   rejectedInferences?: string[];
   coverLetterGuidance?: string | null;
+  /** Free-form notes applied to the regenerated materials. */
+  artifactGuidance?: string | null;
   /** `resume_style.css` from the skill templates (embedded in the prompt). */
   cssContent?: string;
   /** Live email style guide section (skill reference). */
@@ -406,10 +408,19 @@ REGRAS DE APLICAÇÃO (sem exceção silenciosa):
 `
     : '';
 
+  const revision = String(input.artifactGuidance ?? '').trim().slice(0, 2000);
+  const revisionBlock = revision
+    ? `
+=== CONSIDERAÇÕES DO USUÁRIO PARA ESTA VERSÃO (aplicar só com fatos do base) ===
+${revision}
+Aplique as considerações acima aos materiais sendo gerados, priorizando o arquivo pedido. Se algo não tiver respaldo no Currículo Base, omita em vez de inventar; não crie métricas, empresas ou certificações novas.
+`
+    : '';
+
   const job = input.job;
   const prompt = `
 Analise a seguinte vaga e o currículo base do candidato.
-${fitContext}${clarificationBlock}
+${fitContext}${clarificationBlock}${revisionBlock}
 === VAGA DE EMPREGO ===
 Título/Empresa: ${job.title} | ${job.company}
 URL: ${job.url}
@@ -524,6 +535,8 @@ export interface GenerateKitInput {
   approvedInferences?: string[];
   rejectedInferences?: string[];
   coverLetterGuidance?: string | null;
+  /** Free-form notes applied to the regenerated materials. */
+  artifactGuidance?: string | null;
 }
 
 export interface KitGenerationDeps {
@@ -633,6 +646,7 @@ export async function generateKit(
     approvedInferences: input.approvedInferences,
     rejectedInferences: input.rejectedInferences,
     coverLetterGuidance: input.coverLetterGuidance,
+    artifactGuidance: input.artifactGuidance,
     cssContent: deps.cssContent ?? deps.loader.readTemplate('resume_style.css'),
     emailSection: deps.loader.buildEmailSection(language),
   });

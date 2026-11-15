@@ -95,6 +95,7 @@ export function createGenerateKitRunner(
           rejectedInferences: payload.rejectedInferences ?? [],
           coverLetterGuidance:
             payload.coverLetterGuidance ?? run.coverLetterGuidance ?? null,
+          artifactGuidance: payload.artifactGuidance ?? null,
         },
         {
           llm: deps.llm,
@@ -153,6 +154,7 @@ export function createGenerateKitRunner(
             coverLetterGuidance:
               payload.coverLetterGuidance ?? run.coverLetterGuidance,
             includeCoverInCv: payload.includeCoverInCv ?? run.includeCoverInCv,
+            artifacts: payload.artifacts,
             copyMissingFrom: payload.regenerateFromFolder ?? null,
           },
           { renderPdf: deps.renderPdf, warn },

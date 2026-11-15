@@ -29,6 +29,8 @@ export interface RunRepository {
   create(input: NewRun): Run;
   update(id: string, patch: RunPatch): Run | null;
   delete(id: string): boolean;
+  /** Purge: removes every run attached to the job. */
+  deleteByJob(jobId: string): number;
 }
 
 export type NewArtifact = Omit<

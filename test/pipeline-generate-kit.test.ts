@@ -344,6 +344,48 @@ describe('POST /api/generate-kit — generation', () => {
     expect(calls).toHaveLength(2);
   });
 
+  it('writes only the selected artifact kinds', async () => {
+    const applicationsDir = tmpDir();
+    const llm = llmStub([JSON.stringify(KIT)]);
+    const { renderPdf, calls } = pdfStub();
+    const pipeline = createPipelineService({
+      store: ctx.store,
+      skillsDir: SKILLS_DIR,
+      llm,
+      applicationsDir,
+      renderPdf,
+    });
+    const app = createApp({ store: ctx.store, pipeline, skillsDir: SKILLS_DIR });
+    const run = seedRun({ languagePreference: 'en' });
+
+    const response = await request(app)
+      .post('/api/generate-kit')
+      .send({
+        processId: run.id,
+        language: 'en',
+        artifacts: ['cv_pdf', 'email_text'],
+      });
+
+    expect(response.status).toBe(202);
+    await pipeline.queue.idle();
+
+    const stored = ctx.store.runs.get(run.id);
+    expect(stored?.stage).toBe('done');
+    const job = stored?.jobId ? ctx.store.jobs.get(stored.jobId) : null;
+    const kinds = ctx.store.artifacts
+      .listByJob(job!.id)
+      .map((item) => item.kind)
+      .sort();
+
+    expect(kinds).toEqual(['cv_pdf', 'email_text', 'other']);
+    expect(calls).toHaveLength(1);
+    for (const artifact of ctx.store.artifacts.listByJob(job!.id)) {
+      expect(
+        fs.existsSync(path.join(applicationsDir, artifact.relativePath)),
+      ).toBe(true);
+    }
+  });
+
   it('stores the pending question and replays it without calling the LLM', async () => {
     const applicationsDir = tmpDir();
     const llm = llmStub([NEEDS_INPUT, JSON.stringify(KIT)]);

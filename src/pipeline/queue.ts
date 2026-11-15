@@ -24,7 +24,11 @@ export interface GenerateKitPayload extends FitCheckPayload {
   rejectedInferences?: string[];
   needsInputRounds?: number;
   coverLetterGuidance?: string | null;
+  /** Free-form notes applied to the regenerated materials. */
+  artifactGuidance?: string | null;
   includeCoverInCv?: string | boolean | null;
+  /** Artifact kinds to write; omitted means every kind. */
+  artifacts?: string[];
   jobSnapshot?: Record<string, unknown> | null;
   /** Regeneration: copy extras the new folder did not produce. */
   regenerateFromFolder?: string | null;

@@ -49,6 +49,8 @@ export interface WriteKitInput {
   fitConfirmed?: boolean;
   coverLetterGuidance?: string | null;
   includeCoverInCv?: string | boolean | null;
+  /** Artifact kinds to write; omitted means every kind. */
+  artifacts?: string[] | null;
   suggestions?: KitSuggestions | null;
   /** Regeneration: folder name (inside `applicationsDir`) to carry extras from. */
   copyMissingFrom?: string | null;
@@ -142,6 +144,15 @@ export async function writeKitArtifacts(
   fs.mkdirSync(targetDir, { recursive: true });
 
   const files: string[] = [];
+  const selectedKinds = input.artifacts ? new Set(input.artifacts) : null;
+  // Metadata/auxiliary kinds are not user selectable and always written.
+  const internalKinds = new Set<ArtifactKind>([
+    'other',
+    'questions',
+    'suggestions',
+  ]);
+  const wanted = (kind: ArtifactKind): boolean =>
+    internalKinds.has(kind) || !selectedKinds || selectedKinds.has(kind);
   const recorded: {
     kind: ArtifactKind;
     relativePath: string;
@@ -163,15 +174,20 @@ export async function writeKitArtifacts(
     });
   };
 
+  const writeFile = (relativeName: string, content: string): number => {
+    const fullPath = path.join(targetDir, relativeName);
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, content, 'utf8');
+    return Buffer.byteLength(content, 'utf8');
+  };
+
   const writeText = (
     relativeName: string,
     content: string,
     kind: ArtifactKind,
   ): void => {
-    const fullPath = path.join(targetDir, relativeName);
-    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-    fs.writeFileSync(fullPath, content, 'utf8');
-    record(relativeName, kind, Buffer.byteLength(content, 'utf8'));
+    if (!wanted(kind)) return;
+    record(relativeName, kind, writeFile(relativeName, content));
   };
 
   const pdfResults: (PdfRenderResult | void)[] = [];
@@ -258,17 +274,45 @@ export async function writeKitArtifacts(
     }
   }
 
+  // Writes the HTML that feeds the PDF renderer and keeps it only when the
+  // user asked for the HTML variant.
+  const writeHtmlAndPdf = async (
+    htmlRelative: string,
+    html: string,
+    htmlKind: ArtifactKind,
+    pdfRelative: string,
+    pdfKind: ArtifactKind,
+  ): Promise<void> => {
+    const htmlWanted = wanted(htmlKind);
+    const pdfWanted = wanted(pdfKind);
+    if (!htmlWanted && !pdfWanted) return;
+
+    const size = writeFile(htmlRelative, html);
+    if (htmlWanted) record(htmlRelative, htmlKind, size);
+    if (pdfWanted) await writePdf(htmlRelative, pdfRelative, pdfKind);
+    if (!htmlWanted) fs.unlinkSync(path.join(targetDir, htmlRelative));
+  };
+
   // Resume HTML + PDF (download name: <Candidate>-<Short Role>.pdf).
   const candidateSlug = getCandidateFileSlug(store);
   const shortRole = shortRoleFileSlug(kit.role || job.title);
-  writeText('curriculo_direcionado.html', kit.resumeHtml, 'cv_html');
-  const resumePdf = `${candidateSlug}-${shortRole}.pdf`;
-  await writePdf('curriculo_direcionado.html', resumePdf, 'cv_pdf');
+  await writeHtmlAndPdf(
+    'curriculo_direcionado.html',
+    kit.resumeHtml,
+    'cv_html',
+    `${candidateSlug}-${shortRole}.pdf`,
+    'cv_pdf',
+  );
 
   // Cover letter is always kept separate when the kit has one.
   if (kit.coverLetterHtml) {
-    writeText('cover_letter.html', kit.coverLetterHtml, 'cover_letter_html');
-    await writePdf('cover_letter.html', 'cover_letter.pdf', 'cover_letter_pdf');
+    await writeHtmlAndPdf(
+      'cover_letter.html',
+      kit.coverLetterHtml,
+      'cover_letter_html',
+      'cover_letter.pdf',
+      'cover_letter_pdf',
+    );
   }
 
   // Combined CV+cover variant only when the posting asks for it (or forced).
@@ -298,13 +342,10 @@ export async function writeKitArtifacts(
       kit.coverLetterHtml,
       language,
     );
-    writeText(
+    await writeHtmlAndPdf(
       'curriculo_direcionado_com_cover.html',
       combinedHtml,
       'cv_with_cover_html',
-    );
-    await writePdf(
-      'curriculo_direcionado_com_cover.html',
       `${candidateSlug}-${shortRole}-${language === 'en' ? 'With-Cover' : 'Com-Cover'}.pdf`,
       'cv_with_cover_pdf',
     );
@@ -325,8 +366,8 @@ export async function writeKitArtifacts(
       ).slice(0, 2000)}\n\n`
     : '';
   const recruiterBody = `${recruiterHeader}=== RESPOSTA CURTA (conexão/WhatsApp, <= 300 caracteres) ===\n${kit.linkedInConnectionNote}\n\n=== MENSAGEM LONGA (InMail/WhatsApp/e-mail, 100-150 palavras) ===\n${kit.linkedInInMail}`;
-  writeText('mensagem_recrutador.txt', recruiterBody, 'linkedin_note');
-  writeText('mensagem_linkedin.txt', recruiterBody, 'recruiter_note');
+  writeText('mensagem_recrutador.txt', recruiterBody, 'recruiter_note');
+  writeText('mensagem_linkedin.txt', recruiterBody, 'linkedin_note');
 
   // Regeneration: the fresh generation may not reproduce the extras from the
   // previous folder. Copy what is missing (v1 fallback) so the "questions"

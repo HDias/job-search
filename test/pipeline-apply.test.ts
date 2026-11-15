@@ -3,11 +3,9 @@ import path from 'node:path';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/api/app.js';
-import {
-  assistApplication,
-  buildFieldPlans,
-  type ApplyBrowser,
-  type ApplyPage,
+import type {
+  ApplyBrowser,
+  ApplyPage,
 } from '../src/pipeline/apply/assistant.js';
 import {
   buildQuestionsResult,
@@ -22,9 +20,8 @@ import { createPipelineService } from '../src/pipeline/service.js';
 import { createTestStore } from './helpers.js';
 
 /**
- * Dry-run prefill and application-question extraction (T5.7). The browser is
- * always injected: the suite never launches Chromium and the "never clicks
- * Submit" guarantee is asserted through a page stub that throws on click.
+ * Application-question extraction (T5.7). The browser is always injected, so
+ * the suite never launches Chromium.
  */
 
 const CONTROLS: FormControl[] = [
@@ -65,165 +62,6 @@ function browserStub(page: ApplyPage): ApplyBrowser {
     newContext: async () => ({ newPage: async () => page }),
   };
 }
-
-const candidate = {
-  fullName: 'Horecio Dias',
-  firstName: 'Horecio',
-  lastName: 'Dias',
-  email: 'horecio@example.com',
-  phone: '+55 11 98888-7777',
-  linkedin: 'https://linkedin.com/in/horecio',
-  github: 'https://github.com/horecio',
-};
-
-describe('buildFieldPlans', () => {
-  it('maps candidate data to the v1 selector order', () => {
-    const plans = buildFieldPlans(candidate);
-
-    expect(plans.map((plan) => plan.field)).toEqual([
-      'Nome Completo',
-      'Primeiro Nome',
-      'Sobrenome',
-      'Email',
-      'Telefone',
-      'LinkedIn',
-      'GitHub/Portfolio',
-    ]);
-    expect(plans.find((plan) => plan.field === 'Email')?.value).toBe(
-      'horecio@example.com',
-    );
-    expect(plans[0]?.selectors[0]).toContain('input[name*="name" i]');
-  });
-
-  it('splits the full name when first/last are missing', () => {
-    const plans = buildFieldPlans({ fullName: 'Horecio Araujo Dias' });
-
-    expect(plans.find((plan) => plan.field === 'Primeiro Nome')?.value).toBe(
-      'Horecio',
-    );
-    expect(plans.find((plan) => plan.field === 'Sobrenome')?.value).toBe(
-      'Araujo Dias',
-    );
-  });
-
-  it('falls back to the portfolio when GitHub is missing', () => {
-    const plans = buildFieldPlans({ portfolio: 'https://horecio.dev' });
-    expect(plans.find((plan) => plan.field === 'GitHub/Portfolio')?.value).toBe(
-      'https://horecio.dev',
-    );
-  });
-});
-
-describe('assistApplication', () => {
-  let dir: string;
-
-  beforeEach(() => {
-    dir = fs.mkdtempSync(path.join('/tmp', 'apply-test-'));
-  });
-
-  afterEach(() => {
-    fs.rmSync(dir, { recursive: true, force: true });
-  });
-
-  it('fills the standard fields, attaches the resume and never clicks submit', async () => {
-    const filled: Array<[string, string]> = [];
-    const files: string[] = [];
-    const screenshots: string[] = [];
-
-    const forbidden = () => {
-      throw new Error('the dry-run must never click or submit');
-    };
-
-    const page = pageStub({
-      $: async () => ({
-        isVisible: async () => true,
-        fill: async (value: string) => {
-          filled.push(['selector', value]);
-        },
-        setInputFiles: async () => undefined,
-      }),
-      $$: async () => [
-        {
-          isVisible: async () => true,
-          fill: async () => undefined,
-          setInputFiles: async (filePath: string) => {
-            files.push(filePath);
-          },
-        },
-      ],
-      screenshot: async ({ path: target }: { path: string }) => {
-        screenshots.push(target);
-        fs.writeFileSync(target, 'png');
-      },
-      click: forbidden,
-      submit: forbidden,
-      press: forbidden,
-    } as unknown as Partial<ApplyPage>);
-
-    const resumePath = path.join(dir, 'curriculo.pdf');
-    fs.writeFileSync(resumePath, '%PDF');
-
-    const report = await assistApplication({
-      url: 'https://boards.greenhouse.io/acme/jobs/1',
-      candidate,
-      resumePath,
-      outputDir: dir,
-      browser: browserStub(page),
-      wait: async () => undefined,
-    });
-
-    expect(filled.length).toBeGreaterThan(0);
-    expect(filled.map(([, value]) => value)).toContain('horecio@example.com');
-    expect(files).toEqual([resumePath]);
-
-    expect(report.status).toBe('AGUARDANDO_APROVACAO_HUMANA');
-    expect(report.resumeAttached).toBe(true);
-    expect(report.submitButtonDetected).toEqual({
-      text: 'Enviar candidatura',
-      visible: true,
-    });
-    expect(report.notice).toMatch(/NENHUMA submissão/);
-    expect(report.filledFields.some((entry) => entry.field === 'Currículo (PDF)')).toBe(
-      true,
-    );
-
-    expect(screenshots[0]).toBe(path.join(dir, 'preview_before_submit.png'));
-    expect(fs.existsSync(report.screenshotPath ?? '')).toBe(true);
-
-    const saved = JSON.parse(
-      fs.readFileSync(path.join(dir, 'application_dry_run_report.json'), 'utf8'),
-    ) as { status: string; filledFields: unknown[] };
-    expect(saved.status).toBe('AGUARDANDO_APROVACAO_HUMANA');
-    expect(saved.filledFields.length).toBe(report.filledFields.length);
-  });
-
-  it('reports exactly one filled field when only the e-mail is sent', async () => {
-    const page = pageStub({
-      $: async (selector: string) => ({
-        isVisible: async () => true,
-        fill: async (value: string) => {
-          if (!selector.includes('email')) throw new Error('unexpected selector');
-          expect(value).toBe('horecio@example.com');
-        },
-        setInputFiles: async () => undefined,
-      }),
-    });
-
-    const report = await assistApplication({
-      url: 'https://example.com/apply',
-      candidate: { email: 'horecio@example.com' },
-      resumePath: null,
-      outputDir: dir,
-      browser: browserStub(page),
-      wait: async () => undefined,
-    });
-
-    expect(report.filledFields).toEqual([
-      { field: 'Email', selector: 'input[type="email"]', value: 'horecio@example.com' },
-    ]);
-    expect(report.resumeAttached).toBe(false);
-  });
-});
 
 describe('questions helpers', () => {
   it('detects the ATS platform from the URL', () => {
@@ -368,67 +206,6 @@ afterEach(() => {
   ctx.cleanup();
 });
 
-describe('POST /api/jobs/:id/prefill', () => {
-  it('returns the dry-run report with artifact URLs and never submits', async () => {
-    const job = seedJob();
-    const click = vi.fn(() => {
-      throw new Error('must not click');
-    });
-    app = makeApp(pageStub({ click } as unknown as Partial<ApplyPage>));
-
-    const response = await request(app)
-      .post(`/api/jobs/${job.id}/prefill`)
-      .send({ candidateData: { email: 'horecio@example.com' } });
-
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.prefill.status).toBe('AGUARDANDO_APROVACAO_HUMANA');
-    expect(response.body.prefill.resumeAttached).toBe(true);
-    expect(response.body.prefill.screenshotUrl).toMatch(
-      /^\/applications\/acme_rails_engineer\/preview_before_submit\.png$/,
-    );
-    expect(response.body.prefill.reportUrl).toMatch(
-      /^\/applications\/acme_rails_engineer\/application_dry_run_report\.json$/,
-    );
-    expect(response.body.prefill.notice).toMatch(/NENHUMA submissão/);
-    expect(click).not.toHaveBeenCalled();
-
-    const saved = ctx.store.settings.get<{ email?: string }>('candidate_form');
-    expect(saved?.email).toBe('horecio@example.com');
-  });
-
-  it('404 for an unknown job', async () => {
-    const response = await request(app).post('/api/jobs/app_missing/prefill').send({});
-    expect(response.status).toBe(404);
-  });
-
-  it('400 without an application URL', async () => {
-    const job = ctx.store.jobs.create({
-      company: 'Acme',
-      role: 'Dev',
-      language: 'en',
-      stack: 'ruby',
-    });
-
-    const response = await request(app).post(`/api/jobs/${job.id}/prefill`).send({});
-    expect(response.status).toBe(400);
-    expect(response.body.error).toMatch(/URL/i);
-  });
-
-  it('400 without a CV PDF artifact', async () => {
-    const job = ctx.store.jobs.create({
-      company: 'Acme',
-      role: 'Dev',
-      language: 'en',
-      stack: 'ruby',
-      applyUrl: 'https://example.com/apply',
-    });
-
-    const response = await request(app).post(`/api/jobs/${job.id}/prefill`).send({});
-    expect(response.status).toBe(400);
-    expect(response.body.error).toMatch(/PDF/i);
-  });
-});
 
 describe('POST /api/jobs/:id/questions', () => {
   it('writes application_questions.json and returns the categories', async () => {

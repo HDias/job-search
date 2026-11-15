@@ -142,11 +142,14 @@ describe('requests: vagas', () => {
   });
 
   it('pagina e ignora limit inválido', async () => {
+    const first = await request(app).get('/api/jobs?limit=1');
+    expect(first.body.items[0].company).toBe('Beta');
+
     const page = await request(app).get('/api/jobs?limit=1&offset=1');
     expect(page.status).toBe(200);
     expect(page.body.total).toBe(3);
     expect(page.body.items).toHaveLength(1);
-    expect(page.body.items[0].company).toBe('Gama');
+    expect(page.body.items[0].company).toBe('Acme');
 
     const fallback = await request(app).get('/api/jobs?limit=abc');
     expect(fallback.status).toBe(200);

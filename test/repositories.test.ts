@@ -72,6 +72,21 @@ describe('SqliteJobRepository', () => {
     expect(job.hasQuestions).toBe(false);
   });
 
+  it('coloca a vaga mais recente no topo da lista', () => {
+    const { store } = ctx;
+    const applied = store.jobs.create({
+      company: 'Old',
+      role: 'Legacy',
+      status: 'applied',
+      appliedAt: '2026-10-01T00:00:00.000Z',
+    });
+    const draft = store.jobs.create({ company: 'New', role: 'Fresh' });
+
+    const list = store.jobs.list();
+    expect(list.items[0]?.id).toBe(draft.id);
+    expect(list.items[1]?.id).toBe(applied.id);
+  });
+
   it('persiste os campos do apply-confirm e o histórico de chat', () => {
     const { store } = ctx;
     const chat: ChatMessage[] = [
@@ -269,6 +284,7 @@ describe('SqliteRunRepository', () => {
     expect(store.runs.list({ jobId: job.id })).toHaveLength(1);
     expect(store.runs.list({ stage: 'fit-checked' })).toHaveLength(1);
     expect(store.runs.list({ stage: 'done' })).toHaveLength(0);
+    expect(store.runs.list({ unfinished: true })).toHaveLength(1);
 
     const updated = store.runs.update(run.id, {
       stage: 'done',
@@ -276,6 +292,7 @@ describe('SqliteRunRepository', () => {
     });
     expect(updated?.stage).toBe('done');
     expect(updated?.fit?.rating).toBe(91);
+    expect(store.runs.list({ unfinished: true })).toHaveLength(0);
   });
 
   it('aceita run sem vaga (jobId nulo) e remove normalmente', () => {

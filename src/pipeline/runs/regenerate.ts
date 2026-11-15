@@ -19,7 +19,11 @@ export interface RegenerateInput {
   extraQuestions?: string | null;
   recruiterMessage?: string | null;
   coverLetterGuidance?: string | null;
+  /** Free-form notes applied to the regenerated materials. */
+  guidance?: string | null;
   includeCoverInCv?: string | boolean | null;
+  /** Artifact kinds to write; omitted means every kind. */
+  artifacts?: string[] | null;
 }
 
 export type RegeneratePlan =
@@ -160,7 +164,9 @@ export function startRegeneration(
       extraQuestions,
       recruiterMessage,
       coverLetterGuidance: coverLetterGuidance ?? null,
+      artifactGuidance: String(input.guidance ?? '').trim().slice(0, 2000) || null,
       includeCoverInCv,
+      artifacts: input.artifacts ?? undefined,
       needsInputRounds: 0,
       regenerateFromFolder: oldFolder,
     },

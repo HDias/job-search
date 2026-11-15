@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -198,6 +198,23 @@ describe('API core', () => {
     expect(invalid.status).toBe(400);
   });
 
+  it('DELETE /api/jobs/:id?purge=true remove a vaga, os runs e os arquivos', async () => {
+    const folder = path.join(applicationsDir, 'acme');
+    expect(existsSync(folder)).toBe(true);
+
+    const removed = await request(app).delete('/api/jobs/app_1?purge=true');
+    expect(removed.status).toBe(204);
+
+    const missing = await request(app).get('/api/jobs/app_1');
+    expect(missing.status).toBe(404);
+
+    const runs = await request(app).get('/api/runs?jobId=app_1');
+    expect(runs.body).toHaveLength(0);
+
+    expect(ctx.store.artifacts.listByJob('app_1')).toHaveLength(0);
+    expect(existsSync(folder)).toBe(false);
+  });
+
   it('lista runs por vaga e atualiza via /api/runs', async () => {
     const list = await request(app).get('/api/runs?jobId=app_1');
     expect(list.status).toBe(200);
@@ -209,6 +226,12 @@ describe('API core', () => {
     expect(patched.status).toBe(200);
     expect(patched.body.stage).toBe('done');
     expect(patched.body.jobSnapshot.content).toBe('Texto completo da vaga.');
+
+    const unfinished = await request(app).get('/api/runs?unfinished=true');
+    expect(unfinished.status).toBe(200);
+    expect(
+      unfinished.body.some((run: { id: string }) => run.id === 'proc_1'),
+    ).toBe(false);
   });
 });
 

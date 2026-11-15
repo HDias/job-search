@@ -6,7 +6,7 @@ route families:
 | Family | Prefix | Audience |
 |---|---|---|
 | New REST | `/api/jobs`, `/api/runs`, `/api/profiles`, `/api/settings`, `/api/stats`, `/api/llm-config`, `/api/jobs/:id/apply-confirm` | React UI and integrations |
-| Pipeline | `/api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond`, `/api/jobs/:id/regenerate`, `/api/jobs/:id/prefill`, `/api/jobs/:id/questions`, `/api/jobs/:id/chat`, `/api/profiles/:stack/:language/upload` | React UI and integrations |
+| Pipeline | `/api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond`, `/api/jobs/:id/regenerate`, `/api/jobs/:id/questions`, `/api/jobs/:id/chat`, `/api/profiles/:stack/:language/upload` | React UI and integrations |
 | Legacy compatibility | `/api/applications`, `/api/applications/:id/apply-confirm`, `/api/processes`, `/api/base-resumes`, `/api/pdf-theme`, `/api/candidate-data` | the legacy UI |
 | Viewers | `/applications/*`, `/cv/:id`, `/extras/:id/:view` | Links opened by the user |
 
@@ -148,8 +148,10 @@ on this route; field-by-field merging only exists in the legacy DTO.
 
 ### `DELETE /api/jobs/:id`
 
-`204` without body. Artifacts fall via `ON DELETE CASCADE`; runs become orphans with
+`204` without body. By default artifacts fall via `ON DELETE CASCADE` and runs become orphans with
 `job_id = NULL` (intentional behavior — see [ADR-0002](./adr/0002-document-shaped-model.md)).
+With `?purge=true` (used by the dashboard's "Excluir") the runs are deleted, the artifact rows are
+removed and the generated kit folders are deleted from disk — the application is gone for good.
 
 ### `POST /api/jobs/:id/apply-confirm`
 
@@ -282,9 +284,14 @@ artifacts:
   "languagePreference": "en",
   "stack": "ruby",
   "fitConfirmed": false,
-  "jobSnapshot": null
+  "jobSnapshot": null,
+  "artifacts": ["cv_pdf", "cv_html", "cover_letter_pdf", "cover_letter_html", "email_text", "recruiter_note", "linkedin_note", "job_posting", "other"]
 }
 ```
+
+`artifacts` is optional and uses the `ARTIFACT_KINDS` vocabulary; when omitted every kind is
+written. The HTML that feeds a PDF is rendered in place and removed again if its HTML variant was
+not selected.
 
 Gates answer `409` **before** reaching the queue and the LLM:
 
@@ -345,6 +352,8 @@ Answers **`202 { "runId": "proc_1" }`** and resumes generation in the same check
 Answers **`202 { "runId": "proc_..." }`**. Re-scrapes the posting (or reuses `job_posting.md`)
 and rebuilds the kit in a new `_N` folder, preserving `id`, `status`, `appliedAt` and `createdAt`
 while inheriting the application questions, the recruiter message and the missing extras.
+Accepts the same optional `artifacts` list as `POST /api/generate-kit`; the UI uses it to create
+a single file that was left out of the original kit.
 
 `404` for an unknown job, `400` without a snapshot or pasted text, `409` when the required
 language conflicts with the explicit one.
@@ -369,37 +378,7 @@ stays in memory (nothing is written to disk) and only the extracted text is pers
 The profile's `enabled` and `extraPrompt` are preserved. `400` without a file or with an invalid
 stack/language, `413` above 10 MB, `422` when nothing can be extracted.
 
-## 4.5 Assisted pre-fill — `POST /api/jobs/:id/prefill`
-
-Dry-run only: fills the standard fields, attaches the job's `cv_pdf` artifact, captures
-`preview_before_submit.png` and writes `application_dry_run_report.json` in the job folder. It
-**never** clicks, submits or presses anything. Synchronous (the report is the point) and needs
-Chromium; `poppler` is not involved.
-
-```json
-{ "applyUrl": "https://boards.greenhouse.io/acme/jobs/1/apply", "candidateData": { "email": "you@example.com" } }
-```
-
-```json
-{
-  "success": true,
-  "prefill": {
-    "status": "AGUARDANDO_APROVACAO_HUMANA",
-    "filledFields": [{ "field": "Email", "selector": "input[type="email"]", "value": "you@example.com" }],
-    "resumeAttached": true,
-    "submitButtonDetected": { "text": "Enviar candidatura", "visible": true },
-    "screenshotUrl": "/applications/acme_engineer/preview_before_submit.png",
-    "reportUrl": "/applications/acme_engineer/application_dry_run_report.json",
-    "notice": "NENHUMA submissão foi realizada..."
-  }
-}
-```
-
-`applyUrl` falls back to the job's `applyUrl`/`vacancyUrl`; `candidateData` is merged over the
-derived candidate and persisted in `settings.candidate_form`. `404` for an unknown job, `400`
-without a URL or without a CV PDF artifact.
-
-## 4.6 Application questions — `POST /api/jobs/:id/questions`
+## 4.5 Application questions — `POST /api/jobs/:id/questions`
 
 Scrapes the application form (Greenhouse, Lever, Workable or generic), separates the standard
 fields from the company questions, categorizes them (`upload`, `personal`, `legal`, `demographic`,
@@ -427,10 +406,10 @@ fields from the company questions, categorizes them (`upload`, `personal`, `lega
 
 `404` for an unknown job, `400` without a URL, `400` when the job has no kit folder yet.
 
-## 4.7 Post-response chat — `POST /api/jobs/:id/chat`
+## 4.6 Post-response chat — `POST /api/jobs/:id/chat`
 
 Free conversation about a job **after** the pipeline answered. Synchronous (the handler awaits the
-LLM and returns the whole reply), like `/prefill` and `/questions`; it does not go through the 202
+LLM and returns the whole reply), like `/questions`; it does not go through the 202
 queue. See [ADR-0011](./adr/0011-post-response-chat.md).
 
 ```json
