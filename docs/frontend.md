@@ -109,7 +109,7 @@ HTTP errors become an `ApiError` with `status` and the backend's message. The de
 | `CheckpointPanel` | `needs_input` question: suggested options, approve/reject inferences and the answer |
 | `PipelineActions` | "Rodar fit-check" and "Gerar kit" entrypoints, disabled without a source or a run |
 | `ApplyActions` | "Pré-preencher formulário" and "Extrair perguntas"; disabled without an apply URL and a kit; shows the dry-run report links and the platform/question summary |
-| `ApplyConfirm` | "Confirmar candidatura" form (note, channel, e-mails); always sends `approved: true` and shows the API error |
+| `ApplyConfirm` | "Marcar como aplicada" form (note, channel, e-mails); always sends `approved: true` and shows the API error |
 | `ChatPanel` | Post-response thread, free message input and the quick-action prompts |
 
 `ArtifactList` deduplicates by `kind` (keeping the most recent) and sorts by relevance. The links

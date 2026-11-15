@@ -128,7 +128,7 @@ describe('JobDetail apply confirmation', () => {
     renderWithProviders(<App />, ['/jobs/app_8']);
 
     await user.click(
-      await screen.findByRole('button', { name: 'Confirmar candidatura' }),
+      await screen.findByRole('button', { name: 'Marcar como aplicada' }),
     );
 
     await user.type(screen.getByLabelText('Nota'), 'Applied manually.');
@@ -170,7 +170,7 @@ describe('JobDetail apply confirmation', () => {
     renderWithProviders(<App />, ['/jobs/app_8']);
 
     await user.click(
-      await screen.findByRole('button', { name: 'Confirmar candidatura' }),
+      await screen.findByRole('button', { name: 'Marcar como aplicada' }),
     );
     await user.click(screen.getByRole('button', { name: 'Enviar confirmação' }));
 

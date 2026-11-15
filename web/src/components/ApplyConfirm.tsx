@@ -41,7 +41,7 @@ export function ApplyConfirm({ job }: ApplyConfirmProps) {
         className="button ghost"
         onClick={() => setOpen((current) => !current)}
       >
-        Confirmar candidatura
+        Marcar como aplicada
       </button>
 
       {open ? (
