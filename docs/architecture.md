@@ -235,9 +235,11 @@ flowchart LR
 | `src/pipeline/candidate-data.ts` | `extractCandidateFromTexts()` / `candidateFromStore()` — contact data derived from the base resume |
 | `src/pipeline/apply/assistant.ts` | `assistApplication()` — dry-run pre-fill: fills standard fields, attaches the PDF, screenshots and reports; never clicks Submit |
 | `src/pipeline/apply/questions.ts` | `scrapeApplicationQuestions()` — one DOM walk plus pure platform detection, standard-field mapping and categorisation |
+| `src/pipeline/apply/confirm.ts` | `confirmApplication()` — manual apply confirmation behind the `approved: true` lock; sanitizes channel, note and e-mails |
+| `src/pipeline/chat.ts` | `respondToChat()` — synchronous, grounded post-response chat; persists the thread per job and redacts provider errors |
 | `src/pipeline/queue.ts` | FIFO queue, one pipeline execution at a time |
 | `src/pipeline/service.ts` | Wires store, loader, LLM, scraper and queue; injectable in tests |
-| `src/api/routes/pipeline.ts` | `POST /api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond`, `/api/jobs/:id/regenerate`, `/api/jobs/:id/prefill` and `/api/jobs/:id/questions` |
+| `src/api/routes/pipeline.ts` | `POST /api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond`, `/api/jobs/:id/regenerate`, `/api/jobs/:id/prefill`, `/api/jobs/:id/questions` and `/api/jobs/:id/chat` |
 | `src/domain/llm.ts` | Provider enum, defaults, `llmConfigPatchSchema` and the public (masked) config shape |
 | `src/api/routes/meta.ts` | `GET/PUT/POST /api/llm-config`, the profile/target CRUD and the base resume upload; the key is never returned |
 
@@ -248,7 +250,7 @@ prompt → calls `createLlmClient().call(prompt, system)` → persists the check
 for a missing fact when the kit cannot be grounded (`needs_input`, at most 2 rounds), validates the
 returned HTML (max 2 fix prompts), renders the PDF and records the artifacts. `POST
 /api/evaluate-fit` bypasses both the queue and the LLM and runs the deterministic engine. The full
-port map is in `.plans/2026-11-14-pipeline-port/plan.md`; the current surface is in
+port map is in the phase history under `.plans/`; the current surface is in
 [api.md](./api.md) and the phase goals in [roadmap.md](./roadmap.md).
 
 ## 8. Import of existing data
@@ -308,7 +310,7 @@ repositories.
 |---|---|---|
 | Simplicity | One Node process, one SQLite file, no infrastructure | Doesn't scale to multiple concurrent users |
 | Portability | Repositories + JSON columns + ISO + `owner_id` | The compatibility DTO still couples the old UI |
-| Testability | 302 backend tests + 43 frontend tests; temporary database, Supertest and injected browser/LLM/`pdftotext` stubs | No real Chromium, network or `pdftotext` in the suite |
+| Testability | 325 backend tests + 53 frontend tests; temporary database, Supertest and injected browser/LLM/`pdftotext` stubs | No real Chromium, network or `pdftotext` in the suite |
 | Security | Zod validation, path traversal blocked, LLM key masked by the API | No authentication; assumes local use |
 | Performance | Indexes on status, date, company and job_id; WAL | No cache; N+1 when listing artifacts per job |
 | Observability | Error logs in the global handler; health check | No metrics or tracing |
@@ -317,14 +319,17 @@ repositories.
 
 - The whole pipeline is ported: scraping, deterministic fit, LLM fit-check, kit generation, PDF
   rendering, the interactive queue, regeneration and base resume upload.
-- The pre-fill dry-run and the question extraction are API-only (`/api/jobs/:id/prefill` and
-  `/api/jobs/:id/questions`); there is no React button for them yet.
+- The React job detail also exposes the prefill dry-run, the question extraction, the manual apply
+  confirmation and the post-response chat (synchronous, grounded on the posting + fit).
+- The chat thread is stored per job and only the last 12 turns reach the prompt; the column itself
+  is not pruned yet.
 - The queue is in-process and lost on restart; only `runs` already persisted survive.
 - There is no authentication; `owner_id` exists but is always `local`.
 - The `/api/applications` listing runs one artifact query per job (N+1). For 16 jobs it's
   irrelevant; it will be solved with an aggregate endpoint or `IN (...)`.
 - The old UI still calls its own processing routes; retiring it depends on the roadmap checklist.
-- React covers dashboard, detail, admin, app settings, the interactive checkpoint and the pipeline entrypoints.
+- React covers dashboard, detail, admin, app settings, the interactive checkpoint, the pipeline
+  entrypoints, prefill/questions, apply confirmation and the post-response chat.
 
 ## 12. Related decisions
 
@@ -336,3 +341,6 @@ repositories.
 - [ADR-0006 — Artifacts on the filesystem](./adr/0006-artifacts-on-the-filesystem.md)
 - [ADR-0007 — Zod at the boundary](./adr/0007-zod-at-the-http-boundary.md)
 - [ADR-0008 — Vitest and Supertest](./adr/0008-vitest-supertest.md)
+- [ADR-0009 — Configurable targets](./adr/0009-configurable-targets.md)
+- [ADR-0010 — Asynchronous pipeline](./adr/0010-async-pipeline.md)
+- [ADR-0011 — Synchronous post-response chat](./adr/0011-post-response-chat.md)

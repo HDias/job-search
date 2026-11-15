@@ -246,15 +246,15 @@ pnpm build:web
 
 ## 13. Acceptance criteria
 
-- [ ] Apply-confirm v2-nativo + shim de compat funcionando; `approved: true` obrigatório;
+- [x] Apply-confirm v2-nativo + shim de compat funcionando; `approved: true` obrigatório;
       `status='applied'` com `appliedAt`/`applyNote`/`applyMethod`/`channel`/`appliedEmails`.
-- [ ] Botões de prefill (dry-run) e extração de perguntas no React, com resultado e erros.
-- [ ] Chat pós-resposta: chat livre + ações rápidas, síncrono, com contexto (vaga + fit) e
+- [x] Botões de prefill (dry-run) e extração de perguntas no React, com resultado e erros.
+- [x] Chat pós-resposta: chat livre + ações rápidas, síncrono, com contexto (vaga + fit) e
       grounding zero-mentira; histórico persistido por vaga.
-- [ ] Chave de LLM nunca exposta no chat; nenhum SQL aplicado (`0000–0003`) editado.
-- [ ] `pnpm typecheck && pnpm test && pnpm typecheck:web && pnpm test:web && pnpm build:web`
+- [x] Chave de LLM nunca exposta no chat; nenhum SQL aplicado (`0000–0003`) editado.
+- [x] `pnpm typecheck && pnpm test && pnpm typecheck:web && pnpm test:web && pnpm build:web`
       verdes, 0 regressões (baseline 302 backend / 43 frontend).
-- [ ] Docs + ADR-0011; itens do backlog do roadmap §1 (botões de prefill/perguntas) riscados.
+- [x] Docs + ADR-0011; itens do backlog do roadmap §1 (botões de prefill/perguntas) riscados.
 
 ## Execution status
 
@@ -264,18 +264,36 @@ The executor marks each item as it completes. One checkbox per task.
       `web/src/api/types.ts` — done: `drizzle-kit generate` produced `0004_apply_confirm.sql`
       (`apply_note`, `apply_method DEFAULT 'manual' NOT NULL`) and `0005_job_chat.sql`
       (`chat_history`); `0000`–`0003` untouched. Evidence: `pnpm typecheck` exit 0 and
-      `pnpm typecheck:web` exit 0.
+      `pnpm typecheck:web` exit 0. commit: 938e79b
 - [x] X2 — mappers + `JobRepository` (`applyNote`/`applyMethod`/`chatHistory`) — done:
       `pnpm test -- test/repositories.test.ts` green (303 tests, incl. the new roundtrip
       "persiste os campos do apply-confirm e o histórico de chat" and the updated defaults).
-- [ ] AC1 — `src/pipeline/apply/confirm.ts` + `POST /api/jobs/:id/apply-confirm` —
-      `pnpm test -- test/apply-confirm.test.ts` verde.
-- [ ] CH1 — `src/pipeline/chat.ts` + `PipelineService.chat` + `POST /api/jobs/:id/chat` —
-      `pnpm test -- test/chat.test.ts` verde.
-- [ ] PQ1 — client/hooks/`ApplyActions` (prefill + perguntas) no `JobDetail` —
-      `pnpm test:web -- JobApplyActions` verde.
-- [ ] AC2 — UI "Confirmar candidatura" + `useApplyConfirm` — `pnpm test:web -- JobApplyConfirm` verde.
-- [ ] CH2 — `ChatPanel` + `useChat` no `JobDetail` — `pnpm test:web -- JobChat` verde.
-- [ ] AC3 — shim `POST /api/applications/:id/apply-confirm` — formato v1 verde.
-- [ ] X3 — docs + ADR-0011 — consistentes e indexados.
-- [ ] X4 — gate completo — `typecheck`/`test`/`typecheck:web`/`test:web`/`build:web` verdes, 0 regressões.
+      commit: 938e79b
+- [x] AC1 — `src/pipeline/apply/confirm.ts` + `POST /api/jobs/:id/apply-confirm` — done:
+      `pnpm test test/apply-confirm.test.ts` green (10 tests: 404, 400 without/with false
+      approval, happy path, sanitized channel/note/e-mails, 10 e-mail cap, 500-char note,
+      `portal` fallback).
+- [x] CH1 — `src/pipeline/chat.ts` + `PipelineService.chat` + `POST /api/jobs/:id/chat` — done:
+      `pnpm test test/chat.test.ts` green (12 tests: 404, 400 blank message, 409 without
+      context, user→assistant order, grounding on posting + fit + history, prompt history
+      window, redacted provider failure, route shapes).
+- [x] PQ1 — client/hooks/`ApplyActions` (prefill + perguntas) in `JobDetail` — done:
+      `pnpm test:web JobApplyActions` green (4 tests: both buttons, disabled without URL/kit,
+      prefill report links, question summary, 400 surface).
+- [x] AC2 — "Confirmar candidatura" UI + `useApplyConfirm` — done:
+      `pnpm test:web JobApplyConfirm` green (2 tests: form sends `approved: true` + fields and
+      refetches the job; API 400 surfaced).
+- [x] CH2 — `ChatPanel` + `useChat` in `JobDetail` — done:
+      `pnpm test:web JobChat` green (4 tests: persisted thread, free message, quick-action
+      prompt, 409 surface).
+- [x] AC3 — shim `POST /api/applications/:id/apply-confirm` — done: `pnpm test
+      test/apply-confirm.test.ts` green, including the legacy `{ success, application }`
+      shape writing the same `jobs` columns (commit follows).
+- [x] X3 — docs + ADR-0011 — done: `docs/api.md` (new `apply-confirm` + `chat` payloads and
+      the legacy shim), `docs/architecture.md` (sync chat path), `docs/data-model.md`
+      (`apply_note`/`apply_method`/`chat_history`), `docs/frontend.md` (ApplyActions,
+      ApplyConfirm, ChatPanel), `docs/roadmap.md` (Phase 4 + struck backlog item),
+      `docs/README.md` and `docs/adr/README.md` (indexed the new phase and ADR-0011).
+- [x] X4 — gate completo — done: `pnpm typecheck` (exit 0), `pnpm test` (31 files / 325 tests),
+      `pnpm typecheck:web` (exit 0), `pnpm test:web` (11 files / 53 tests),
+      `pnpm build:web` (109 modules, built in 1.55 s). Baseline 302/43 → 325/53, 0 regressões.

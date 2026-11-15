@@ -8,9 +8,11 @@ flowchart LR
   F1["Phase 1 - SQLite and API"]:::done
   F2["Phase 2 - React"]:::done
   F3["Phase 3 - Pipeline port"]:::done
+  F4["Phase 4 - Application cycle"]:::done
 
   F0 --> F1 --> F2
   F2 --> F3
+  F3 --> F4
 
   classDef done fill:#14532d,stroke:#22c55e,color:#dcfce7
   classDef active fill:#1e3a8a,stroke:#3b82f6,color:#dbeafe
@@ -81,8 +83,21 @@ Goal: move the heavy v1 pipeline into `src/pipeline/` behind the v2 API, keeping
 
 **Registered backlog**
 
-- React buttons for the pre-fill dry-run and the question extraction.
+- ~~React buttons for the pre-fill dry-run and the question extraction.~~ Delivered in Phase 4.
 - Retire the old UI and remove the `/api/applications` + `/api/processes` compatibility routes.
+
+### Phase 4 — Application cycle ✅
+
+Goal: close the real-use cycle and allow conversation after the pipeline answers.
+
+- [x] Manual apply confirmation: `POST /api/jobs/:id/apply-confirm` behind the `approved: true`
+  lock, plus the legacy shim, with `apply_note`, `apply_method` and sanitized e-mails.
+- [x] React buttons for the pre-fill dry-run and the question extraction, with result/error states.
+- [x] Post-response chat: synchronous `POST /api/jobs/:id/chat`, grounded on the posting + fit,
+  quick-action prompts and a thread persisted per job (`chat_history`).
+- [x] Gate: 325 backend tests, 53 frontend tests, `typecheck`, `typecheck:web` and `build:web`.
+- Backlog: truncate `chat_history` itself (the prompt already uses the last 12 turns) and wire
+  "chat → regenerate" for artifact rewrites.
 
 ## 2. Technical backlog
 

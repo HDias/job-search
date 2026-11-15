@@ -109,6 +109,9 @@ language, stack and fit analysis.
 | `fit_analysis` | TEXT | Indexable copy of `fit.analysis` |
 | `fit_json` | TEXT JSON | Full `Fit` object |
 | `applied_emails` | TEXT JSON | Array of emails used |
+| `apply_note` | TEXT | Note written when confirming the application manually |
+| `apply_method` | TEXT | `manual` by default (the app never submits) |
+| `chat_history` | TEXT JSON | Post-response thread: `[{ role, content, at }]` |
 | `cover_letter_guidance` | TEXT | Instructions for the letter |
 | `cover_in_cv_required` | INTEGER bool | Whether the job asks for a cover in the CV |
 | `cover_in_cv_reason` | TEXT | Justification |
@@ -280,3 +283,6 @@ Invalid transitions are still possible via a direct `PATCH` — a conscious deci
 | `0000_init.sql` | Creates the five tables and indexes |
 | `0001_compat_fields.sql` | Adds `language_confirmation`, `runs.stack` and `runs.job_json` |
 | `0002_profile_targets.sql` | Adds `profiles.enabled` and `profiles.extra_prompt` |
+| `0003_pipeline_runs.sql` | Completes the `runs` checkpoint columns (`llm_question`, `needs_input_rounds`, `clarification_history`, `cover_letter_guidance`, `include_cover_in_cv`) |
+| `0004_apply_confirm.sql` | Adds `jobs.apply_note` and `jobs.apply_method` |
+| `0005_job_chat.sql` | Adds the document-shaped `jobs.chat_history` |

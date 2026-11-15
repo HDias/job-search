@@ -27,7 +27,7 @@ web/
 │   │   ├── types.ts        # mirror of the domain types
 │   │   ├── client.ts       # fetch + ApiError + query string
 │   │   └── hooks.ts        # useStats, useJobs, useJob, useUpdateJob
-│   ├── components/         # Layout, badges, fit, runs, artifacts, checkpoint, pipeline actions
+│   ├── components/         # Layout, badges, fit, runs, artifacts, checkpoint, pipeline and apply actions, chat
 │   ├── lib/format.ts       # dates, fit, bytes, labels and URLs
 │   ├── pages/              # Dashboard, JobDetail, Admin, AppSettings, NotFound
 │   └── test/               # setup and renderWithProviders
@@ -80,6 +80,13 @@ flowchart LR
 - `useFitCheck(jobId)` / `useGenerateKit(jobId)` → `POST /api/fit-check` / `/api/generate-kit`;
   both answer `202 { runId }` and the mutations only invalidate the caches, the detail polling
   picks the run up
+- `usePrefill(jobId)` / `useQuestions(jobId)` → `POST /api/jobs/:id/prefill` and
+  `/api/jobs/:id/questions`; synchronous, the result stays in the component
+- `useApplyConfirm(jobId)` → `POST /api/jobs/:id/apply-confirm` with `approved: true`; on success
+  it writes the returned job into `['job', id]` and invalidates `['job', id]`, `['jobs']` and
+  `['stats']`
+- `useChat(jobId)` → `POST /api/jobs/:id/chat`; the reply is written into `['job', id]` without a
+  refetch so the thread doesn't flicker
 
 HTTP errors become an `ApiError` with `status` and the backend's message. The detail page uses the
 `404` status to distinguish "job not found" from a generic failure.
@@ -101,6 +108,9 @@ HTTP errors become an `ApiError` with `status` and the backend's message. The de
 | `TargetCard` | Base resume (text or PDF upload), extra instructions, activation and removal |
 | `CheckpointPanel` | `needs_input` question: suggested options, approve/reject inferences and the answer |
 | `PipelineActions` | "Rodar fit-check" and "Gerar kit" entrypoints, disabled without a source or a run |
+| `ApplyActions` | "Pré-preencher formulário" and "Extrair perguntas"; disabled without an apply URL and a kit; shows the dry-run report links and the platform/question summary |
+| `ApplyConfirm` | "Confirmar candidatura" form (note, channel, e-mails); always sends `approved: true` and shows the API error |
+| `ChatPanel` | Post-response thread, free message input and the quick-action prompts |
 
 `ArtifactList` deduplicates by `kind` (keeping the most recent) and sorts by relevance. The links
 use the backend viewers:

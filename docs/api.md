@@ -5,9 +5,9 @@ route families:
 
 | Family | Prefix | Audience |
 |---|---|---|
-| New REST | `/api/jobs`, `/api/runs`, `/api/profiles`, `/api/settings`, `/api/stats`, `/api/llm-config` | React UI and integrations |
-| Pipeline | `/api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond`, `/api/jobs/:id/regenerate`, `/api/jobs/:id/prefill`, `/api/jobs/:id/questions`, `/api/profiles/:stack/:language/upload` | React UI and integrations |
-| Legacy compatibility | `/api/applications`, `/api/processes`, `/api/base-resumes`, `/api/pdf-theme`, `/api/candidate-data` | the legacy UI |
+| New REST | `/api/jobs`, `/api/runs`, `/api/profiles`, `/api/settings`, `/api/stats`, `/api/llm-config`, `/api/jobs/:id/apply-confirm` | React UI and integrations |
+| Pipeline | `/api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond`, `/api/jobs/:id/regenerate`, `/api/jobs/:id/prefill`, `/api/jobs/:id/questions`, `/api/jobs/:id/chat`, `/api/profiles/:stack/:language/upload` | React UI and integrations |
+| Legacy compatibility | `/api/applications`, `/api/applications/:id/apply-confirm`, `/api/processes`, `/api/base-resumes`, `/api/pdf-theme`, `/api/candidate-data` | the legacy UI |
 | Viewers | `/applications/*`, `/cv/:id`, `/extras/:id/:view` | Links opened by the user |
 
 ## 1. Conventions
@@ -150,6 +150,31 @@ on this route; field-by-field merging only exists in the legacy DTO.
 
 `204` without body. Artifacts fall via `ON DELETE CASCADE`; runs become orphans with
 `job_id = NULL` (intentional behavior — see [ADR-0002](./adr/0002-document-shaped-model.md)).
+
+### `POST /api/jobs/:id/apply-confirm`
+
+Records that the user applied manually. The app never submits a form, so the body must carry an
+explicit `approved: true`; omitted or `false` answers `400` and leaves the job untouched.
+
+```json
+{
+  "approved": true,
+  "note": "Applied through the recruiter form.",
+  "channel": "Recruiter",
+  "appliedEmails": ["you@example.com", "recruiter@example.com"]
+}
+```
+
+Effects on the job:
+
+- `status: "applied"`, `applyMethod: "manual"`, `appliedAt` as ISO 8601 UTC.
+- `channel`: the body → the job's channel → `portal`, lowercased and capped at **30** chars.
+- `appliedEmails`: accepts an array or a comma/semicolon/newline string; trims, drops blanks and
+  duplicates and keeps the first **10**.
+- `applyNote`: capped at **500** chars.
+
+Responds `200 { "success": true, "job": { ... } }`; `404` for an unknown job. The legacy UI keeps
+`POST /api/applications/:id/apply-confirm` with the v1 envelope (§5).
 
 ## 4. Runs — `/api/runs`
 
@@ -402,6 +427,39 @@ fields from the company questions, categorizes them (`upload`, `personal`, `lega
 
 `404` for an unknown job, `400` without a URL, `400` when the job has no kit folder yet.
 
+## 4.7 Post-response chat — `POST /api/jobs/:id/chat`
+
+Free conversation about a job **after** the pipeline answered. Synchronous (the handler awaits the
+LLM and returns the whole reply), like `/prefill` and `/questions`; it does not go through the 202
+queue. See [ADR-0011](./adr/0011-post-response-chat.md).
+
+```json
+{ "message": "Resuma o fit." }
+```
+
+```json
+{
+  "success": true,
+  "reply": "Aderência alta, com um gap em Kubernetes.",
+  "chat": [
+    { "role": "user", "content": "Resuma o fit.", "at": "2026-11-15T12:00:00.000Z" },
+    { "role": "assistant", "content": "Aderência alta, com um gap em Kubernetes.", "at": "2026-11-15T12:00:01.000Z" }
+  ]
+}
+```
+
+- **Context:** the latest `jobSnapshot.content` (scraped posting), the fit (rating, dimensions,
+  strengths, gaps, analysis) and the last **12** turns. The zero-lies instruction and the skill's
+  safety protocol are always injected in the system prompt.
+- **Persistence:** the thread lives in `jobs.chat_history`, one per job, so it survives fit/kit
+  reruns and `regenerate`.
+- **Gates:** `404` unknown job, `400` blank message, `409` when there is neither a snapshot nor a
+  fit.
+- **Failures:** a failed LLM call persists nothing and answers a generic `500`; provider errors
+  are redacted (`sk-…`, `key=…`) before they can reach the client.
+- Quick actions in the UI are just predefined messages sent to this route; they never rewrite
+  artifacts (that remains `POST /api/jobs/:id/regenerate`).
+
 ## 5. Legacy compatibility
 
 These routes exist so the legacy UI keeps working during the migration. They
@@ -457,6 +515,18 @@ Responds `{ "success": true, "application": { ... } }`.
 ### `DELETE /api/applications/:id`
 
 Responds `{ "success": true, "message": "Candidatura removida com sucesso" }`.
+
+### `POST /api/applications/:id/apply-confirm`
+
+v1 shim for the manual confirmation. It delegates to the same helper as
+`POST /api/jobs/:id/apply-confirm`, so it writes the same `jobs` columns and enforces the same
+`approved: true` lock. The envelope keeps the v1 shape:
+
+```json
+{ "success": true, "application": { "id": "app_1", "status": "applied", "applyMethod": "manual", "applyNote": "...", "date": "15/11/2026" } }
+```
+
+`404` for an unknown application, `400` without the explicit approval.
 
 ### `GET /api/processes`
 
@@ -603,11 +673,11 @@ The v1 pipeline is ported end to end: async `POST /api/fit-check`, deterministic
 resume upload. The LLM client, the skill prompt loader and `/api/llm-config` live in
 `src/pipeline/`.
 
-Intentionally **not** ported (see `.plans/2026-11-14-pipeline-port/plan.md`):
+Intentionally **not** ported (see [roadmap.md](./roadmap.md)):
 
 - `render_pdf.mjs` page counting (cosmetic wrapper);
 - `calculateFitHybridSync`, which is broken in v1;
-- the React buttons for the pre-fill dry-run and the question extraction (API-only for now).
+- automated form submission (the app never clicks Submit; apply confirmation is manual).
 
-See [architecture.md §7](./architecture.md#7-pipeline-llm-and-skills), the step plan in
-`.plans/2026-11-14-pipeline-port/plan.md` and the phase goals in [roadmap.md](./roadmap.md).
+See [architecture.md §7](./architecture.md#7-pipeline-llm-and-skills) and the phase goals in
+[roadmap.md](./roadmap.md).

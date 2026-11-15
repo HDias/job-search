@@ -15,6 +15,7 @@ and **is not rewritten** — when a decision changes, another ADR is created tha
 | [0008](./0008-vitest-supertest.md) | Vitest + Supertest | Accepted |
 | [0009](./0009-configurable-targets.md) | Configurable targets in `profiles` | Accepted |
 | [0010](./0010-async-pipeline.md) | Asynchronous pipeline in v2 | Accepted |
+| [0011](./0011-post-response-chat.md) | Synchronous post-response chat | Accepted |
 
 ## Format
 
