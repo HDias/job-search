@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Express } from 'express';
 import type { Store } from '../repositories/types.js';
+import type { ResumeTextExtractor } from '../pipeline/resume-text.js';
 import {
   createPipelineService,
   type PipelineService,
@@ -24,6 +25,8 @@ export interface CreateAppOptions {
   skillsDir?: string;
   /** Injectable pipeline (tests stub the LLM and the scraper). */
   pipeline?: PipelineService;
+  /** Resume upload text extraction (tests stub `pdftotext`). */
+  resumeTextExtractor?: ResumeTextExtractor;
 }
 
 const RESERVED_PREFIX = /^\/(api|applications|base_profile|cv|extras)(\/|$)/;
@@ -58,7 +61,12 @@ export function createApp(options: CreateAppOptions): Express {
   app.use('/api/jobs', createJobsRouter(store));
   app.use('/api/runs', createRunsRouter(store));
   app.use('/api', createPipelineRouter(store, pipeline));
-  app.use('/api', createMetaRouter(store));
+  app.use(
+    '/api',
+    createMetaRouter(store, {
+      resumeTextExtractor: options.resumeTextExtractor,
+    }),
+  );
   app.use('/api', createCompatRouter(store, pipeline));
 
   if (applicationsDir) {

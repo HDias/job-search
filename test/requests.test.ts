@@ -291,7 +291,20 @@ describe('requests: metadados', () => {
 
   it('lê e atualiza os dados do formulário', async () => {
     const initial = await request(app).get('/api/candidate-data');
-    expect(initial.body).toEqual({ success: true, candidate: {} });
+    // v1 parity: the derived shape always carries the eight contact fields.
+    expect(initial.body).toEqual({
+      success: true,
+      candidate: {
+        fullName: '',
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        linkedin: '',
+        github: '',
+        portfolio: '',
+      },
+    });
 
     const updated = await request(app)
       .put('/api/candidate-data')

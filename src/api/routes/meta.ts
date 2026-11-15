@@ -1,14 +1,30 @@
+import path from 'node:path';
 import { Router, type Request, type Response } from 'express';
+import multer from 'multer';
 import { z } from 'zod';
 import { LANGUAGES } from '../../domain/job.js';
 import { llmConfigPatchSchema, toPublicLlmConfig } from '../../domain/llm.js';
 import { EXTRA_PROMPT_MAX_LENGTH } from '../../domain/profile.js';
+import { candidateFromStore } from '../../pipeline/candidate-data.js';
 import { loadLlmConfig, saveLlmConfig } from '../../pipeline/llm/config.js';
+import {
+  createResumeTextExtractor,
+  type ResumeTextExtractor,
+} from '../../pipeline/resume-text.js';
 import type { Store } from '../../repositories/types.js';
 import { HttpError, parseBody } from '../http.js';
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 const STACK_PATTERN = /^[a-z][a-z0-9-]{0,31}$/;
+
+/** Base resume ceiling (v1 parity). */
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_SOURCE_FILE_LENGTH = 200;
+
+export interface MetaRouterOptions {
+  /** Test seam: extracts the resume text without spawning `pdftotext`. */
+  resumeTextExtractor?: ResumeTextExtractor;
+}
 
 const settingBodySchema = z.object({ value: z.unknown() });
 
@@ -94,8 +110,36 @@ type PdfTheme = {
  * Rotas de metadados: perfis base, tema de PDF, dados do formulário e settings.
  * Cobrem as leituras que a aba Admin do v1 faz.
  */
-export function createMetaRouter(store: Store): Router {
+export function createMetaRouter(
+  store: Store,
+  options: MetaRouterOptions = {},
+): Router {
   const router = Router();
+  const extractResumeText =
+    options.resumeTextExtractor ?? createResumeTextExtractor();
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 },
+  });
+
+  /** Translates multer's limit error into the API's JSON error shape. */
+  const uploadResume = (
+    req: Request,
+    res: Response,
+    next: (err?: unknown) => void,
+  ): void => {
+    upload.single('resumeFile')(req, res, (err: unknown) => {
+      if (!err) {
+        next();
+        return;
+      }
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        next(new HttpError(413, 'Currículo maior que 10 MB'));
+        return;
+      }
+      next(err);
+    });
+  };
 
   router.get('/base-resumes', (_req, res) => {
     const entries: Record<string, unknown> = {};
@@ -177,7 +221,7 @@ export function createMetaRouter(store: Store): Router {
   router.get('/candidate-data', (_req, res) => {
     res.json({
       success: true,
-      candidate: store.settings.get('candidate_form') ?? {},
+      candidate: candidateFromStore(store),
     });
   });
 
@@ -285,6 +329,63 @@ export function createMetaRouter(store: Store): Router {
 
     res.status(204).end();
   });
+
+  router.post(
+    '/profiles/:stack/:language/upload',
+    uploadResume,
+    async (req, res) => {
+      const stack = normalizeStack(req.params.stack);
+      const language = normalizeLanguage(req.params.language);
+
+      const file = req.file;
+      if (!file) throw new HttpError(400, 'Nenhum arquivo enviado');
+
+      const sourceFile =
+        path.basename(String(file.originalname ?? '')).slice(
+          0,
+          MAX_SOURCE_FILE_LENGTH,
+        ) || 'curriculo';
+
+      let rawText: string;
+      try {
+        rawText = await extractResumeText({
+          buffer: file.buffer,
+          originalname: sourceFile,
+        });
+      } catch {
+        throw new HttpError(
+          422,
+          'Não foi possível extrair texto do arquivo (PDF exige pdftotext)',
+        );
+      }
+
+      if (!rawText.trim()) {
+        throw new HttpError(
+          422,
+          'Não foi possível extrair texto do arquivo (conteúdo vazio)',
+        );
+      }
+
+      const content = {
+        sourceFile,
+        language,
+        stack,
+        extractedAt: new Date().toISOString(),
+        rawLength: rawText.length,
+        rawText,
+      };
+
+      store.profiles.upsert({ stack, language, content });
+
+      const stackLabel = stack === 'php' ? 'PHP' : 'Ruby';
+      res.json({
+        success: true,
+        message: `Currículo base ${stackLabel} (${language === 'en' ? 'Inglês' : 'Português'}) atualizado com sucesso!`,
+        fileName: sourceFile,
+        charCount: rawText.length,
+      });
+    },
+  );
 
   /* ------------------------------ llm-config ---------------------------- */
 
