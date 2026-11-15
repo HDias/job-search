@@ -1,5 +1,5 @@
 ---
-description: Execute a plan using TDD and keeping its status checklist up to date
+description: Execute a plan using TDD, updating its status and committing each phase after asking
 agent: build
 ---
 
@@ -71,11 +71,27 @@ pnpm build:web                        # if the change affects the build
 `pnpm test` only includes `test/**/*.test.ts`; frontend tests run through
 `web/vite.config.ts` (jsdom). Never add `web/` tests to the root config.
 
+## Per-phase commits (ask first, never automatic)
+
+- Commit at every phase boundary, but ONLY after asking. When a phase is green and checked
+  off, ask exactly: "Phase done. Do you want to commit this phase? (commit / skip)".
+- Wait for the answer. Do not run `git commit` before the user agrees.
+- If the user chooses commit: use the `conventional-commits` skill and write a
+  Conventional Commits message in English. Stage only the files changed by that phase
+  (never unrelated or in-progress work), never amend/squash earlier phase commits, and never
+  commit anything outside the repo (`APPLICATIONS_DIR`, `BASE_PROFILE_DIR`, `data/`).
+- Record the resulting short hash in the plan's status section next to the phase, e.g.
+  `commit: abc1234`, so the history is traceable from the plan.
+- If the user chooses skip, note `commit: skipped` for that phase and move on without
+  asking again for the same phase.
+- After the commit (or skip), ask the continuation question below.
+
 ## Checkpoints (stop and wait for the user)
 
 - Stop ONLY at decision gates and phase boundaries — not after every task.
 - At a gate, present Pass/Adjust/Abort and wait for the user's choice.
-- Between phases ask: "Phase done. Continue to the next phase? (continue / adjust / stop)".
+- Between phases ask, in this order: first the commit question above, then
+  "Continue to the next phase? (continue / adjust / stop)".
 - If the red phase cannot be observed (test passes immediately or fails for the wrong reason),
   stop and fix the test — do not proceed to implementation.
 - When a failure scenario triggers, apply the plan's recovery cascade.
