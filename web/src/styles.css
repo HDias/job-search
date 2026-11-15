@@ -385,6 +385,19 @@ a:focus-visible {
   background: var(--surface-2);
 }
 
+.button-small {
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.row-action {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
 /* ------------------------------- table ------------------------------- */
 
 .table-wrap {

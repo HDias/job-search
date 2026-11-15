@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useJobs, useStats } from '../api/hooks';
 import { JOB_STATUSES, type JobStatus } from '../api/types';
 import { StatCard } from '../components/StatCard';
+import { ApplyRowAction } from '../components/ApplyRowAction';
 import { StatusBadge } from '../components/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateMessage';
 import { STATUS_LABELS, fitTone, formatDate, formatFit } from '../lib/format';
@@ -205,6 +206,7 @@ export function Dashboard() {
                   <th scope="col">Fit</th>
                   <th scope="col">Aplicada em</th>
                   <th scope="col">Canal</th>
+                  <th scope="col">Aplicar</th>
                 </tr>
               </thead>
               <tbody>
@@ -230,6 +232,9 @@ export function Dashboard() {
                     </td>
                     <td className="nowrap">{formatDate(job.appliedAt ?? job.createdAt)}</td>
                     <td className="nowrap muted">{job.channel ?? '—'}</td>
+                    <td>
+                      <ApplyRowAction job={job} />
+                    </td>
                   </tr>
                 ))}
               </tbody>

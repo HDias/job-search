@@ -65,14 +65,31 @@ const jobs: Job[] = [
 ];
 
 function stubApi(items: Job[] = jobs, total = items.length) {
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-    const url = String(input);
-    if (url.startsWith('/api/stats')) return jsonResponse(stats);
-    if (url.startsWith('/api/jobs')) {
-      return jsonResponse({ items, total });
-    }
-    throw new Error(`URL inesperada: ${url}`);
-  });
+  const fetchMock = vi.fn(
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+      if (method === 'POST' && url.endsWith('/apply-confirm')) {
+        const id = url.split('/').at(-2);
+        const job = items.find((entry) => entry.id === id);
+        if (!job) return jsonResponse({ error: 'Vaga não encontrada' }, 404);
+        return jsonResponse({
+          success: true,
+          job: {
+            ...job,
+            status: 'applied',
+            appliedAt: '2026-11-15T12:00:00.000Z',
+            applyMethod: 'manual',
+          },
+        });
+      }
+      if (url.startsWith('/api/stats')) return jsonResponse(stats);
+      if (url.startsWith('/api/jobs')) {
+        return jsonResponse({ items, total });
+      }
+      throw new Error(`URL inesperada: ${url}`);
+    },
+  );
 
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
@@ -100,6 +117,41 @@ describe('Dashboard', () => {
     expect(within(table).getByText('Backend Engineer')).toBeInTheDocument();
     expect(within(table).getByText('Rascunho')).toBeInTheDocument();
     expect(within(table).getByText('72%')).toBeInTheDocument();
+  });
+
+  it('marca uma vaga como aplicada direto da lista', async () => {
+    const user = userEvent.setup();
+    const fetchMock = stubApi();
+    renderWithProviders(<App />);
+
+    const betaRow = (await screen.findByText('Beta')).closest('tr');
+    const acmeRow = screen.getByText('Acme').closest('tr');
+    expect(betaRow).not.toBeNull();
+    expect(acmeRow).not.toBeNull();
+
+    expect(
+      within(acmeRow as HTMLElement).queryByRole('button', {
+        name: 'Marcar como aplicada',
+      }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      within(betaRow as HTMLElement).getByRole('button', {
+        name: 'Marcar como aplicada',
+      }),
+    );
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(
+        ([input, init]) =>
+          String(input).endsWith('/api/jobs/app_2/apply-confirm') &&
+          (init as RequestInit | undefined)?.method === 'POST',
+      );
+      expect(call).toBeTruthy();
+      expect(JSON.parse(String((call?.[1] as RequestInit).body))).toEqual({
+        approved: true,
+      });
+    });
   });
 
   it('envia o filtro de status para a API', async () => {
