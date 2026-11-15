@@ -1,6 +1,10 @@
 import type {
+  ApplyConfirmInput,
+  ApplyConfirmResponse,
   BaseResumeMap,
   CandidateData,
+  ChatInput,
+  ChatResponse,
   EnqueuedRun,
   FitCheckInput,
   GenerateKitInput,
@@ -15,6 +19,8 @@ import type {
   PdfTheme,
   Profile,
   ProfilePatch,
+  PrefillResponse,
+  QuestionsResponse,
   RespondInput,
   RespondResponse,
   ResumeUploadResponse,
@@ -158,4 +164,40 @@ export const api = {
         body: JSON.stringify(input),
       },
     ),
+
+  /** Dry-run prefill; the backend never clicks Submit (D8). */
+  prefill: (jobId: string, input: { applyUrl?: string; headed?: boolean } = {}) =>
+    request<PrefillResponse>(
+      `/api/jobs/${encodeURIComponent(jobId)}/prefill`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    ),
+
+  questions: (jobId: string, input: { applyUrl?: string } = {}) =>
+    request<QuestionsResponse>(
+      `/api/jobs/${encodeURIComponent(jobId)}/questions`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    ),
+
+  /** Manual confirmation; the explicit `approved: true` is the safety lock. */
+  applyConfirm: (jobId: string, input: ApplyConfirmInput) =>
+    request<ApplyConfirmResponse>(
+      `/api/jobs/${encodeURIComponent(jobId)}/apply-confirm`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    ),
+
+  /** Synchronous post-response chat; the answer arrives in the same request. */
+  chat: (jobId: string, input: ChatInput) =>
+    request<ChatResponse>(`/api/jobs/${encodeURIComponent(jobId)}/chat`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 };

@@ -3,6 +3,9 @@ import { ApiError } from '../api/client';
 import { useJob, useRespondToRun, useUpdateJob } from '../api/hooks';
 import { JOB_STATUSES, type JobStatus } from '../api/types';
 import { ArtifactList } from '../components/ArtifactList';
+import { ApplyActions } from '../components/ApplyActions';
+import { ApplyConfirm } from '../components/ApplyConfirm';
+import { ChatPanel } from '../components/ChatPanel';
 import { CheckpointPanel } from '../components/CheckpointPanel';
 import { FitPanel } from '../components/FitPanel';
 import { PipelineActions } from '../components/PipelineActions';
@@ -110,6 +113,13 @@ export function JobDetail() {
 
           <PipelineActions job={job} run={latestRun} />
 
+          <ApplyActions
+            job={job}
+            hasKit={artifacts.some((artifact) => artifact.kind === 'cv_pdf')}
+          />
+
+          <ApplyConfirm job={job} />
+
           {updateJob.isError ? (
             <p className="inline-error" role="alert">
               {updateJob.error instanceof Error
@@ -148,6 +158,7 @@ export function JobDetail() {
       <div className="detail-grid">
         <div className="detail-main">
           <FitPanel fit={job.fit} />
+          <ChatPanel job={job} />
           <RunList runs={runs} />
         </div>
 

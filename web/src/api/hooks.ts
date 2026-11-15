@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 import { api } from './client';
 import type {
+  ApplyConfirmInput,
   CandidateData,
   FitCheckInput,
   GenerateKitInput,
@@ -238,6 +239,63 @@ export function useGenerateKit(jobId: string) {
   return useMutation({
     mutationFn: (input: GenerateKitInput) => api.generateKit(input),
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      void queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
+  });
+}
+
+/**
+ * Synchronous post-response chat. The reply is cached in the job detail without
+ * a refetch, so the thread never flickers between turns.
+ */
+export function useChat(jobId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (message: string) => api.chat(jobId, { message }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['job', jobId], (current: unknown) => {
+        if (!current || typeof current !== 'object') return current;
+        const detail = current as { job?: Job };
+        if (!detail.job) return current;
+        return {
+          ...detail,
+          job: { ...detail.job, chatHistory: data.chat },
+        };
+      });
+    },
+  });
+}
+
+/** Dry-run prefill (`POST /api/jobs/:id/prefill`); synchronous, no Submit. */
+export function usePrefill(jobId: string) {
+  return useMutation({
+    mutationFn: (input: { applyUrl?: string; headed?: boolean } = {}) =>
+      api.prefill(jobId, input),
+  });
+}
+
+/** Application-question extraction (`POST /api/jobs/:id/questions`). */
+export function useQuestions(jobId: string) {
+  return useMutation({
+    mutationFn: (input: { applyUrl?: string } = {}) => api.questions(jobId, input),
+  });
+}
+
+/** Manual confirmation; updates the detail cache and refreshes the lists. */
+export function useApplyConfirm(jobId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: ApplyConfirmInput) => api.applyConfirm(jobId, input),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['job', jobId], (current: unknown) =>
+        current && typeof current === 'object'
+          ? { ...current, job: data.job }
+          : current,
+      );
       void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
       void queryClient.invalidateQueries({ queryKey: ['jobs'] });
       void queryClient.invalidateQueries({ queryKey: ['stats'] });

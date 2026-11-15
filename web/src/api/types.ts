@@ -222,6 +222,94 @@ export interface JobDetailResponse {
   artifacts: Artifact[];
 }
 
+/** One field the dry-run filled (`POST /api/jobs/:id/prefill`). */
+export interface FilledField {
+  field: string;
+  selector: string;
+  value?: string;
+  file?: string;
+}
+
+export interface SubmitButtonInfo {
+  text?: string;
+  visible: boolean;
+}
+
+export interface PrefillSummary {
+  status: string;
+  filledFields: FilledField[];
+  resumeAttached: boolean;
+  submitButtonDetected: SubmitButtonInfo;
+  screenshotUrl: string;
+  reportUrl: string;
+  notice: string;
+}
+
+export interface PrefillResponse {
+  success: boolean;
+  prefill: PrefillSummary;
+}
+
+export type AtsPlatform = 'greenhouse' | 'lever' | 'workable' | 'generic';
+
+export type QuestionCategory =
+  | 'upload'
+  | 'personal'
+  | 'legal'
+  | 'demographic'
+  | 'custom';
+
+export interface ApplicationQuestion {
+  id: string;
+  label: string;
+  type: string;
+  required: boolean;
+  options: string[] | null;
+  name: string;
+  category: QuestionCategory;
+}
+
+export interface StandardField {
+  id: string;
+  label: string;
+  type: string;
+  required: boolean;
+  options: string[] | null;
+  name: string;
+}
+
+export interface QuestionsResponse {
+  success: boolean;
+  platform: AtsPlatform;
+  questions: ApplicationQuestion[];
+  standardFields: StandardField[];
+  questionsUrl: string;
+}
+
+/** Body of `POST /api/jobs/:id/apply-confirm` (D1). */
+export interface ApplyConfirmInput {
+  approved: true;
+  note?: string;
+  channel?: string;
+  appliedEmails?: string[];
+}
+
+export interface ApplyConfirmResponse {
+  success: boolean;
+  job: Job;
+}
+
+/** Body of `POST /api/jobs/:id/chat` (D3). */
+export interface ChatInput {
+  message: string;
+}
+
+export interface ChatResponse {
+  success: boolean;
+  reply: string;
+  chat: ChatMessage[];
+}
+
 export interface JobFilters {
   status?: JobStatus;
   q?: string;
