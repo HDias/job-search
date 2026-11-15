@@ -95,6 +95,10 @@ const questionsSchema = z.object({
   applyUrl: z.string().trim().optional(),
 });
 
+const chatSchema = z.object({
+  message: z.string().trim().min(1, 'message é obrigatório'),
+});
+
 const regenerateSchema = z.object({
   languagePreference: z.enum(['auto', 'pt-br', 'en']).optional(),
   stack: z.string().trim().min(1).optional(),
@@ -465,6 +469,26 @@ export function createPipelineRouter(
       standardFields: outcome.result.standardFields,
       questionsUrl: outcome.questionsUrl,
     });
+  });
+
+  router.post('/jobs/:id/chat', async (req, res) => {
+    const body = parseBody(chatSchema, req.body ?? {});
+    const outcome = await pipeline.chat(req.params.id, body.message);
+
+    if (outcome.status === 'not_found') {
+      throw new HttpError(404, 'Vaga não encontrada');
+    }
+    if (outcome.status === 'empty_message') {
+      throw new HttpError(400, 'Envie uma mensagem não vazia.');
+    }
+    if (outcome.status === 'no_context') {
+      throw new HttpError(
+        409,
+        'Rode o fit-check e gere o snapshot da vaga antes de conversar sobre ela.',
+      );
+    }
+
+    res.json({ success: true, reply: outcome.reply, chat: outcome.chat });
   });
 
   router.post('/jobs/:id/regenerate', (req, res) => {

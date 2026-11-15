@@ -115,6 +115,8 @@ export function toLegacyApplication(
     stack: job.stack,
     channel: job.channel,
     appliedEmails: job.appliedEmails,
+    applyNote: job.applyNote,
+    applyMethod: job.applyMethod,
     fitRating: job.fit?.rating ?? null,
     fitAnalysis: job.fit?.analysis ?? null,
     fitDimensions: job.fit?.dimensions ?? {},

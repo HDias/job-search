@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import {
+  applyConfirmInputSchema,
   JOB_STATUSES,
   jobPatchSchema,
   newJobSchema,
   type JobStatus,
 } from '../../domain/job.js';
+import { confirmApplication, NOT_APPROVED_MESSAGE } from '../../pipeline/apply/confirm.js';
 import type { Store } from '../../repositories/types.js';
 import { HttpError, parseBody } from '../http.js';
 
@@ -64,6 +66,20 @@ export function createJobsRouter(store: Store): Router {
     const job = store.jobs.update(req.params.id, patch);
     if (!job) throw new HttpError(404, 'Vaga não encontrada');
     res.json(job);
+  });
+
+  router.post('/:id/apply-confirm', (req, res) => {
+    const input = parseBody(applyConfirmInputSchema, req.body ?? {});
+    const outcome = confirmApplication(store, req.params.id, input);
+
+    if (outcome.status === 'not_found') {
+      throw new HttpError(404, 'Vaga não encontrada');
+    }
+    if (outcome.status === 'not_approved') {
+      throw new HttpError(400, NOT_APPROVED_MESSAGE);
+    }
+
+    res.json({ success: true, job: outcome.job });
   });
 
   router.delete('/:id', (req, res) => {

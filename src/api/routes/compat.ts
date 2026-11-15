@@ -1,8 +1,10 @@
 import { Router, type Request, type Response } from 'express';
+import { applyConfirmInputSchema } from '../../domain/job.js';
+import { confirmApplication, NOT_APPROVED_MESSAGE } from '../../pipeline/apply/confirm.js';
 import { respondInputSchema, planResponse } from '../../pipeline/runs/respond.js';
 import type { PipelineService } from '../../pipeline/service.js';
 import type { Store } from '../../repositories/types.js';
-import { HttpError } from '../http.js';
+import { HttpError, parseBody } from '../http.js';
 import {
   legacyApplicationPatch,
   legacyProcessPatch,
@@ -47,6 +49,26 @@ export function createCompatRouter(
       application: toLegacyApplication(
         updated,
         store.artifacts.listByJob(updated.id),
+      ),
+    });
+  });
+
+  router.post('/applications/:id/apply-confirm', (req, res) => {
+    const input = parseBody(applyConfirmInputSchema, req.body ?? {});
+    const outcome = confirmApplication(store, req.params.id, input);
+
+    if (outcome.status === 'not_found') {
+      throw new HttpError(404, 'Candidatura não encontrada');
+    }
+    if (outcome.status === 'not_approved') {
+      throw new HttpError(400, NOT_APPROVED_MESSAGE);
+    }
+
+    res.json({
+      success: true,
+      application: toLegacyApplication(
+        outcome.job,
+        store.artifacts.listByJob(outcome.job.id),
       ),
     });
   });

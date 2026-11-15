@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createLlmClient, type LlmClient } from './llm/client.js';
+import { respondToChat, type ChatOutcome } from './chat.js';
 import { checkJobFit, type FitCheckDeps, type FitCheckResult } from './kit/fit.js';
 import { evaluateFit, type EvaluateFitInput, type EvaluateFitResult } from './fit/evaluate.js';
 import { createSkillLoader } from './skills/loader.js';
@@ -61,6 +62,7 @@ export interface PipelineService {
     jobId: string,
     input: { applyUrl?: string },
   ): Promise<QuestionsOutcome>;
+  chat(jobId: string, message: string): Promise<ChatOutcome>;
 }
 
 /** v1 prefill response, minus the absolute paths. */
@@ -185,6 +187,8 @@ export function createPipelineService(
     enqueueGenerateKit: (runId, payload) =>
       queue.enqueue({ kind: 'generate-kit', runId, payload }),
     checkFit,
+
+    chat: (jobId, message) => respondToChat({ store, loader, llm }, jobId, message),
 
     async prefill(jobId, input) {
       const job = store.jobs.get(jobId);
