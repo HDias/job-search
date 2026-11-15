@@ -297,3 +297,15 @@ The executor marks each item as it completes. One checkbox per task.
 - [x] X4 — gate completo — done: `pnpm typecheck` (exit 0), `pnpm test` (31 files / 325 tests),
       `pnpm typecheck:web` (exit 0), `pnpm test:web` (11 files / 53 tests),
       `pnpm build:web` (109 modules, built in 1.55 s). Baseline 302/43 → 325/53, 0 regressões.
+      Closing docs commit: e82b2df.
+
+## Close-out
+
+All tasks X1–X4 and AC1–AC3 delivered. Commits: 938e79b (schema/repository), 3bae4d4
+(apply-confirm + chat API), 8f6f85a (React surface), e82b2df (docs + ADR-0011 + this plan).
+Gate evidence recorded above; nothing is left blocked.
+
+Left out of the commit deliberately: the uncommitted deletions of
+`.plans/2026-11-14-pipeline-port/plan.md`, `.plans/pipeline-port-review.md` and
+`.plans/pipeline-port-v1-v2.md`. They are historical records referenced by this plan's header,
+so they stay untouched until the user confirms the cleanup.
