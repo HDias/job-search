@@ -342,12 +342,35 @@ select {
   font-size: 0.9rem;
 }
 
+textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+input[type='checkbox'] {
+  width: auto;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+textarea::placeholder {
+  color: #64748b;
+}
+
 input::placeholder {
   color: #64748b;
 }
 
 input:focus,
 select:focus,
+textarea:focus,
 button:focus-visible,
 a:focus-visible {
   outline: 2px solid var(--accent);

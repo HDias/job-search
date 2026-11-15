@@ -184,7 +184,7 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
             <label className="field">
               <span>Perguntas extras do formulário (se houver)</span>
               <textarea
-                rows={3}
+                rows={5}
                 placeholder="Uma por linha; vira 'Como responder' nos materiais."
                 value={extraQuestions}
                 onChange={(event) => setExtraQuestions(event.target.value)}
@@ -194,7 +194,7 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
             <label className="field">
               <span>Mensagem do recrutador (se houver)</span>
               <textarea
-                rows={3}
+                rows={5}
                 placeholder="LinkedIn / WhatsApp / e-mail; a resposta vai para 'Recrutador'."
                 value={recruiterMessage}
                 onChange={(event) => setRecruiterMessage(event.target.value)}
@@ -204,7 +204,7 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
             <label className="field">
               <span>Direcionamento para a cover letter (opcional)</span>
               <textarea
-                rows={2}
+                rows={4}
                 placeholder="Tom, ênfase e experiências a destacar. Nunca fonte de fatos."
                 value={coverLetterGuidance}
                 onChange={(event) => setCoverLetterGuidance(event.target.value)}
