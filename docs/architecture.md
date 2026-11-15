@@ -233,9 +233,11 @@ flowchart LR
 | `src/pipeline/pdf.ts` | Chromium `page.pdf` (A4, 15 mm, `printBackground`) plus `pdftotext -layout` → `_ats_layer.txt` and `atsCompatible` |
 | `src/pipeline/resume-text.ts` | `createResumeTextExtractor()` — `pdftotext` for PDFs, UTF-8 for text files; injectable in tests |
 | `src/pipeline/candidate-data.ts` | `extractCandidateFromTexts()` / `candidateFromStore()` — contact data derived from the base resume |
+| `src/pipeline/apply/assistant.ts` | `assistApplication()` — dry-run pre-fill: fills standard fields, attaches the PDF, screenshots and reports; never clicks Submit |
+| `src/pipeline/apply/questions.ts` | `scrapeApplicationQuestions()` — one DOM walk plus pure platform detection, standard-field mapping and categorisation |
 | `src/pipeline/queue.ts` | FIFO queue, one pipeline execution at a time |
 | `src/pipeline/service.ts` | Wires store, loader, LLM, scraper and queue; injectable in tests |
-| `src/api/routes/pipeline.ts` | `POST /api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond` and `/api/jobs/:id/regenerate` |
+| `src/api/routes/pipeline.ts` | `POST /api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond`, `/api/jobs/:id/regenerate`, `/api/jobs/:id/prefill` and `/api/jobs/:id/questions` |
 | `src/domain/llm.ts` | Provider enum, defaults, `llmConfigPatchSchema` and the public (masked) config shape |
 | `src/api/routes/meta.ts` | `GET/PUT/POST /api/llm-config`, the profile/target CRUD and the base resume upload; the key is never returned |
 
@@ -306,7 +308,7 @@ repositories.
 |---|---|---|
 | Simplicity | One Node process, one SQLite file, no infrastructure | Doesn't scale to multiple concurrent users |
 | Portability | Repositories + JSON columns + ISO + `owner_id` | The compatibility DTO still couples the old UI |
-| Testability | 285 backend tests + 43 frontend tests; temporary database, Supertest and injected browser/LLM/`pdftotext` stubs | No real Chromium, network or `pdftotext` in the suite |
+| Testability | 302 backend tests + 43 frontend tests; temporary database, Supertest and injected browser/LLM/`pdftotext` stubs | No real Chromium, network or `pdftotext` in the suite |
 | Security | Zod validation, path traversal blocked, LLM key masked by the API | No authentication; assumes local use |
 | Performance | Indexes on status, date, company and job_id; WAL | No cache; N+1 when listing artifacts per job |
 | Observability | Error logs in the global handler; health check | No metrics or tracing |
@@ -315,8 +317,8 @@ repositories.
 
 - The whole pipeline is ported: scraping, deterministic fit, LLM fit-check, kit generation, PDF
   rendering, the interactive queue, regeneration and base resume upload.
-- `apply_assistant.mjs` (pre-fill dry-run) and `scrape_application_questions.mjs` remain v1-only
-  scripts; they were never part of `processJob`.
+- The pre-fill dry-run and the question extraction are API-only (`/api/jobs/:id/prefill` and
+  `/api/jobs/:id/questions`); there is no React button for them yet.
 - The queue is in-process and lost on restart; only `runs` already persisted survive.
 - There is no authentication; `owner_id` exists but is always `local`.
 - The `/api/applications` listing runs one artifact query per job (N+1). For 16 jobs it's

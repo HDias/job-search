@@ -74,13 +74,14 @@ Goal: move the heavy v1 pipeline into `src/pipeline/` behind the v2 API, keeping
 - [x] `POST /api/jobs/:id/regenerate` (202) preserving id/status/dates.
 - [x] Base resume upload with `pdftotext` (`POST /api/profiles/:stack/:language/upload`), including
   the control in App Settings.
+- [x] Assisted pre-fill dry-run (`POST /api/jobs/:id/prefill`) and application question extraction
+  (`POST /api/jobs/:id/questions`), API-only, never submitting anything.
 - [x] Candidate data derived from the base resume.
-- [x] Full gate: 285 backend tests, 43 frontend tests, `typecheck`, `typecheck:web` and `build:web`.
+- [x] Full gate: 302 backend tests, 43 frontend tests, `typecheck`, `typecheck:web` and `build:web`.
 
 **Registered backlog**
 
-- Pre-fill dry-run (`apply_assistant.mjs`) and `scrape_application_questions.mjs` — standalone v1
-  scripts, deliberately out of the port.
+- React buttons for the pre-fill dry-run and the question extraction.
 - Retire the old UI and remove the `/api/applications` + `/api/processes` compatibility routes.
 
 ## 2. Technical backlog

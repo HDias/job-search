@@ -123,6 +123,8 @@ A suite dedicated to exercising **every HTTP route** and the edge cases the UI w
   material → `200` with a warning.
 - **Transport**: malformed JSON → `400`, body above 4 MB → `413`, path traversal blocked, form
   without required fields → `400`, unknown route → `404`.
+- Pre-fill/questions routes: report URLs inside `/applications`, `404` for an unknown job, `400`
+  without a URL and `400` without a CV PDF / kit folder.
 
 ### Pipeline (`llm-client.test.ts`, `llm-config.test.ts`, `pipeline-targets.test.ts`)
 
@@ -148,6 +150,10 @@ A suite dedicated to exercising **every HTTP route** and the edge cases the UI w
   → `422`.
 - Candidate data: contact extraction from `profiles.content.rawText`, with the saved form filling
   only the blanks.
+- Pre-fill/questions (`pipeline-apply.test.ts`): field plans and name splitting, selector order,
+  the dry-run filling fields and attaching the PDF while a page stub throws on any click, report and
+  screenshot files, platform detection, categorisation (LinkedIn is not an upload), standard-field
+  mapping, dedupe/noise filters and the written `application_questions.json`.
 
 ### Frontend (`web/src/**/*.test.tsx`)
 

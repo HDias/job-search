@@ -6,7 +6,7 @@ route families:
 | Family | Prefix | Audience |
 |---|---|---|
 | New REST | `/api/jobs`, `/api/runs`, `/api/profiles`, `/api/settings`, `/api/stats`, `/api/llm-config` | React UI and integrations |
-| Pipeline | `/api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond`, `/api/jobs/:id/regenerate`, `/api/profiles/:stack/:language/upload` | React UI and integrations |
+| Pipeline | `/api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond`, `/api/jobs/:id/regenerate`, `/api/jobs/:id/prefill`, `/api/jobs/:id/questions`, `/api/profiles/:stack/:language/upload` | React UI and integrations |
 | Legacy compatibility | `/api/applications`, `/api/processes`, `/api/base-resumes`, `/api/pdf-theme`, `/api/candidate-data` | the legacy UI |
 | Viewers | `/applications/*`, `/cv/:id`, `/extras/:id/:view` | Links opened by the user |
 
@@ -344,6 +344,64 @@ stays in memory (nothing is written to disk) and only the extracted text is pers
 The profile's `enabled` and `extraPrompt` are preserved. `400` without a file or with an invalid
 stack/language, `413` above 10 MB, `422` when nothing can be extracted.
 
+## 4.5 Assisted pre-fill — `POST /api/jobs/:id/prefill`
+
+Dry-run only: fills the standard fields, attaches the job's `cv_pdf` artifact, captures
+`preview_before_submit.png` and writes `application_dry_run_report.json` in the job folder. It
+**never** clicks, submits or presses anything. Synchronous (the report is the point) and needs
+Chromium; `poppler` is not involved.
+
+```json
+{ "applyUrl": "https://boards.greenhouse.io/acme/jobs/1/apply", "candidateData": { "email": "you@example.com" } }
+```
+
+```json
+{
+  "success": true,
+  "prefill": {
+    "status": "AGUARDANDO_APROVACAO_HUMANA",
+    "filledFields": [{ "field": "Email", "selector": "input[type="email"]", "value": "you@example.com" }],
+    "resumeAttached": true,
+    "submitButtonDetected": { "text": "Enviar candidatura", "visible": true },
+    "screenshotUrl": "/applications/acme_engineer/preview_before_submit.png",
+    "reportUrl": "/applications/acme_engineer/application_dry_run_report.json",
+    "notice": "NENHUMA submissão foi realizada..."
+  }
+}
+```
+
+`applyUrl` falls back to the job's `applyUrl`/`vacancyUrl`; `candidateData` is merged over the
+derived candidate and persisted in `settings.candidate_form`. `404` for an unknown job, `400`
+without a URL or without a CV PDF artifact.
+
+## 4.6 Application questions — `POST /api/jobs/:id/questions`
+
+Scrapes the application form (Greenhouse, Lever, Workable or generic), separates the standard
+fields from the company questions, categorizes them (`upload`, `personal`, `legal`, `demographic`,
+`custom`) and writes `application_questions.json` in the job folder. Synchronous, needs Chromium.
+
+```json
+{
+  "success": true,
+  "platform": "greenhouse",
+  "questions": [
+    {
+      "id": "q_years",
+      "label": "How many years of Rails experience?",
+      "type": "select",
+      "required": true,
+      "options": ["1-3", "3-5"],
+      "name": "question_1",
+      "category": "custom"
+    }
+  ],
+  "standardFields": [{ "id": "email", "label": "Email", "type": "email" }],
+  "questionsUrl": "/applications/acme_engineer/application_questions.json"
+}
+```
+
+`404` for an unknown job, `400` without a URL, `400` when the job has no kit folder yet.
+
 ## 5. Legacy compatibility
 
 These routes exist so the legacy UI keeps working during the migration. They
@@ -547,10 +605,9 @@ resume upload. The LLM client, the skill prompt loader and `/api/llm-config` liv
 
 Intentionally **not** ported (see `.plans/2026-11-14-pipeline-port/plan.md`):
 
-- the pre-fill dry-run (`apply_assistant.mjs`) and `scrape_application_questions.mjs`, which are
-  standalone v1 scripts and not part of `processJob`;
 - `render_pdf.mjs` page counting (cosmetic wrapper);
-- `calculateFitHybridSync`, which is broken in v1.
+- `calculateFitHybridSync`, which is broken in v1;
+- the React buttons for the pre-fill dry-run and the question extraction (API-only for now).
 
 See [architecture.md §7](./architecture.md#7-pipeline-llm-and-skills), the step plan in
 `.plans/2026-11-14-pipeline-port/plan.md` and the phase goals in [roadmap.md](./roadmap.md).
