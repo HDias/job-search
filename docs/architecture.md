@@ -306,7 +306,7 @@ repositories.
 |---|---|---|
 | Simplicity | One Node process, one SQLite file, no infrastructure | Doesn't scale to multiple concurrent users |
 | Portability | Repositories + JSON columns + ISO + `owner_id` | The compatibility DTO still couples the old UI |
-| Testability | 285 backend tests + 39 frontend tests; temporary database, Supertest and injected browser/LLM/`pdftotext` stubs | No real Chromium, network or `pdftotext` in the suite |
+| Testability | 285 backend tests + 43 frontend tests; temporary database, Supertest and injected browser/LLM/`pdftotext` stubs | No real Chromium, network or `pdftotext` in the suite |
 | Security | Zod validation, path traversal blocked, LLM key masked by the API | No authentication; assumes local use |
 | Performance | Indexes on status, date, company and job_id; WAL | No cache; N+1 when listing artifacts per job |
 | Observability | Error logs in the global handler; health check | No metrics or tracing |

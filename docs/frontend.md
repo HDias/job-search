@@ -98,7 +98,7 @@ HTTP errors become an `ApiError` with `status` and the backend's message. The de
 | `StateMessage` | Loading, error with retry and empty |
 | `Admin` | PDF appearance, form data and link to App Settings |
 | `AppSettings` | New-target form and a list of cards per stack × language |
-| `TargetCard` | Base resume, extra instructions, activation and removal of a target |
+| `TargetCard` | Base resume (text or PDF upload), extra instructions, activation and removal |
 | `CheckpointPanel` | `needs_input` question: suggested options, approve/reject inferences and the answer |
 | `PipelineActions` | "Rodar fit-check" and "Gerar kit" entrypoints, disabled without a source or a run |
 
@@ -163,6 +163,8 @@ They cover:
   shows the API error without losing the answer.
 - Pipeline actions (`JobPipelineActions.test.tsx`): fit-check and generate-kit payloads, cache
   invalidation, the disabled state without a source and the `409` gate message.
+- Target card: PDF upload through multipart (no JSON content type), 413 and 422 messages, and the
+  local read path for text files.
 
 `fetch` is mocked per test; there is no need to run the API. See [testing.md](./testing.md).
 
@@ -177,12 +179,11 @@ They cover:
 - **Configurable targets in App Settings.** Each target is a row in `profiles` (`stack × language`),
   editable in the UI: base resume, extra instructions, enable/disable and remove. Full description
   in [ADR-0009](./adr/0009-configurable-targets.md).
-- **Base resume upload stays in the API.** `POST /api/profiles/:stack/:language/upload` accepts
-  multipart up to 10 MB, extracts PDF text with `pdftotext` and persists only the text; the UI
-  keeps offering text/`.txt`/`.md`/`.html` editing through `PUT /api/profiles/:stack/:language`.
+- **Base resume upload goes through the API.** `POST /api/profiles/:stack/:language/upload`
+  accepts multipart up to 10 MB, extracts PDF text with `pdftotext` and persists only the text;
+  text files are still read in the browser and saved with `PUT /api/profiles/:stack/:language`.
 
 ## 10. Next steps
 
 1. Optimistic status updates.
-2. Upload control for the new base resume endpoint.
-3. Retire the old UI for good and remove the compatibility routes (roadmap §3).
+2. Retire the old UI for good and remove the compatibility routes (roadmap §3).

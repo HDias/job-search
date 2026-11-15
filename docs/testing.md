@@ -160,7 +160,7 @@ A suite dedicated to exercising **every HTTP route** and the edge cases the UI w
 | `web/src/pages/JobCheckpoint.test.tsx` | 4 | Question/options, answer + refetch, empty answer, inference approval and API error |
 | `web/src/pages/JobPipelineActions.test.tsx` | 4 | fit-check/generate-kit payloads, invalidation, disabled state and the 409 message |
 | `web/src/pages/Admin.test.tsx` | 6 | PDF theme, form data and the LLM panel (masked key, key preservation) |
-| `web/src/pages/AppSettings.test.tsx` | 6 | Target CRUD, `extraPrompt`, enable/disable and errors |
+| `web/src/pages/AppSettings.test.tsx` | 10 | Target CRUD, `extraPrompt`, enable/disable, errors and PDF upload |
 
 `fetch` is mocked with responses in the API's format. The tests use `MemoryRouter` and a
 `QueryClient` without retry. The 4 s polling is not exercised with timers: the "active run" rule

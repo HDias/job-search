@@ -72,15 +72,15 @@ Goal: move the heavy v1 pipeline into `src/pipeline/` behind the v2 API, keeping
 - [x] `POST /api/generate-kit` (202) with the 409 gates and `needs_input` replay without LLM.
 - [x] Interactive queue: `GET /api/runs/:id/question` and `POST /api/runs/:id/respond` (≤ 2 rounds).
 - [x] `POST /api/jobs/:id/regenerate` (202) preserving id/status/dates.
-- [x] Base resume upload with `pdftotext` (`POST /api/profiles/:stack/:language/upload`).
+- [x] Base resume upload with `pdftotext` (`POST /api/profiles/:stack/:language/upload`), including
+  the control in App Settings.
 - [x] Candidate data derived from the base resume.
-- [x] Full gate: 285 backend tests, 39 frontend tests, `typecheck`, `typecheck:web` and `build:web`.
+- [x] Full gate: 285 backend tests, 43 frontend tests, `typecheck`, `typecheck:web` and `build:web`.
 
 **Registered backlog**
 
 - Pre-fill dry-run (`apply_assistant.mjs`) and `scrape_application_questions.mjs` — standalone v1
   scripts, deliberately out of the port.
-- Upload control in the SPA for the new base resume endpoint.
 - Retire the old UI and remove the `/api/applications` + `/api/processes` compatibility routes.
 
 ## 2. Technical backlog
@@ -89,7 +89,7 @@ Goal: move the heavy v1 pipeline into `src/pipeline/` behind the v2 API, keeping
 |---|---|---|
 | High | React frontend | Replace the old UI |
 | High | Aggregate endpoint for listings (eliminates N+1) | Performance |
-| Medium | Upload control in the SPA for base resumes | Removes the last v1-only flow |
+| Low | Retire the old UI and the compatibility routes | Removes duplicated surface |
 | Medium | Authentication and real `owner_id` | Multi-user |
 | Medium | Authorization tests | Security |
 | Low | Metrics and tracing | Observability |
@@ -105,7 +105,7 @@ Goal: move the heavy v1 pipeline into `src/pipeline/` behind the v2 API, keeping
 - [x] Admin reads/writes theme and form data.
 - [x] App Settings manages targets, base resumes and extra instructions.
 - [x] No screen depends on `/api/applications`.
-- [x] Frontend tests passing (39).
+- [x] Frontend tests passing (43).
 - [ ] The old UI can be retired (pending the upload control and the compatibility-route removal).
 
 ## 4. Risks

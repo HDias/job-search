@@ -13,7 +13,7 @@ migration history and next steps.
 | 3 | Pipeline port: scrape, fit, kit + PDF, interactive queue, upload | ✅ Complete |
 
 **Current numbers:** 16 jobs, 34 runs (17 orphans), 97 artifacts, 4 profiles and 2 settings
-imported; 285 backend tests + 39 frontend tests; API and SPA on port `3344`, Vite on `5173`.
+imported; 285 backend tests + 43 frontend tests; API and SPA on port `3344`, Vite on `5173`.
 The v1 app remains on `3333` as a fallback until its UI is retired (see [roadmap.md](./roadmap.md)).
 
 ## Where to start
