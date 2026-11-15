@@ -19,7 +19,8 @@ import type {
   ProfilePatch,
   RespondInput,
 } from './types';
-import { hasActiveRuns } from '../lib/runs';
+import { hasActiveRuns, isRunActive } from '../lib/runs';
+import type { Run } from './types';
 
 export function useStats() {
   return useQuery({
@@ -45,6 +46,19 @@ export function useJob(id: string | undefined) {
     refetchInterval: (query) => {
       const data = query.state.data as JobDetailResponse | undefined;
       return hasActiveRuns(data?.runs) ? 4000 : false;
+    },
+  });
+}
+
+/** One pipeline run, polled every 4 s while it is still active. */
+export function useRun(id: string | null) {
+  return useQuery({
+    queryKey: ['run', id],
+    queryFn: () => api.run(id as string),
+    enabled: Boolean(id),
+    refetchInterval: (query) => {
+      const data = query.state.data as Run | undefined;
+      return data && isRunActive(data) ? 4000 : false;
     },
   });
 }
@@ -192,8 +206,9 @@ export function useRespondToRun(jobId: string | null) {
   return useMutation({
     mutationFn: ({ runId, input }: { runId: string; input: RespondInput }) =>
       api.respondToRun(runId, input),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      void queryClient.invalidateQueries({ queryKey: ['run', variables.runId] });
       void queryClient.invalidateQueries({ queryKey: ['jobs'] });
       void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
@@ -219,13 +234,13 @@ export function useSaveLlmConfig() {
 }
 
 /** Enqueues a fit-check for a job and lets the existing polling pick it up. */
-export function useFitCheck(jobId: string) {
+export function useFitCheck(jobId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: FitCheckInput) => api.fitCheck(input),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      if (jobId) void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
       void queryClient.invalidateQueries({ queryKey: ['jobs'] });
       void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
@@ -233,13 +248,13 @@ export function useFitCheck(jobId: string) {
 }
 
 /** Enqueues a kit generation/regeneration for a job (D2: 202 + polling). */
-export function useGenerateKit(jobId: string) {
+export function useGenerateKit(jobId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: GenerateKitInput) => api.generateKit(input),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      if (jobId) void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
       void queryClient.invalidateQueries({ queryKey: ['jobs'] });
       void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },

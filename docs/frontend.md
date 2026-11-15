@@ -110,7 +110,8 @@ HTTP errors become an `ApiError` with `status` and the backend's message. The de
 | `PipelineActions` | "Rodar fit-check" and "Gerar kit" entrypoints, disabled without a source or a run |
 | `ApplyActions` | "Pré-preencher formulário" and "Extrair perguntas"; disabled without an apply URL and a kit; shows the dry-run report links and the platform/question summary |
 | `ApplyConfirm` | "Marcar como aplicada" form (note, channel, e-mails); always sends `approved: true` and shows the API error |
-| `ApplyRowAction` | One-click "Marcar como aplicada" per dashboard row; shows `aplicada` once the status is applied |
+| `JobStatusSelect` | Interactive status cell in the dashboard table (v1 parity); choosing "Aplicado" goes through apply-confirm, other statuses use `PATCH /api/jobs/:id` |
+| `NewJobModal` | "Nova vaga com IA": URL or pasted description → fit-check → language/fit confirmation → kit, with the LLM checkpoint inline |
 | `ChatPanel` | Post-response thread, free message input and the quick-action prompts |
 
 `ArtifactList` deduplicates by `kind` (keeping the most recent) and sorts by relevance. The links

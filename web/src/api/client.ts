@@ -24,6 +24,7 @@ import type {
   RespondInput,
   RespondResponse,
   ResumeUploadResponse,
+  Run,
 } from './types';
 
 export class ApiError extends Error {
@@ -78,6 +79,8 @@ export const api = {
 
   job: (id: string) =>
     request<JobDetailResponse>(`/api/jobs/${encodeURIComponent(id)}`),
+
+  run: (id: string) => request<Run>(`/api/runs/${encodeURIComponent(id)}`),
 
   updateJob: (id: string, patch: Partial<Job>) =>
     request<Job>(`/api/jobs/${encodeURIComponent(id)}`, {
