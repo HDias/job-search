@@ -7,6 +7,7 @@
  * tests never launch a real browser.
  */
 
+import { evaluateInPage } from '../browser-eval.js';
 import { detectLanguageScores } from '../content.js';
 
 const USER_AGENT =
@@ -31,7 +32,7 @@ export interface ScrapePage {
     options?: { waitUntil?: string; timeout?: number },
   ): Promise<unknown>;
   waitForTimeout?(ms: number): Promise<void>;
-  evaluate<T>(callback: () => T): Promise<T>;
+  evaluate<T>(callback: string | (() => T)): Promise<T>;
   close?(): Promise<void>;
 }
 
@@ -168,14 +169,31 @@ export async function scrapeGreenhouseApi(
   };
 }
 
+function isMissingBrowserError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("Executable doesn't exist") ||
+    message.includes('playwright install')
+  );
+}
+
 async function defaultLauncher(): Promise<ScrapeBrowser> {
   // Loaded lazily so importing the pipeline never requires the browser binary.
   const { chromium } = await import('playwright');
-  const browser = await chromium.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
-  return browser as unknown as ScrapeBrowser;
+  try {
+    const browser = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    return browser as unknown as ScrapeBrowser;
+  } catch (error) {
+    if (isMissingBrowserError(error)) {
+      throw new Error(
+        'Navegador do Playwright não instalado. Rode `pnpm exec playwright install chromium` e tente novamente.',
+      );
+    }
+    throw error;
+  }
 }
 
 export async function scrapeJob(
@@ -215,7 +233,7 @@ export async function scrapeJob(
     if (deps.wait) await deps.wait(3000);
     else if (page.waitForTimeout) await page.waitForTimeout(3000);
 
-    const data = (await page.evaluate(() => {
+    const data = (await evaluateInPage(page, () => {
       const clean = (text: string | null | undefined): string =>
         text ? text.replace(/\s+/g, ' ').trim() : '';
 

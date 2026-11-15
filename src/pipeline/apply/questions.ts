@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { evaluateInPage } from '../browser-eval.js';
 import {
   launchApplyBrowser,
   type ApplyBrowser,
@@ -400,7 +401,7 @@ export async function scrapeApplicationQuestions(
     if (page.waitForTimeout) await page.waitForTimeout(3000);
     else await wait(3000);
 
-    const controls = await page.evaluate(collectFormControls);
+    const controls = await evaluateInPage(page, collectFormControls);
     const result = buildQuestionsResult({
       url: input.url,
       platform: detectAtsPlatform(input.url),

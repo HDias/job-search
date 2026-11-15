@@ -204,6 +204,7 @@ converted by the central `errorHandler`.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `Could not locate the bindings file` | `better-sqlite3` didn't compile | `pnpm rebuild better-sqlite3`; check `allowBuilds` |
+| `browserType.launch: Executable doesn't exist` | Playwright browser binary missing (not downloaded by `pnpm install`) | `pnpm exec playwright install chromium` |
 | `SQLITE_BUSY` | Two processes writing | Use one process per database; WAL helps but doesn't eliminate it |
 | `banco já contém dados` on import | Import without `--reset` | `pnpm db:import -- --reset` |
 | Artifact 404 | Wrong path in `APPLICATIONS_DIR` | Check the variable and the `relativePath` in the database |
