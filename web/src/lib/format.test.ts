@@ -45,7 +45,10 @@ describe('format', () => {
   });
 
   it('aponta cada artefato para o visualizador correto', () => {
-    expect(artifactHref('app_1', artifact('cv_pdf'))).toBe('/cv/app_1');
+    expect(artifactHref('app_1', artifact('cv_html'))).toBe('/cv/app_1');
+    expect(artifactHref('app_1', artifact('cv_pdf', 'acme/curriculo.pdf'))).toBe(
+      '/applications/acme/curriculo.pdf',
+    );
     expect(artifactHref('app_1', artifact('email_text'))).toBe('/extras/app_1/email');
     expect(artifactHref('app_1', artifact('recruiter_note'))).toBe('/extras/app_1/recruiter');
     expect(artifactHref('app_1', artifact('questions'))).toBe('/extras/app_1/suggestions');

@@ -63,6 +63,31 @@ export function useRun(id: string | null) {
   });
 }
 
+/** Interrupted checkpoints, polled while a run is still moving. */
+const LIVE_STAGES = new Set(['queued', 'scraping', 'generating']);
+
+export function useRuns() {
+  return useQuery({
+    queryKey: ['runs', 'unfinished'],
+    queryFn: () => api.runs({ unfinished: true, limit: 200 }),
+    refetchInterval: (query) => {
+      const data = query.state.data as Run[] | undefined;
+      return data?.some((run) => LIVE_STAGES.has(run.stage)) ? 4000 : false;
+    },
+  });
+}
+
+export function useDeleteRun() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => api.deleteRun(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['runs'] });
+    },
+  });
+}
+
 export function useUpdateJob() {
   const queryClient = useQueryClient();
 
@@ -76,6 +101,22 @@ export function useUpdateJob() {
           : current,
       );
       void queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
+  });
+}
+
+/** Removes the job and everything generated for it (runs, kits, chats). */
+export function useDeleteJob() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => api.deleteJob(id),
+    onSuccess: (_data, id) => {
+      queryClient.removeQueries({ queryKey: ['job', id] });
+      queryClient.removeQueries({ queryKey: ['run'] });
+      void queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      void queryClient.invalidateQueries({ queryKey: ['runs'] });
       void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
   });
@@ -209,6 +250,7 @@ export function useRespondToRun(jobId: string | null) {
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
       void queryClient.invalidateQueries({ queryKey: ['run', variables.runId] });
+      void queryClient.invalidateQueries({ queryKey: ['runs'] });
       void queryClient.invalidateQueries({ queryKey: ['jobs'] });
       void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
@@ -241,6 +283,7 @@ export function useFitCheck(jobId?: string) {
     mutationFn: (input: FitCheckInput) => api.fitCheck(input),
     onSuccess: () => {
       if (jobId) void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      void queryClient.invalidateQueries({ queryKey: ['runs'] });
       void queryClient.invalidateQueries({ queryKey: ['jobs'] });
       void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
@@ -255,6 +298,23 @@ export function useGenerateKit(jobId?: string) {
     mutationFn: (input: GenerateKitInput) => api.generateKit(input),
     onSuccess: () => {
       if (jobId) void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      void queryClient.invalidateQueries({ queryKey: ['runs'] });
+      void queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
+  });
+}
+
+/** Rebuilds an existing application's kit without re-scraping or re-running the fit. */
+export function useRegenerateKit(jobId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { artifacts?: string[]; guidance?: string } = {}) =>
+      api.regenerateKit(jobId, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      void queryClient.invalidateQueries({ queryKey: ['runs'] });
       void queryClient.invalidateQueries({ queryKey: ['jobs'] });
       void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
@@ -281,14 +341,6 @@ export function useChat(jobId: string) {
         };
       });
     },
-  });
-}
-
-/** Dry-run prefill (`POST /api/jobs/:id/prefill`); synchronous, no Submit. */
-export function usePrefill(jobId: string) {
-  return useMutation({
-    mutationFn: (input: { applyUrl?: string; headed?: boolean } = {}) =>
-      api.prefill(jobId, input),
   });
 }
 

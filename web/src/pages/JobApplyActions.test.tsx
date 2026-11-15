@@ -6,9 +6,8 @@ import type { Artifact, Fit, Job } from '../api/types';
 import { jsonResponse, renderWithProviders } from '../test/utils';
 
 /**
- * Prefill dry-run and application-question extraction (D8): the React UI only
- * consumes the endpoints that already exist, and never launches Chromium —
- * the API is stubbed here.
+ * Application-question extraction (D8): the React UI only consumes the
+ * endpoint, and never launches Chromium — the API is stubbed here.
  */
 
 const fit: Fit = {
@@ -65,8 +64,6 @@ const kitArtifact: Artifact = {
 interface StubOptions {
   job?: Job;
   artifacts?: Artifact[];
-  prefillStatus?: number;
-  prefillError?: string;
   questionsStatus?: number;
   questionsError?: string;
 }
@@ -79,30 +76,6 @@ function stubApi(options: StubOptions = {}) {
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
-
-      if (method === 'POST' && url.endsWith(`/api/jobs/${job.id}/prefill`)) {
-        if (options.prefillError) {
-          return jsonResponse(
-            { error: options.prefillError },
-            options.prefillStatus ?? 400,
-          );
-        }
-        return jsonResponse({
-          success: true,
-          prefill: {
-            status: 'AGUARDANDO_APROVACAO_HUMANA',
-            filledFields: [
-              { field: 'Email', selector: 'input[type="email"]', value: 'me@example.com' },
-              { field: 'Nome Completo', selector: 'input[name="name"]', value: 'Horecio' },
-            ],
-            resumeAttached: true,
-            submitButtonDetected: { text: 'Enviar', visible: true },
-            screenshotUrl: '/applications/acme_rails_engineer/preview_before_submit.png',
-            reportUrl: '/applications/acme_rails_engineer/application_dry_run_report.json',
-            notice: 'NENHUMA submissão foi realizada.',
-          },
-        });
-      }
 
       if (method === 'POST' && url.endsWith(`/api/jobs/${job.id}/questions`)) {
         if (options.questionsError) {
@@ -164,7 +137,7 @@ afterEach(() => {
 });
 
 describe('JobDetail apply actions', () => {
-  it('renders both actions and disables them without a URL or a kit', async () => {
+  it('disables the extract action without a URL or a kit', async () => {
     stubApi({
       job: makeJob({ applyUrl: null, vacancyUrl: null }),
       artifacts: [],
@@ -172,34 +145,9 @@ describe('JobDetail apply actions', () => {
     renderWithProviders(<App />, ['/jobs/app_7']);
 
     expect(
-      await screen.findByRole('button', { name: 'Pré-preencher formulário' }),
+      await screen.findByRole('button', { name: 'Extrair perguntas' }),
     ).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Extrair perguntas' })).toBeDisabled();
     expect(screen.getByText(/URL de candidatura e o kit/i)).toBeInTheDocument();
-  });
-
-  it('runs the prefill dry-run and shows the report links', async () => {
-    const user = userEvent.setup();
-    const { fetchMock } = stubApi();
-    renderWithProviders(<App />, ['/jobs/app_7']);
-
-    await user.click(
-      await screen.findByRole('button', { name: 'Pré-preencher formulário' }),
-    );
-
-    await waitFor(() =>
-      expect(callsTo(fetchMock, '/api/jobs/app_7/prefill')).toHaveLength(1),
-    );
-    expect(await screen.findByText(/2 campos preenchidos/i)).toBeInTheDocument();
-    expect(screen.getByText(/Currículo anexado: sim/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ver screenshot' })).toHaveAttribute(
-      'href',
-      '/applications/acme_rails_engineer/preview_before_submit.png',
-    );
-    expect(screen.getByRole('link', { name: 'Ver relatório' })).toHaveAttribute(
-      'href',
-      '/applications/acme_rails_engineer/application_dry_run_report.json',
-    );
   });
 
   it('extracts the application questions and shows the platform summary', async () => {

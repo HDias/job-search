@@ -19,7 +19,6 @@ import type {
   PdfTheme,
   Profile,
   ProfilePatch,
-  PrefillResponse,
   QuestionsResponse,
   RespondInput,
   RespondResponse,
@@ -82,10 +81,27 @@ export const api = {
 
   run: (id: string) => request<Run>(`/api/runs/${encodeURIComponent(id)}`),
 
+  /** Unfinished checkpoints (the "continue where you left off" list). */
+  runs: (filter: { unfinished?: boolean; limit?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (filter.unfinished) params.set('unfinished', 'true');
+    if (filter.limit) params.set('limit', String(filter.limit));
+    const query = params.toString();
+    return request<Run[]>(`/api/runs${query ? `?${query}` : ''}`);
+  },
+
+  deleteRun: (id: string) =>
+    request<void>(`/api/runs/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
   updateJob: (id: string, patch: Partial<Job>) =>
     request<Job>(`/api/jobs/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
+    }),
+
+  deleteJob: (id: string) =>
+    request<void>(`/api/jobs/${encodeURIComponent(id)}?purge=true`, {
+      method: 'DELETE',
     }),
 
   baseResumes: () => request<BaseResumeMap>('/api/base-resumes'),
@@ -151,6 +167,16 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
+  /** Rebuilds the kit of an existing application from the saved snapshot. */
+  regenerateKit: (
+    id: string,
+    input: { artifacts?: string[]; guidance?: string } = {},
+  ) =>
+    request<EnqueuedRun>(`/api/jobs/${encodeURIComponent(id)}/regenerate`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
   llmConfig: () => request<LlmConfigView>('/api/llm-config'),
 
   saveLlmConfig: (patch: LlmConfigPatch) =>
@@ -162,16 +188,6 @@ export const api = {
   respondToRun: (runId: string, input: RespondInput) =>
     request<RespondResponse>(
       `/api/runs/${encodeURIComponent(runId)}/respond`,
-      {
-        method: 'POST',
-        body: JSON.stringify(input),
-      },
-    ),
-
-  /** Dry-run prefill; the backend never clicks Submit (D8). */
-  prefill: (jobId: string, input: { applyUrl?: string; headed?: boolean } = {}) =>
-    request<PrefillResponse>(
-      `/api/jobs/${encodeURIComponent(jobId)}/prefill`,
       {
         method: 'POST',
         body: JSON.stringify(input),

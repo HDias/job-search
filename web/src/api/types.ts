@@ -187,6 +187,8 @@ export interface GenerateKitInput {
   rejectedInferences?: string[];
   coverLetterGuidance?: string;
   includeCoverInCv?: string | boolean;
+  /** Artifact kinds to write; omitted means every kind. */
+  artifacts?: string[];
 }
 
 export interface EnqueuedRun {
@@ -220,34 +222,6 @@ export interface JobDetailResponse {
   job: Job;
   runs: Run[];
   artifacts: Artifact[];
-}
-
-/** One field the dry-run filled (`POST /api/jobs/:id/prefill`). */
-export interface FilledField {
-  field: string;
-  selector: string;
-  value?: string;
-  file?: string;
-}
-
-export interface SubmitButtonInfo {
-  text?: string;
-  visible: boolean;
-}
-
-export interface PrefillSummary {
-  status: string;
-  filledFields: FilledField[];
-  resumeAttached: boolean;
-  submitButtonDetected: SubmitButtonInfo;
-  screenshotUrl: string;
-  reportUrl: string;
-  notice: string;
-}
-
-export interface PrefillResponse {
-  success: boolean;
-  prefill: PrefillSummary;
 }
 
 export type AtsPlatform = 'greenhouse' | 'lever' | 'workable' | 'generic';

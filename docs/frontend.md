@@ -38,7 +38,7 @@ web/
 
 | Route | Page | Source |
 |---|---|---|
-| `/` | Dashboard | `GET /api/stats` + `GET /api/jobs` (filters in the query string) |
+| `/` | Dashboard | `GET /api/stats` + `GET /api/jobs` (filters in the query string) + `GET /api/runs?unfinished=true` (interrupted checkpoints) |
 | `/jobs/:id` | Job detail | `GET /api/jobs/:id` |
 | `/admin` | PDF appearance, form data and LLM configuration | `GET/PUT` of pdf-theme and candidate-data, `GET/PUT /api/llm-config` |
 | `/admin/settings` | App Settings (targets and base resumes) | `GET/POST/PUT/DELETE` of profiles |
@@ -80,7 +80,7 @@ flowchart LR
 - `useFitCheck(jobId)` / `useGenerateKit(jobId)` → `POST /api/fit-check` / `/api/generate-kit`;
   both answer `202 { runId }` and the mutations only invalidate the caches, the detail polling
   picks the run up
-- `usePrefill(jobId)` / `useQuestions(jobId)` → `POST /api/jobs/:id/prefill` and
+- `useQuestions(jobId)` →
   `/api/jobs/:id/questions`; synchronous, the result stays in the component
 - `useApplyConfirm(jobId)` → `POST /api/jobs/:id/apply-confirm` with `approved: true`; on success
   it writes the returned job into `['job', id]` and invalidates `['job', id]`, `['jobs']` and
@@ -96,28 +96,32 @@ HTTP errors become an `ApiError` with `status` and the backend's message. The de
 | Component | Responsibility |
 |---|---|
 | `Layout` | Topbar, navigation and footer |
-| `Dashboard` | Stats, search, filter, table and pagination |
-| `JobDetail` | Header, status change, fit, runs, artifacts and summary |
+| `Dashboard` | Stats, interrupted checkpoints ("continue where you left off"), search, filter, table, permanent delete and pagination |
+| `JobDetail` | Header, status change, guided next steps (analyse/kit, apply, confirm), fit, runs, artifacts and summary |
+| `InterruptedRuns` | Unfinished runs that can be resumed in the new-job modal (or from the job page) or discarded |
 | `FitPanel` | Rating, analysis, dimensions, strengths, gaps and eligibility |
 | `RunList` | Checkpoints with stage, flags and expandable snapshot |
-| `ArtifactList` | One link per type, pointing to the right viewer |
+| `ArtifactList` | One link per generated type; kinds left out of the kit stay listed as disabled rows with a "Gerar" action that rebuilds the kit from the saved snapshot |
 | `StatusBadge` | Colors and labels per status |
 | `StateMessage` | Loading, error with retry and empty |
 | `Admin` | PDF appearance, form data and link to App Settings |
 | `AppSettings` | New-target form and a list of cards per stack × language |
 | `TargetCard` | Base resume (text or PDF upload), extra instructions, activation and removal |
 | `CheckpointPanel` | `needs_input` question: suggested options, approve/reject inferences and the answer |
-| `PipelineActions` | "Rodar fit-check" and "Gerar kit" entrypoints, disabled without a source or a run |
-| `ApplyActions` | "Pré-preencher formulário" and "Extrair perguntas"; disabled without an apply URL and a kit; shows the dry-run report links and the platform/question summary |
+| `PipelineActions` | Sequential entrypoints: "Rodar fit-check" then "Gerar kit"; both are disabled while a run is queued/scraping/generating/needs_input, and the kit only unlocks at `fit-checked` with the language/fit gates passed; once the run is `done`, the kit button becomes "Regerar kit" (`POST /api/jobs/:id/regenerate`, reusing the saved snapshot) |
+| `ApplyActions` | "Extrair perguntas"; disabled without an apply URL and a kit; shows the platform/question summary |
 | `ApplyConfirm` | "Marcar como aplicada" form (note, channel, e-mails); always sends `approved: true` and shows the API error |
 | `JobStatusSelect` | Interactive status cell in the dashboard table (v1 parity); choosing "Aplicado" goes through apply-confirm, other statuses use `PATCH /api/jobs/:id` |
-| `NewJobModal` | "Nova vaga com IA": URL or pasted description → fit-check → language/fit confirmation → kit, with the LLM checkpoint inline |
+| `JobChannelEditor` | Inline channel field in the job summary (`PATCH /api/jobs/:id` with `channel`), so a draft can record where it came from without the apply form |
+| `ArtifactList` | One link per generated type; kinds left out of the kit stay listed as disabled rows with a "Gerar" action that rebuilds the kit from the saved snapshot |
+| `NewJobModal` | "Nova vaga com IA": URL or pasted description → fit-check → language/fit confirmation → kit, with the LLM checkpoint inline; a file checklist (all checked by default) picks which artifacts to write |
 | `ChatPanel` | Post-response thread, free message input and the quick-action prompts |
 
 `ArtifactList` deduplicates by `kind` (keeping the most recent) and sorts by relevance. The links
 use the backend viewers:
 
-- CV → `/cv/:jobId`
+- CV HTML → `/cv/:jobId`
+- CV PDF → `/applications/<relativePath>` (opens the PDF file itself; the viewer renders HTML)
 - email → `/extras/:jobId/email`
 - recruiter/LinkedIn → `/extras/:jobId/recruiter`
 - questions/suggestions → `/extras/:jobId/suggestions`

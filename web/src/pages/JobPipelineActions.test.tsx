@@ -106,6 +106,12 @@ function stubApi(options: StubOptions = {}) {
         }
         return jsonResponse({ runId: 'proc_gen' }, 202);
       }
+      if (method === 'POST' && url.endsWith('/regenerate')) {
+        if (options.enqueueError) {
+          return jsonResponse({ error: options.enqueueError }, options.enqueueStatus ?? 409);
+        }
+        return jsonResponse({ runId: 'proc_regen' }, 202);
+      }
       if (url.endsWith(`/api/jobs/${job.id}`)) {
         jobReads += 1;
         return jsonResponse({ job, runs: options.runs ?? [run], artifacts: [] });
@@ -164,9 +170,11 @@ describe('JobDetail pipeline actions', () => {
     await waitFor(() => expect(jobReads()).toBeGreaterThan(1));
   });
 
-  it('enqueues a kit generation for the latest run', async () => {
+  it('enqueues a kit generation once the fit-check is done', async () => {
     const user = userEvent.setup();
-    const { fetchMock } = stubApi();
+    const { fetchMock } = stubApi({
+      runs: [{ ...run, stage: 'fit-checked' }],
+    });
     renderWithProviders(<App />, ['/jobs/app_5']);
 
     await user.click(await screen.findByRole('button', { name: 'Gerar kit' }));
@@ -179,6 +187,68 @@ describe('JobDetail pipeline actions', () => {
       String((callsTo(fetchMock, '/api/generate-kit')[0]?.[1] as RequestInit).body),
     );
     expect(body.processId).toBe('proc_5');
+  });
+
+  it('keeps both steps disabled while the fit-check is still running', async () => {
+    stubApi({
+      runs: [{ ...run, stage: 'scraping', fit: null }],
+    });
+    renderWithProviders(<App />, ['/jobs/app_5']);
+
+    expect(
+      await screen.findByRole('button', { name: 'Rodar fit-check' }),
+    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Gerar kit' })).toBeDisabled();
+    expect(
+      screen.getByText(/Aguarde o processamento atual/),
+    ).toBeInTheDocument();
+  });
+
+  it('enables the kit only after the fit-check is checked and the gates pass', async () => {
+    stubApi({ runs: [{ ...run, stage: 'fit-checked' }] });
+    renderWithProviders(<App />, ['/jobs/app_5']);
+
+    expect(
+      await screen.findByRole('button', { name: 'Gerar kit' }),
+    ).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Rodar fit-check' })).toBeEnabled();
+  });
+
+  it('keeps the kit disabled when the fit-check still needs a confirmation', async () => {
+    stubApi({
+      runs: [{ ...run, stage: 'fit-checked', needsLanguageConfirmation: true }],
+    });
+    renderWithProviders(<App />, ['/jobs/app_5']);
+
+    expect(
+      await screen.findByRole('button', { name: 'Gerar kit' }),
+    ).toBeDisabled();
+  });
+
+  it('rebuilds the kit once the generation is done', async () => {
+    const user = userEvent.setup();
+    const { fetchMock } = stubApi({ runs: [{ ...run, stage: 'done' }] });
+    renderWithProviders(<App />, ['/jobs/app_5']);
+
+    const button = await screen.findByRole('button', { name: 'Regerar kit' });
+    expect(button).toBeEnabled();
+
+    await user.click(button);
+
+    await waitFor(() =>
+      expect(
+        callsTo(fetchMock, '/api/jobs/app_5/regenerate'),
+      ).toHaveLength(1),
+    );
+  });
+
+  it('shows a spinner on the kit button while it is generating', async () => {
+    stubApi({ runs: [{ ...run, stage: 'generating', fit: null }] });
+    renderWithProviders(<App />, ['/jobs/app_5']);
+
+    const button = await screen.findByRole('button', { name: /Gerando kit/ });
+    expect(button).toBeDisabled();
+    expect(button.querySelector('.spinner')).not.toBeNull();
   });
 
   it('disables fit-check when the job has no source and no run', async () => {
@@ -196,6 +266,7 @@ describe('JobDetail pipeline actions', () => {
   it('surfaces the 409 from the pipeline gate', async () => {
     const user = userEvent.setup();
     stubApi({
+      runs: [{ ...run, stage: 'fit-checked' }],
       enqueueError: 'Confirme o idioma antes de gerar o kit',
       enqueueStatus: 409,
     });

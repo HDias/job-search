@@ -185,6 +185,89 @@ describe('New job modal', () => {
       language: 'en',
       fitConfirmed: true,
     });
+    expect(kitBody.artifacts).toHaveLength(8);
+    expect(kitBody.artifacts).toContain('cv_pdf');
+  });
+
+  it('desmarca arquivos do kit e envia só os selecionados', async () => {
+    const user = userEvent.setup();
+    const fetchMock = stubApi(makeRun());
+    renderWithProviders(<App />);
+
+    await user.click(
+      await screen.findByRole('button', { name: /Nova vaga com IA/ }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await user.type(
+      within(dialog).getByLabelText(/Link da vaga/),
+      'https://example.com/jobs/1',
+    );
+    await user.click(
+      within(dialog).getByRole('button', { name: /1\/2 Analisar fit/ }),
+    );
+
+    await within(dialog).findByText('72%');
+    const language = within(dialog).getByLabelText('Confirmar idioma do currículo');
+    await user.selectOptions(language, 'en');
+
+    const coverPdf = within(dialog).getByRole('checkbox', {
+      name: 'Cover letter (PDF)',
+    });
+    const coverHtml = within(dialog).getByRole('checkbox', {
+      name: 'Cover letter (HTML)',
+    });
+    expect(coverPdf).toBeChecked();
+    await user.click(coverPdf);
+    await user.click(coverHtml);
+
+    await user.click(
+      within(dialog).getByRole('button', { name: /2\/2 Gerar kit/ }),
+    );
+
+    await waitFor(() =>
+      expect(callsTo(fetchMock, '/api/generate-kit', 'POST')).toHaveLength(1),
+    );
+    const kitBody = JSON.parse(
+      String(
+        (callsTo(fetchMock, '/api/generate-kit', 'POST')[0]?.[1] as RequestInit)
+          .body,
+      ),
+    );
+
+    expect(kitBody.artifacts).not.toContain('cover_letter_pdf');
+    expect(kitBody.artifacts).not.toContain('cover_letter_html');
+    expect(kitBody.artifacts).toContain('cv_pdf');
+    expect(kitBody.artifacts).toHaveLength(6);
+  });
+
+  it('mostra spinner no botão enquanto o kit é gerado', async () => {
+    const user = userEvent.setup();
+    stubApi(
+      makeRun({
+        stage: 'generating',
+        needsLanguageConfirmation: false,
+        fit: null,
+      }),
+    );
+    renderWithProviders(<App />);
+
+    await user.click(
+      await screen.findByRole('button', { name: /Nova vaga com IA/ }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    await user.type(
+      within(dialog).getByLabelText(/Link da vaga/),
+      'https://example.com/jobs/1',
+    );
+    await user.click(
+      within(dialog).getByRole('button', { name: /1\/2 Analisar fit/ }),
+    );
+
+    const button = await within(dialog).findByRole('button', {
+      name: /Gerando kit/,
+    });
+    expect(button).toBeDisabled();
+    expect(button.querySelector('.spinner')).not.toBeNull();
   });
 
   it('mostra a pergunta da LLM e envia a resposta do checkpoint', async () => {

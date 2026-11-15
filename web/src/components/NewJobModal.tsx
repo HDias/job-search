@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
   useFitCheck,
@@ -7,11 +7,14 @@ import {
   useRun,
 } from '../api/hooks';
 import { CheckpointPanel } from './CheckpointPanel';
+import { KIT_FILE_OPTIONS } from '../lib/kitFiles';
 import { STAGE_LABELS, formatFit } from '../lib/format';
 
 interface NewJobModalProps {
   open: boolean;
   onClose: () => void;
+  /** Resumes a saved checkpoint instead of starting a new fit-check. */
+  initialRunId?: string | null;
 }
 
 const LANGUAGES = [
@@ -25,8 +28,12 @@ const LANGUAGES = [
  * the checkpoint and only creates the job when the kit is generated, which is
  * where the async pipeline already owns the `jobs` insert.
  */
-export function NewJobModal({ open, onClose }: NewJobModalProps) {
-  const [runId, setRunId] = useState<string | null>(null);
+export function NewJobModal({
+  open,
+  onClose,
+  initialRunId = null,
+}: NewJobModalProps) {
+  const [runId, setRunId] = useState<string | null>(initialRunId);
   const [withoutLink, setWithoutLink] = useState(false);
   const [url, setUrl] = useState('');
   const [rawText, setRawText] = useState('');
@@ -38,12 +45,40 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
   const [stack, setStack] = useState('ruby');
   const [language, setLanguage] = useState<'pt-br' | 'en'>('pt-br');
   const [fitConfirmed, setFitConfirmed] = useState(false);
+  const [files, setFiles] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(KIT_FILE_OPTIONS.map(({ kind }) => [kind, true])),
+  );
 
   const fitCheck = useFitCheck();
   const generateKit = useGenerateKit();
   const respond = useRespondToRun(null);
   const runQuery = useRun(runId);
   const run = runQuery.data ?? null;
+  const hydratedInitialRun = useRef(false);
+
+  // Resume in place: restore the language, stack and free-text fields saved on
+  // the checkpoint. Only for runs opened from the "interrupted" list, so a
+  // fresh fit-check keeps what the user typed in the form.
+  useEffect(() => {
+    if (!run || hydratedInitialRun.current) return;
+    if (!initialRunId || run.id !== initialRunId) return;
+    hydratedInitialRun.current = true;
+
+    setStack(run.stack ?? 'ruby');
+    const suggested = run.suggestedLanguage ?? run.detectedLanguage;
+    if (suggested === 'pt-br' || suggested === 'en') setLanguage(suggested);
+    setExtraQuestions(
+      run.jobSnapshot?.extraQuestions ?? run.job?.extraQuestions ?? '',
+    );
+    setRecruiterMessage(
+      run.jobSnapshot?.recruiterMessage ?? run.job?.recruiterMessage ?? '',
+    );
+    setCoverLetterGuidance(run.coverLetterGuidance ?? '');
+  }, [run, initialRunId]);
+
+  const selectedFiles = KIT_FILE_OPTIONS.filter(({ kind }) => files[kind]).map(
+    ({ kind }) => kind,
+  );
 
   function reset() {
     setRunId(null);
@@ -56,6 +91,9 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
     setLanguagePreference('auto');
     setStack('ruby');
     setFitConfirmed(false);
+    setFiles(
+      Object.fromEntries(KIT_FILE_OPTIONS.map(({ kind }) => [kind, true])),
+    );
   }
 
   function close() {
@@ -110,6 +148,7 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
       extraQuestions: extraQuestions.trim() || undefined,
       recruiterMessage: recruiterMessage.trim() || undefined,
       coverLetterGuidance: coverLetterGuidance.trim() || undefined,
+      artifacts: selectedFiles,
     });
   }
 
@@ -121,9 +160,11 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
   const canGenerate = Boolean(
     run &&
       (run.stage === 'fit-checked' || run.stage === 'failed') &&
-      (!needsFitConfirm || fitConfirmed),
+      (!needsFitConfirm || fitConfirmed) &&
+      selectedFiles.length > 0,
   );
   const busyStages = new Set(['queued', 'scraping', 'generating']);
+  const generatingKit = generateKit.isPending || run?.stage === 'generating';
   const error =
     fitCheck.error ?? generateKit.error ?? respond.error ?? runQuery.error;
 
@@ -371,6 +412,36 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
                         </span>
                       </label>
                     ) : null}
+
+                    <fieldset className="files-field">
+                      <legend>Arquivos para gerar</legend>
+                      <p className="muted">
+                        Desmarque o que não precisa — em algumas vagas só o
+                        currículo já basta.
+                      </p>
+                      <div className="check-grid">
+                        {KIT_FILE_OPTIONS.map(({ kind, label }) => (
+                          <label key={kind} className="check-row">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(files[kind])}
+                              onChange={(event) =>
+                                setFiles((current) => ({
+                                  ...current,
+                                  [kind]: event.target.checked,
+                                }))
+                              }
+                            />
+                            <span>{label}</span>
+                          </label>
+                        ))}
+                      </div>
+                      {selectedFiles.length === 0 ? (
+                        <p className="inline-error">
+                          Escolha pelo menos um arquivo para gerar.
+                        </p>
+                      ) : null}
+                    </fieldset>
                   </>
                 ) : null}
 
@@ -412,7 +483,16 @@ export function NewJobModal({ open, onClose }: NewJobModalProps) {
                 disabled={!canGenerate || generateKit.isPending}
                 onClick={generate}
               >
-                {generateKit.isPending ? 'Enfileirando…' : '2/2 Gerar kit'}
+                {generatingKit ? (
+                  <>
+                    <span className="spinner" aria-hidden="true" />
+                    {run?.stage === 'generating'
+                      ? 'Gerando kit…'
+                      : 'Enfileirando…'}
+                  </>
+                ) : (
+                  '2/2 Gerar kit'
+                )}
               </button>
             </div>
           </div>

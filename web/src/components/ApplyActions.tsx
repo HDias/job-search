@@ -1,36 +1,25 @@
 import type { Job } from '../api/types';
-import { usePrefill, useQuestions } from '../api/hooks';
+import { useQuestions } from '../api/hooks';
 
 interface ApplyActionsProps {
   job: Job;
-  /** A kit folder (cv_pdf artifact) is required by both endpoints. */
+  /** A kit folder (cv_pdf artifact) is required by the endpoint. */
   hasKit: boolean;
 }
 
 /**
- * Prefill dry-run and application-question extraction (D8). Both endpoints
- * answer synchronously and never submit the form; the UI only displays the
- * generated report and question list.
+ * Application-question extraction (D8). The endpoint answers synchronously and
+ * never submits the form; the UI only displays the generated question list.
  */
 export function ApplyActions({ job, hasKit }: ApplyActionsProps) {
-  const prefill = usePrefill(job.id);
   const questions = useQuestions(job.id);
 
   const hasUrl = Boolean(job.applyUrl || job.vacancyUrl);
   const blocked = !hasUrl || !hasKit;
-  const error = prefill.error ?? questions.error;
 
   return (
     <div className="apply-actions">
       <div className="link-row">
-        <button
-          type="button"
-          className="button ghost"
-          disabled={blocked || prefill.isPending}
-          onClick={() => prefill.mutate({ applyUrl: job.applyUrl ?? undefined })}
-        >
-          {prefill.isPending ? 'Preenchendo…' : 'Pré-preencher formulário'}
-        </button>
         <button
           type="button"
           className="button ghost"
@@ -43,38 +32,9 @@ export function ApplyActions({ job, hasKit }: ApplyActionsProps) {
 
       {blocked ? (
         <p className="muted">
-          Informe a URL de candidatura e o kit (PDF do currículo) para usar o
-          dry-run e a extração de perguntas.
+          Informe a URL de candidatura e o kit (PDF do currículo) para extrair
+          as perguntas.
         </p>
-      ) : null}
-
-      {prefill.isSuccess ? (
-        <div className="result-block">
-          <p className="inline-ok">Dry-run: {prefill.data.prefill.status}</p>
-          <p>{prefill.data.prefill.filledFields.length} campos preenchidos</p>
-          <p>
-            Currículo anexado: {prefill.data.prefill.resumeAttached ? 'sim' : 'não'}
-          </p>
-          <div className="link-row">
-            <a
-              className="button ghost"
-              href={prefill.data.prefill.screenshotUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Ver screenshot
-            </a>
-            <a
-              className="button ghost"
-              href={prefill.data.prefill.reportUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Ver relatório
-            </a>
-          </div>
-          <p className="muted">{prefill.data.prefill.notice}</p>
-        </div>
       ) : null}
 
       {questions.isSuccess ? (
@@ -94,9 +54,11 @@ export function ApplyActions({ job, hasKit }: ApplyActionsProps) {
         </div>
       ) : null}
 
-      {error ? (
+      {questions.error ? (
         <p className="inline-error" role="alert">
-          {error instanceof Error ? error.message : 'Não foi possível concluir a ação.'}
+          {questions.error instanceof Error
+            ? questions.error.message
+            : 'Não foi possível extrair as perguntas.'}
         </p>
       ) : null}
     </div>
