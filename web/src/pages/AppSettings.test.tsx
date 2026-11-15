@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
@@ -24,7 +24,11 @@ function makeProfile(overrides: Partial<Profile> = {}): Profile {
 
 function stubApi(
   initial: Profile[],
-  options: { duplicateOnCreate?: boolean } = {},
+  options: {
+    duplicateOnCreate?: boolean;
+    uploadStatus?: number;
+    uploadError?: string;
+  } = {},
 ) {
   const profiles = [...initial];
 
@@ -32,10 +36,43 @@ function stubApi(
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
-      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      const body =
+        typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
 
       if (method === 'GET' && url.startsWith('/api/profiles')) {
-        return jsonResponse(profiles);
+        // A fresh array per response: TanStack Query keeps the old reference
+        // when both payloads are identical, which would hide the refetch.
+        return jsonResponse([...profiles]);
+      }
+
+      if (method === 'POST' && /^\/api\/profiles\/[^/]+\/[^/]+\/upload$/.test(url)) {
+        if (options.uploadStatus) {
+          return jsonResponse({ error: options.uploadError }, options.uploadStatus);
+        }
+        const match = url.match(/^\/api\/profiles\/([^/]+)\/([^/]+)\/upload$/);
+        const stack = decodeURIComponent(match?.[1] ?? '');
+        const language = decodeURIComponent(match?.[2] ?? '');
+        const index = profiles.findIndex(
+          (profile) =>
+            profile.stack === stack && profile.language === language,
+        );
+        const updated = {
+          ...profiles[index],
+          content: {
+            rawText: 'Texto extraído do PDF',
+            rawLength: 21,
+            sourceFile: 'curriculo.pdf',
+            extractedAt: '2026-11-15T00:00:00.000Z',
+          },
+          updatedAt: '2026-11-15T00:00:00.000Z',
+        };
+        profiles[index] = updated;
+        return jsonResponse({
+          success: true,
+          message: 'Currículo base Ruby (Português) atualizado com sucesso!',
+          fileName: 'curriculo.pdf',
+          charCount: 21,
+        });
       }
 
       if (method === 'POST' && url.startsWith('/api/profiles')) {
@@ -214,5 +251,99 @@ describe('AppSettings', () => {
     expect(
       await screen.findByText('Essa combinação já existe.'),
     ).toBeInTheDocument();
+  });
+});
+
+describe('AppSettings — base resume upload', () => {
+  function uploadInput() {
+    return screen.getByLabelText('Enviar currículo base');
+  }
+
+  it('uploads a PDF through the multipart endpoint', async () => {
+    const fetchMock = stubApi([makeProfile()]);
+    renderWithProviders(<App />, ['/admin/settings']);
+
+    const input = await screen.findByLabelText('Enviar currículo base');
+    const file = new File(['%PDF-1.7'], 'curriculo.pdf', {
+      type: 'application/pdf',
+    });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(
+        ([input, init]) =>
+          String(input).endsWith('/api/profiles/ruby/pt-br/upload') &&
+          (init as RequestInit | undefined)?.method === 'POST',
+      );
+      expect(call).toBeDefined();
+      const init = call?.[1] as RequestInit;
+      expect(init.body).toBeInstanceOf(FormData);
+      expect((init.body as FormData).get('resumeFile')).toBeInstanceOf(File);
+      expect(new Headers(init.headers).has('content-type')).toBe(false);
+    });
+
+    // The refetched profile replaces the textarea content.
+    await waitFor(() =>
+      expect(screen.getByLabelText('Texto do currículo base')).toHaveValue(
+        'Texto extraído do PDF',
+      ),
+    );
+    expect(uploadInput()).toBeInTheDocument();
+  });
+
+  it('explains the 10 MB limit', async () => {
+    stubApi([makeProfile()], {
+      uploadStatus: 413,
+      uploadError: 'Currículo maior que 10 MB',
+    });
+    renderWithProviders(<App />, ['/admin/settings']);
+
+    const input = await screen.findByLabelText('Enviar currículo base');
+    fireEvent.change(input, {
+      target: { files: [new File(['x'], 'grande.pdf', { type: 'application/pdf' })] },
+    });
+
+    expect(
+      await screen.findByText('O arquivo passa do limite de 10 MB.'),
+    ).toBeInTheDocument();
+  });
+
+  it('explains a PDF that has no extractable text', async () => {
+    stubApi([makeProfile()], {
+      uploadStatus: 422,
+      uploadError: 'Não foi possível extrair texto do arquivo (PDF exige pdftotext)',
+    });
+    renderWithProviders(<App />, ['/admin/settings']);
+
+    const input = await screen.findByLabelText('Enviar currículo base');
+    fireEvent.change(input, {
+      target: { files: [new File(['x'], 'vazio.pdf', { type: 'application/pdf' })] },
+    });
+
+    expect(
+      await screen.findByText(/Não foi possível extrair texto do PDF/),
+    ).toBeInTheDocument();
+  });
+
+  it('still reads text files locally', async () => {
+    const user = userEvent.setup();
+    stubApi([makeProfile()]);
+    renderWithProviders(<App />, ['/admin/settings']);
+
+    const input = await screen.findByLabelText('Enviar currículo base');
+    const file = new File(['Currículo em texto'], 'cv.txt', { type: 'text/plain' });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Texto do currículo base')).toHaveValue(
+        'Currículo em texto',
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    await waitFor(() =>
+      expect(
+        screen.getByText('Alvo salvo.'),
+      ).toBeInTheDocument(),
+    );
   });
 });

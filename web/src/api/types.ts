@@ -140,6 +140,14 @@ export interface RespondResponse {
   runId: string;
 }
 
+/** `POST /api/profiles/:stack/:language/upload` (v1 response shape). */
+export interface ResumeUploadResponse {
+  success: boolean;
+  message: string;
+  fileName: string;
+  charCount: number;
+}
+
 /** Body of `POST /api/fit-check` (202). */
 export interface FitCheckInput {
   url?: string;

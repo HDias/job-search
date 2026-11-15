@@ -17,6 +17,7 @@ import type {
   ProfilePatch,
   RespondInput,
   RespondResponse,
+  ResumeUploadResponse,
 } from './types';
 
 export class ApiError extends Error {
@@ -31,7 +32,10 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
-  if (init?.body) headers.set('content-type', 'application/json');
+  // `FormData` sets its own multipart boundary; forcing JSON would break it.
+  if (init?.body && !(init.body instanceof FormData)) {
+    headers.set('content-type', 'application/json');
+  }
 
   const response = await fetch(path, { ...init, headers });
 
@@ -93,6 +97,15 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+
+  uploadResume: (stack: string, language: string, file: File) => {
+    const body = new FormData();
+    body.append('resumeFile', file);
+    return request<ResumeUploadResponse>(
+      `/api/profiles/${encodeURIComponent(stack)}/${encodeURIComponent(language)}/upload`,
+      { method: 'POST', body },
+    );
+  },
 
   deleteProfile: (stack: string, language: string) =>
     request<void>(

@@ -112,6 +112,26 @@ export function useCreateProfile() {
   });
 }
 
+export function useUploadResume() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      stack,
+      language,
+      file,
+    }: {
+      stack: string;
+      language: string;
+      file: File;
+    }) => api.uploadResume(stack, language, file),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      void queryClient.invalidateQueries({ queryKey: ['base-resumes'] });
+    },
+  });
+}
+
 export function useDeleteProfile() {
   const queryClient = useQueryClient();
 
