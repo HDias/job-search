@@ -11,6 +11,19 @@ const theme: PdfTheme = {
   cssVersion: 'b1',
 };
 
+const FULL_KEY = 'AIzaSySUPERSECRETKEY1234567890wxyz';
+
+const llmConfig = {
+  provider: 'gemini',
+  model: 'gemini-2.5-flash',
+  baseUrl: '',
+  temperature: '' as const,
+  top_p: '' as const,
+  maxTokens: '' as const,
+  hasKey: true,
+  maskedKey: 'AIzaSy...wxyz',
+};
+
 const candidate: CandidateData = {
   fullName: 'Horecio Dias',
   email: 'horecio@example.com',
@@ -33,6 +46,15 @@ function stubApi() {
           success: true,
           candidate: JSON.parse(String(init?.body)),
         });
+      }
+      if (method === 'GET' && url.startsWith('/api/llm-config')) {
+        return jsonResponse(llmConfig);
+      }
+      if (method === 'PUT' && url.startsWith('/api/llm-config')) {
+        return jsonResponse({ success: true, message: 'Configuração de IA salva com sucesso!' });
+      }
+      if (method === 'GET' && url.startsWith('/api/base-resumes')) {
+        throw new Error(`URL inesperada: ${method} ${url}`);
       }
 
       if (url.startsWith('/api/pdf-theme')) {
@@ -109,6 +131,63 @@ describe('Admin', () => {
       expect(call).toBeDefined();
       const body = JSON.parse(String((call?.[1] as RequestInit).body));
       expect(body.fullName).toBe('Horecio Araujo');
+    });
+  });
+});
+
+describe('Admin — LLM config', () => {
+  it('shows the masked key and never the clear key', async () => {
+    stubApi();
+    renderWithProviders(<App />, ['/admin']);
+
+    expect(await screen.findByText('AIzaSy...wxyz')).toBeInTheDocument();
+    expect(screen.getByText(/Chave configurada/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain('SUPERSECRET');
+    expect(document.body.textContent).not.toContain(FULL_KEY);
+  });
+
+  it('saves provider changes without resending the key when the field is empty', async () => {
+    const user = userEvent.setup();
+    const fetchMock = stubApi();
+    renderWithProviders(<App />, ['/admin']);
+
+    const model = await screen.findByLabelText('Modelo');
+    expect(model).toHaveValue('gemini-2.5-flash');
+    await user.clear(model);
+    await user.type(model, 'gemini-2.5-pro');
+    await user.click(screen.getByRole('button', { name: 'Salvar configuração de IA' }));
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(
+        ([input, init]) =>
+          String(input).endsWith('/api/llm-config') &&
+          (init as RequestInit | undefined)?.method === 'PUT',
+      );
+      expect(call).toBeDefined();
+      const body = JSON.parse(String((call?.[1] as RequestInit).body));
+      expect(body.model).toBe('gemini-2.5-pro');
+      expect(body.provider).toBe('gemini');
+      expect(body.apiKey).toBeUndefined();
+    });
+  });
+
+  it('sends a new key typed by the user', async () => {
+    const user = userEvent.setup();
+    const fetchMock = stubApi();
+    renderWithProviders(<App />, ['/admin']);
+
+    const key = await screen.findByLabelText('Nova chave de API');
+    await user.type(key, 'new-secret-key-1234');
+    await user.click(screen.getByRole('button', { name: 'Salvar configuração de IA' }));
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(
+        ([input, init]) =>
+          String(input).endsWith('/api/llm-config') &&
+          (init as RequestInit | undefined)?.method === 'PUT',
+      );
+      const body = JSON.parse(String((call?.[1] as RequestInit).body));
+      expect(body.apiKey).toBe('new-secret-key-1234');
     });
   });
 });

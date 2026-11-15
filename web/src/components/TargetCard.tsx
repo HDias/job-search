@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useDeleteProfile, useSaveProfile } from '../api/hooks';
+import {
+  useDeleteProfile,
+  useSaveProfile,
+  useUploadResume,
+} from '../api/hooks';
+import { ApiError } from '../api/client';
 import {
   EXTRA_PROMPT_MAX_LENGTH,
   type Profile,
@@ -15,6 +20,7 @@ function savedContent(profile: Profile): string {
 export function TargetCard({ profile }: { profile: Profile }) {
   const saveProfile = useSaveProfile();
   const deleteProfile = useDeleteProfile();
+  const uploadResume = useUploadResume();
   const fileInput = useRef<HTMLInputElement>(null);
 
   const savedText = savedContent(profile);
@@ -44,9 +50,26 @@ export function TargetCard({ profile }: { profile: Profile }) {
     if (!file) return;
     setLocalError(null);
 
+    // PDFs are extracted by the API (`pdftotext`); text files are read here.
     if (/\.pdf$/i.test(file.name)) {
-      setLocalError(
-        'PDF ainda não é extraído no v2. Converta para .txt/.md/.html ou cole o texto.',
+      uploadResume.mutate(
+        { stack: profile.stack, language: profile.language, file },
+        {
+          onError: (error) => {
+            const status = error instanceof ApiError ? error.status : 0;
+            if (status === 413) {
+              setLocalError('O arquivo passa do limite de 10 MB.');
+              return;
+            }
+            setLocalError(
+              status === 422
+                ? 'Não foi possível extrair texto do PDF. Verifique se ele tem texto selecionável.'
+                : error instanceof Error
+                  ? error.message
+                  : 'Não foi possível enviar o PDF.',
+            );
+          },
+        },
       );
       return;
     }
@@ -197,7 +220,8 @@ export function TargetCard({ profile }: { profile: Profile }) {
         <input
           ref={fileInput}
           type="file"
-          accept=".txt,.md,.markdown,.html,.htm"
+          accept=".pdf,.txt,.md,.markdown,.html,.htm"
+          aria-label="Enviar currículo base"
           hidden
           onChange={(event) => {
             void handleFile(event.target.files?.[0]);
@@ -207,9 +231,10 @@ export function TargetCard({ profile }: { profile: Profile }) {
         <button
           type="button"
           className="button ghost"
+          disabled={uploadResume.isPending}
           onClick={() => fileInput.current?.click()}
         >
-          Carregar arquivo
+          {uploadResume.isPending ? 'Enviando PDF…' : 'Carregar arquivo'}
         </button>
         <button
           type="button"

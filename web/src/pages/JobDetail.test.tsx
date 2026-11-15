@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
@@ -31,6 +31,9 @@ const job: Job = {
   appliedAt: '2026-10-28T12:00:00.000Z',
   fit,
   appliedEmails: ['horecio@example.com'],
+  applyNote: null,
+  applyMethod: 'manual',
+  chatHistory: [],
   coverLetterGuidance: null,
   coverInCvRequired: null,
   coverInCvReason: null,
@@ -99,11 +102,17 @@ const artifacts: Artifact[] = [
   },
 ];
 
-function stubApi() {
+function stubApi(runsOverride?: Run[]) {
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
 
+      if (
+        init?.method === 'POST' &&
+        url.endsWith('/api/jobs/app_1/regenerate')
+      ) {
+        return jsonResponse({ runId: 'proc_regen' }, 202);
+      }
       if (init?.method === 'PATCH') {
         return jsonResponse({ ...job, status: 'interview' });
       }
@@ -116,7 +125,7 @@ function stubApi() {
         });
       }
       if (url.endsWith('/api/jobs/app_1')) {
-        return jsonResponse({ job, runs, artifacts });
+        return jsonResponse({ job, runs: runsOverride ?? runs, artifacts });
       }
       if (url.startsWith('/api/jobs')) {
         return jsonResponse({ items: [job], total: 1 });
@@ -153,7 +162,7 @@ describe('JobDetail', () => {
     expect(screen.getByText('atualizando…')).toBeInTheDocument();
 
     const cv = screen.getByRole('link', { name: /Currículo \(PDF\)/ });
-    expect(cv).toHaveAttribute('href', '/cv/app_1');
+    expect(cv).toHaveAttribute('href', '/applications/acme/curriculo.pdf');
 
     const email = screen.getByRole('link', { name: /E-mail de candidatura/ });
     expect(email).toHaveAttribute('href', '/extras/app_1/email');
@@ -181,6 +190,58 @@ describe('JobDetail', () => {
 
     await waitFor(() => {
       expect(select).toHaveValue('interview');
+    });
+  });
+
+  it('edita o canal da candidatura pelo resumo', async () => {
+    const user = userEvent.setup();
+    const fetchMock = stubApi();
+    renderWithProviders(<App />, ['/jobs/app_1']);
+
+    const input = await screen.findByLabelText('Canal da candidatura');
+    await user.clear(input);
+    await user.type(input, 'Trampos');
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(
+        ([, init]) => (init as RequestInit | undefined)?.method === 'PATCH',
+      );
+      expect(call).toBeDefined();
+      expect(String((call?.[1] as RequestInit).body)).toContain(
+        '"channel":"Trampos"',
+      );
+    });
+
+    expect(await screen.findByText('Canal atualizado.')).toBeInTheDocument();
+  });
+
+  it('gera depois um arquivo que não foi incluído no kit', async () => {
+    const user = userEvent.setup();
+    const fetchMock = stubApi([{ ...runs[0]!, stage: 'done' }]);
+    renderWithProviders(<App />, ['/jobs/app_1']);
+
+    const row = (
+      await screen.findByText('Cover letter (PDF)')
+    ).closest('li') as HTMLElement;
+    await user.click(within(row).getByRole('button', { name: 'Gerar' }));
+    await user.type(
+      within(row).getByLabelText(/Considerações para gerar/),
+      'Tom mais direto.',
+    );
+    await user.click(within(row).getByRole('button', { name: 'Gerar agora' }));
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(
+        ([input, init]) =>
+          String(input).endsWith('/api/jobs/app_1/regenerate') &&
+          (init as RequestInit | undefined)?.method === 'POST',
+      );
+      expect(call).toBeDefined();
+      const body = JSON.parse(String((call?.[1] as RequestInit).body));
+      expect(body.artifacts).toContain('cover_letter_pdf');
+      expect(body.artifacts).toContain('cv_pdf');
+      expect(body.guidance).toBe('Tom mais direto.');
     });
   });
 

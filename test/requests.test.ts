@@ -142,11 +142,14 @@ describe('requests: vagas', () => {
   });
 
   it('pagina e ignora limit inválido', async () => {
+    const first = await request(app).get('/api/jobs?limit=1');
+    expect(first.body.items[0].company).toBe('Beta');
+
     const page = await request(app).get('/api/jobs?limit=1&offset=1');
     expect(page.status).toBe(200);
     expect(page.body.total).toBe(3);
     expect(page.body.items).toHaveLength(1);
-    expect(page.body.items[0].company).toBe('Gama');
+    expect(page.body.items[0].company).toBe('Acme');
 
     const fallback = await request(app).get('/api/jobs?limit=abc');
     expect(fallback.status).toBe(200);
@@ -291,7 +294,20 @@ describe('requests: metadados', () => {
 
   it('lê e atualiza os dados do formulário', async () => {
     const initial = await request(app).get('/api/candidate-data');
-    expect(initial.body).toEqual({ success: true, candidate: {} });
+    // v1 parity: the derived shape always carries the eight contact fields.
+    expect(initial.body).toEqual({
+      success: true,
+      candidate: {
+        fullName: '',
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        linkedin: '',
+        github: '',
+        portfolio: '',
+      },
+    });
 
     const updated = await request(app)
       .put('/api/candidate-data')

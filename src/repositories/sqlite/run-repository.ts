@@ -1,4 +1,4 @@
-import { and, desc, eq, type SQL } from 'drizzle-orm';
+import { and, desc, eq, notInArray, type SQL } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { runs } from '../../db/schema.js';
 import { newId, nowIso } from '../../domain/ids.js';
@@ -52,6 +52,7 @@ export class SqliteRunRepository implements RunRepository {
     const clauses: SQL[] = [];
     if (filter.jobId) clauses.push(eq(runs.jobId, filter.jobId));
     if (filter.stage) clauses.push(eq(runs.stage, filter.stage));
+    if (filter.unfinished) clauses.push(notInArray(runs.stage, ['done']));
 
     const where = clauses.length > 0 ? and(...clauses) : undefined;
     const limit = Math.min(Math.max(filter.limit ?? 100, 1), 500);
@@ -151,5 +152,10 @@ export class SqliteRunRepository implements RunRepository {
   delete(id: string): boolean {
     const result = this.db.delete(runs).where(eq(runs.id, id)).run();
     return result.changes > 0;
+  }
+
+  deleteByJob(jobId: string): number {
+    const result = this.db.delete(runs).where(eq(runs.jobId, jobId)).run();
+    return result.changes;
   }
 }

@@ -1,15 +1,29 @@
 import type {
+  ApplyConfirmInput,
+  ApplyConfirmResponse,
   BaseResumeMap,
   CandidateData,
+  ChatInput,
+  ChatResponse,
+  EnqueuedRun,
+  FitCheckInput,
+  GenerateKitInput,
   Job,
   JobDetailResponse,
   JobFilters,
   JobList,
   JobStats,
+  LlmConfigPatch,
+  LlmConfigView,
   NewProfile,
   PdfTheme,
   Profile,
   ProfilePatch,
+  QuestionsResponse,
+  RespondInput,
+  RespondResponse,
+  ResumeUploadResponse,
+  Run,
 } from './types';
 
 export class ApiError extends Error {
@@ -24,7 +38,10 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
-  if (init?.body) headers.set('content-type', 'application/json');
+  // `FormData` sets its own multipart boundary; forcing JSON would break it.
+  if (init?.body && !(init.body instanceof FormData)) {
+    headers.set('content-type', 'application/json');
+  }
 
   const response = await fetch(path, { ...init, headers });
 
@@ -62,10 +79,29 @@ export const api = {
   job: (id: string) =>
     request<JobDetailResponse>(`/api/jobs/${encodeURIComponent(id)}`),
 
+  run: (id: string) => request<Run>(`/api/runs/${encodeURIComponent(id)}`),
+
+  /** Unfinished checkpoints (the "continue where you left off" list). */
+  runs: (filter: { unfinished?: boolean; limit?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (filter.unfinished) params.set('unfinished', 'true');
+    if (filter.limit) params.set('limit', String(filter.limit));
+    const query = params.toString();
+    return request<Run[]>(`/api/runs${query ? `?${query}` : ''}`);
+  },
+
+  deleteRun: (id: string) =>
+    request<void>(`/api/runs/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
   updateJob: (id: string, patch: Partial<Job>) =>
     request<Job>(`/api/jobs/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
+    }),
+
+  deleteJob: (id: string) =>
+    request<void>(`/api/jobs/${encodeURIComponent(id)}?purge=true`, {
+      method: 'DELETE',
     }),
 
   baseResumes: () => request<BaseResumeMap>('/api/base-resumes'),
@@ -86,6 +122,15 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+
+  uploadResume: (stack: string, language: string, file: File) => {
+    const body = new FormData();
+    body.append('resumeFile', file);
+    return request<ResumeUploadResponse>(
+      `/api/profiles/${encodeURIComponent(stack)}/${encodeURIComponent(language)}/upload`,
+      { method: 'POST', body },
+    );
+  },
 
   deleteProfile: (stack: string, language: string) =>
     request<void>(
@@ -108,5 +153,70 @@ export const api = {
     request<{ success: boolean; candidate: CandidateData }>('/api/candidate-data', {
       method: 'PUT',
       body: JSON.stringify(candidate),
+    }),
+
+  fitCheck: (input: FitCheckInput) =>
+    request<EnqueuedRun>('/api/fit-check', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  generateKit: (input: GenerateKitInput) =>
+    request<EnqueuedRun>('/api/generate-kit', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  /** Rebuilds the kit of an existing application from the saved snapshot. */
+  regenerateKit: (
+    id: string,
+    input: { artifacts?: string[]; guidance?: string } = {},
+  ) =>
+    request<EnqueuedRun>(`/api/jobs/${encodeURIComponent(id)}/regenerate`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  llmConfig: () => request<LlmConfigView>('/api/llm-config'),
+
+  saveLlmConfig: (patch: LlmConfigPatch) =>
+    request<{ success: boolean; message: string }>('/api/llm-config', {
+      method: 'PUT',
+      body: JSON.stringify(patch),
+    }),
+
+  respondToRun: (runId: string, input: RespondInput) =>
+    request<RespondResponse>(
+      `/api/runs/${encodeURIComponent(runId)}/respond`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    ),
+
+  questions: (jobId: string, input: { applyUrl?: string } = {}) =>
+    request<QuestionsResponse>(
+      `/api/jobs/${encodeURIComponent(jobId)}/questions`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    ),
+
+  /** Manual confirmation; the explicit `approved: true` is the safety lock. */
+  applyConfirm: (jobId: string, input: ApplyConfirmInput) =>
+    request<ApplyConfirmResponse>(
+      `/api/jobs/${encodeURIComponent(jobId)}/apply-confirm`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    ),
+
+  /** Synchronous post-response chat; the answer arrives in the same request. */
+  chat: (jobId: string, input: ChatInput) =>
+    request<ChatResponse>(`/api/jobs/${encodeURIComponent(jobId)}/chat`, {
+      method: 'POST',
+      body: JSON.stringify(input),
     }),
 };

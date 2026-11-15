@@ -23,10 +23,10 @@ export const STAGE_LABELS: Record<string, string> = {
 export const ARTIFACT_LABELS: Record<string, string> = {
   cv_html: 'Currículo (HTML)',
   cv_pdf: 'Currículo (PDF)',
-  cover_letter_pdf: 'Carta (PDF)',
-  cover_letter_html: 'Carta (HTML)',
-  cv_with_cover_html: 'Currículo + carta (HTML)',
-  cv_with_cover_pdf: 'Currículo + carta (PDF)',
+  cover_letter_pdf: 'Cover letter (PDF)',
+  cover_letter_html: 'Cover letter (HTML)',
+  cv_with_cover_html: 'Currículo + cover letter (HTML)',
+  cv_with_cover_pdf: 'Currículo + cover letter (PDF)',
   email_text: 'E-mail de candidatura',
   linkedin_note: 'Mensagem LinkedIn',
   recruiter_note: 'Mensagem ao recrutador',
@@ -84,8 +84,10 @@ export function artifactLabel(kind: string): string {
 export function artifactHref(jobId: string, artifact: Artifact): string {
   switch (artifact.kind) {
     case 'cv_html':
-    case 'cv_pdf':
       return `/cv/${jobId}`;
+    // The viewer only renders HTML, so the PDF must point to the raw file.
+    case 'cv_pdf':
+      return `/applications/${artifact.relativePath}`;
     case 'email_text':
       return `/extras/${jobId}/email`;
     case 'recruiter_note':

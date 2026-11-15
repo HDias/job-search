@@ -123,6 +123,8 @@ A suite dedicated to exercising **every HTTP route** and the edge cases the UI w
   material → `200` with a warning.
 - **Transport**: malformed JSON → `400`, body above 4 MB → `413`, path traversal blocked, form
   without required fields → `400`, unknown route → `404`.
+- Pre-fill/questions routes: report URLs inside `/applications`, `404` for an unknown job, `400`
+  without a URL and `400` without a CV PDF / kit folder.
 
 ### Pipeline (`llm-client.test.ts`, `llm-config.test.ts`, `pipeline-targets.test.ts`)
 
@@ -134,6 +136,25 @@ A suite dedicated to exercising **every HTTP route** and the edge cases the UI w
 - `createSkillLoader` reads `SKILL.md` and the references with caching and tolerates missing files.
 - `targetSystemPrompts` skips disabled profiles and appends `extraPrompt` to both prompts.
 
+### Pipeline port (`pipeline-*.test.ts`, `candidate-data.test.ts`)
+
+- Kit: slug/fallback, deterministic suggestions (zero LLM calls), validators per dimension, pure
+  generation with fenced JSON, `needs_input` rounds and the two fix-prompt limit.
+- PDF: combined cover placement, single accent, A4/15 mm through an injected browser and the
+  `_ats_layer.txt`/`atsCompatible` pair.
+- Artifacts: exact file list, artifact rows with relative path/mime/size, job update and the `_N`
+  folder suffix.
+- Queue: `generate-kit` gates (409), replay without LLM, `question`/`respond` validation, history
+  capped at 2 entries/2000 chars, regeneration preserving `id`/`status`/dates and the compat shims.
+- Upload: 10 MB ceiling, injected `pdftotext`, exact `profiles.content` shape, extraction failures
+  → `422`.
+- Candidate data: contact extraction from `profiles.content.rawText`, with the saved form filling
+  only the blanks.
+- Pre-fill/questions (`pipeline-apply.test.ts`): field plans and name splitting, selector order,
+  the question extraction while a page stub asserts no click happens, report and
+  screenshot files, platform detection, categorisation (LinkedIn is not an upload), standard-field
+  mapping, dedupe/noise filters and the written `application_questions.json`.
+
 ### Frontend (`web/src/**/*.test.tsx`)
 
 | File | Tests | Covers |
@@ -142,8 +163,10 @@ A suite dedicated to exercising **every HTTP route** and the edge cases the UI w
 | `web/src/lib/runs.test.ts` | 4 | Active run, pending confirmation and language/fit priority |
 | `web/src/pages/Dashboard.test.tsx` | 7 | Stats, table, filters, URL, pagination, empty and error |
 | `web/src/pages/JobDetail.test.tsx` | 3 | Fit, runs, artifacts, status PATCH and 404 |
-| `web/src/pages/Admin.test.tsx` | 3 | Base resumes, PDF theme and form data |
-| `web/src/pages/AppSettings.test.tsx` | 6 | Target CRUD, `extraPrompt`, enable/disable and errors |
+| `web/src/pages/JobCheckpoint.test.tsx` | 4 | Question/options, answer + refetch, empty answer, inference approval and API error |
+| `web/src/pages/JobPipelineActions.test.tsx` | 4 | fit-check/generate-kit payloads, invalidation, disabled state and the 409 message |
+| `web/src/pages/Admin.test.tsx` | 6 | PDF theme, form data and the LLM panel (masked key, key preservation) |
+| `web/src/pages/AppSettings.test.tsx` | 10 | Target CRUD, `extraPrompt`, enable/disable, errors and PDF upload |
 
 `fetch` is mocked with responses in the API's format. The tests use `MemoryRouter` and a
 `QueryClient` without retry. The 4 s polling is not exercised with timers: the "active run" rule
@@ -153,13 +176,12 @@ is tested in isolation in `runs.test.ts`.
 
 | Area | Risk | Reason |
 |---|---|---|
-| Playwright scraping and PDF generation | High | Not ported |
+| Real Chromium and real `pdftotext` | Medium | The browser and the PDF extractor are injected; fixtures cover the logic |
 | Live LLM calls | Medium | The client is tested with a fake `fetch`; the suite never hits a provider |
 | Authentication | High when exposed beyond localhost | Doesn't exist today |
 | Write concurrency | Medium | Local single-user use |
 | Real database migration | Medium | Manual smoke test, not automated |
-| Checkpoint response in v2 | Medium | Depends on the ported pipeline |
-| PDF resume upload | Medium | Extraction still depends on the previous server |
+| Uploaded PDF fixture | Low | The extractor is stubbed; no real PDF is parsed in the suite |
 | Performance at volume | Low today | 16 jobs; N+1 tolerated |
 
 ## 6. Adding tests

@@ -17,6 +17,8 @@ export function createRunsRouter(store: Store): Router {
       store.runs.list({
         jobId: typeof req.query.jobId === 'string' ? req.query.jobId : undefined,
         stage: typeof req.query.stage === 'string' ? req.query.stage : undefined,
+        unfinished:
+          req.query.unfinished === 'true' || req.query.unfinished === '1',
         limit: queryInt(req.query.limit, 100),
         offset: queryInt(req.query.offset, 0),
       }),

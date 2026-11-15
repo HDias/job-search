@@ -1,10 +1,27 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { createLlmClient, type LlmClient } from './llm/client.js';
+import { respondToChat, type ChatOutcome } from './chat.js';
 import { checkJobFit, type FitCheckDeps, type FitCheckResult } from './kit/fit.js';
 import { evaluateFit, type EvaluateFitInput, type EvaluateFitResult } from './fit/evaluate.js';
 import { createSkillLoader } from './skills/loader.js';
-import { createRunQueue, type FitCheckPayload, type RunQueue } from './queue.js';
+import {
+  createRunQueue,
+  type FitCheckPayload,
+  type GenerateKitPayload,
+  type RunQueue,
+} from './queue.js';
 import { createFitCheckRunner } from './runs/fit-check.js';
+import { createGenerateKitRunner } from './runs/generate-kit.js';
+import {
+  type ApplyBrowser,
+} from './apply/assistant.js';
+import {
+  QUESTIONS_FILE,
+  scrapeApplicationQuestions,
+  type QuestionsResult,
+} from './apply/questions.js';
+import type { PdfRenderer } from './kit/artifacts.js';
 import type { ScrapeBrowser, ScrapeDeps } from './scrape/job.js';
 import type { Store } from '../repositories/types.js';
 
@@ -21,14 +38,32 @@ export interface PipelineServiceDeps {
   scrapeDeps?: ScrapeDeps;
   /** Shared Chromium instance (queue worker). */
   browser?: ScrapeBrowser;
+  /** Where kit folders are written (defaults to the v1 `applications/`). */
+  applicationsDir?: string;
+  /** Injected in tests so PDF rendering never launches Chromium. */
+  renderPdf?: PdfRenderer;
+  /** Injected in tests so the prefill/questions dry-run never launches Chromium. */
+  applyBrowser?: ApplyBrowser;
 }
 
 export interface PipelineService {
   queue: RunQueue;
   evaluateFit(input: EvaluateFitInput): EvaluateFitResult;
   enqueueFitCheck(runId: string, payload: FitCheckPayload): void;
+  enqueueGenerateKit(runId: string, payload: GenerateKitPayload): void;
   checkFit(input: FitCheckPayload): Promise<FitCheckResult>;
+  scrapeQuestions(
+    jobId: string,
+    input: { applyUrl?: string },
+  ): Promise<QuestionsOutcome>;
+  chat(jobId: string, message: string): Promise<ChatOutcome>;
 }
+
+export type QuestionsOutcome =
+  | { status: 'not_found' }
+  | { status: 'no_url' }
+  | { status: 'no_folder' }
+  | { status: 'ok'; result: QuestionsResult; questionsUrl: string };
 
 export function createPipelineService(
   deps: PipelineServiceDeps,
@@ -63,6 +98,20 @@ export function createPipelineService(
         await runner(task);
         return;
       }
+      if (task.kind === 'generate-kit') {
+        const runner = createGenerateKitRunner({
+          store,
+          llm,
+          loader,
+          applicationsDir:
+            deps.applicationsDir ??
+            process.env.APPLICATIONS_DIR ??
+            path.resolve('..', 'job-search', 'applications'),
+          renderPdf: deps.renderPdf,
+        });
+        await runner(task);
+        return;
+      }
       throw new Error(`Tarefa de pipeline não suportada: ${task.kind}`);
     },
     {
@@ -79,12 +128,66 @@ export function createPipelineService(
     },
   );
 
+  // One Chromium can serve the scraper and the dry-run; tests inject either.
+  const applyBrowser =
+    deps.applyBrowser ?? (deps.browser as unknown as ApplyBrowser | undefined);
+
+  const applicationsDir =
+    deps.applicationsDir ??
+    process.env.APPLICATIONS_DIR ??
+    path.resolve('..', 'job-search', 'applications');
+
+  /** Relative folder of the job's kit (from its CV artifact), v1 layout. */
+  const jobFolder = (jobId: string): { rel: string; abs: string } | null => {
+    const artifacts = store.artifacts.listByJob(jobId);
+    const cv = artifacts.find((artifact) => artifact.kind === 'cv_pdf');
+    if (!cv) return null;
+    const rel = path.posix.dirname(cv.relativePath);
+    if (!rel || rel === '.') return null;
+    return { rel, abs: path.join(applicationsDir, ...rel.split('/')) };
+  };
+
+  const publicUrl = (relative: string): string =>
+    `/applications/${relative.split(path.sep).join('/')}`;
+
   return {
     queue,
     evaluateFit: (input) => evaluateFit(store, input),
     enqueueFitCheck: (runId, payload) =>
       queue.enqueue({ kind: 'fit-check', runId, payload }),
+    enqueueGenerateKit: (runId, payload) =>
+      queue.enqueue({ kind: 'generate-kit', runId, payload }),
     checkFit,
+
+    chat: (jobId, message) => respondToChat({ store, loader, llm }, jobId, message),
+
+    async scrapeQuestions(jobId, input) {
+      const job = store.jobs.get(jobId);
+      if (!job) return { status: 'not_found' };
+
+      const url = String(input.applyUrl ?? job.applyUrl ?? job.vacancyUrl ?? '');
+      if (!url.startsWith('http')) return { status: 'no_url' };
+
+      const folder = jobFolder(job.id);
+      if (!folder) return { status: 'no_folder' };
+
+      const result = await scrapeApplicationQuestions({
+        url,
+        outputDir: folder.abs,
+        browser: applyBrowser,
+      });
+
+      return {
+        status: 'ok',
+        result,
+        questionsUrl: publicUrl(
+          path.join(
+            folder.rel.split('/').join(path.sep),
+            QUESTIONS_FILE,
+          ),
+        ),
+      };
+    },
   };
 }
 

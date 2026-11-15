@@ -1,4 +1,16 @@
-import { and, avg, count, desc, eq, gte, isNotNull, like, or, type SQL } from 'drizzle-orm';
+import {
+  and,
+  avg,
+  count,
+  desc,
+  eq,
+  gte,
+  isNotNull,
+  like,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { jobs } from '../../db/schema.js';
 import { nowIso, newId } from '../../domain/ids.js';
@@ -47,7 +59,12 @@ export class SqliteJobRepository implements JobRepository {
       .select()
       .from(jobs)
       .where(where)
-      .orderBy(desc(jobs.appliedAt), desc(jobs.createdAt))
+      // Most recent activity first: a fresh draft (no appliedAt) lands on top
+      // instead of after every applied job, where NULL sorts last in DESC.
+      .orderBy(
+        desc(sql`coalesce(${jobs.appliedAt}, ${jobs.createdAt})`),
+        desc(jobs.createdAt),
+      )
       .limit(limit)
       .offset(offset)
       .all();
@@ -87,6 +104,9 @@ export class SqliteJobRepository implements JobRepository {
       appliedAt: input.appliedAt ?? null,
       fit: normalizeFit(input.fit),
       appliedEmails: input.appliedEmails ?? [],
+      applyNote: input.applyNote ?? null,
+      applyMethod: input.applyMethod ?? 'manual',
+      chatHistory: input.chatHistory ?? [],
       coverLetterGuidance: input.coverLetterGuidance ?? null,
       coverInCvRequired: input.coverInCvRequired ?? null,
       coverInCvReason: input.coverInCvReason ?? null,

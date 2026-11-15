@@ -6,9 +6,13 @@
 flowchart LR
   F0["Phase 0 - Data and import"]:::done
   F1["Phase 1 - SQLite and API"]:::done
-  F2["Phase 2 - React"]:::active
+  F2["Phase 2 - React"]:::done
+  F3["Phase 3 - Pipeline port"]:::done
+  F4["Phase 4 - Application cycle"]:::done
 
   F0 --> F1 --> F2
+  F2 --> F3
+  F3 --> F4
 
   classDef done fill:#14532d,stroke:#22c55e,color:#dcfce7
   classDef active fill:#1e3a8a,stroke:#3b82f6,color:#dbeafe
@@ -29,7 +33,7 @@ flowchart LR
 - Compatibility with the old UI (`/api/applications`, `/api/processes`, viewers).
 - 103 backend tests; smoke test with real data.
 
-### Phase 2 — React 🚧
+### Phase 2 — React ✅
 
 Goal: replace the old UI with a SPA while keeping the API as the only data source.
 
@@ -55,13 +59,45 @@ Goal: replace the old UI with a SPA while keeping the API as the only data sourc
 - [x] Admin page: PDF theme and form data.
 - [x] App Settings: configurable targets (stack × language), base resume and extra instructions
   per target, with enable/disable and remove.
-- [x] Polling of active runs (4 s). Checkpoint response still depends on the pipeline.
+- [x] Polling of active runs (4 s).
 - [x] Filters in the URL and visible pagination (25 per page).
 
-**Pending decisions**
+- [x] Interactive checkpoint inside the SPA (question, suggested options, inference approval).
+- [x] Discrete pipeline entrypoints (fit-check and kit generation) on the job detail.
 
-- Checkpoint response in v2: requires porting the pipeline's interactive queue.
-- PDF upload in admin: port the existing extractor or keep only text/light files.
+### Phase 3 — Pipeline port ✅
+
+Goal: move the heavy v1 pipeline into `src/pipeline/` behind the v2 API, keeping v1 as fallback.
+
+- [x] Kit generation: slug, deterministic suggestions, validators, pure steps and artifact writer.
+- [x] PDF with an ATS layer (`page.pdf` + `pdftotext`), cover letter rendering.
+- [x] `POST /api/generate-kit` (202) with the 409 gates and `needs_input` replay without LLM.
+- [x] Interactive queue: `GET /api/runs/:id/question` and `POST /api/runs/:id/respond` (≤ 2 rounds).
+- [x] `POST /api/jobs/:id/regenerate` (202) preserving id/status/dates.
+- [x] Base resume upload with `pdftotext` (`POST /api/profiles/:stack/:language/upload`), including
+  the control in App Settings.
+- [x] Assisted pre-fill dry-run (`POST /api/jobs/:id/prefill`) and application question extraction
+  (`POST /api/jobs/:id/questions`), API-only, never submitting anything.
+- [x] Candidate data derived from the base resume.
+- [x] Full gate: 302 backend tests, 43 frontend tests, `typecheck`, `typecheck:web` and `build:web`.
+
+**Registered backlog**
+
+- ~~React buttons for the pre-fill dry-run and the question extraction.~~ Delivered in Phase 4.
+- Retire the old UI and remove the `/api/applications` + `/api/processes` compatibility routes.
+
+### Phase 4 — Application cycle ✅
+
+Goal: close the real-use cycle and allow conversation after the pipeline answers.
+
+- [x] Manual apply confirmation: `POST /api/jobs/:id/apply-confirm` behind the `approved: true`
+  lock, plus the legacy shim, with `apply_note`, `apply_method` and sanitized e-mails.
+- [x] React buttons for the pre-fill dry-run and the question extraction, with result/error states.
+- [x] Post-response chat: synchronous `POST /api/jobs/:id/chat`, grounded on the posting + fit,
+  quick-action prompts and a thread persisted per job (`chat_history`).
+- [x] Gate: 325 backend tests, 53 frontend tests, `typecheck`, `typecheck:web` and `build:web`.
+- Backlog: truncate `chat_history` itself (the prompt already uses the last 12 turns) and wire
+  "chat → regenerate" for artifact rewrites.
 
 ## 2. Technical backlog
 
@@ -69,7 +105,7 @@ Goal: replace the old UI with a SPA while keeping the API as the only data sourc
 |---|---|---|
 | High | React frontend | Replace the old UI |
 | High | Aggregate endpoint for listings (eliminates N+1) | Performance |
-| Medium | Port the processing pipeline (scrape/fit done; kit, PDF, queue checkpoints pending) | Feature parity |
+| Low | Retire the old UI and the compatibility routes | Removes duplicated surface |
 | Medium | Authentication and real `owner_id` | Multi-user |
 | Medium | Authorization tests | Security |
 | Low | Metrics and tracing | Observability |
@@ -85,8 +121,8 @@ Goal: replace the old UI with a SPA while keeping the API as the only data sourc
 - [x] Admin reads/writes theme and form data.
 - [x] App Settings manages targets, base resumes and extra instructions.
 - [x] No screen depends on `/api/applications`.
-- [x] Frontend tests passing (28).
-- [ ] The old UI can be retired.
+- [x] Frontend tests passing (43).
+- [ ] The old UI can be retired (pending the upload control and the compatibility-route removal).
 
 ## 4. Risks
 

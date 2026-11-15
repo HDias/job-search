@@ -5,8 +5,9 @@ route families:
 
 | Family | Prefix | Audience |
 |---|---|---|
-| New REST | `/api/jobs`, `/api/runs`, `/api/profiles`, `/api/settings`, `/api/stats`, `/api/llm-config` | React UI and integrations |
-| Legacy compatibility | `/api/applications`, `/api/processes`, `/api/base-resumes`, `/api/pdf-theme`, `/api/candidate-data` | the legacy UI |
+| New REST | `/api/jobs`, `/api/runs`, `/api/profiles`, `/api/settings`, `/api/stats`, `/api/llm-config`, `/api/jobs/:id/apply-confirm` | React UI and integrations |
+| Pipeline | `/api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond`, `/api/jobs/:id/regenerate`, `/api/jobs/:id/questions`, `/api/jobs/:id/chat`, `/api/profiles/:stack/:language/upload` | React UI and integrations |
+| Legacy compatibility | `/api/applications`, `/api/applications/:id/apply-confirm`, `/api/processes`, `/api/base-resumes`, `/api/pdf-theme`, `/api/candidate-data` | the legacy UI |
 | Viewers | `/applications/*`, `/cv/:id`, `/extras/:id/:view` | Links opened by the user |
 
 ## 1. Conventions
@@ -39,8 +40,9 @@ On validation errors, `details` carries the list of Zod `issues`:
 | `204` | Removal without body |
 | `400` | Invalid body or query, malformed JSON |
 | `404` | Missing resource or route |
-| `409` | Conflict (e.g.: `stack × language` target already exists) |
-| `413` | Body above 4 MB |
+| `409` | Conflict (e.g.: `stack × language` target already exists, or a pipeline gate blocked the run) |
+| `413` | Body above 4 MB, or a resume upload above 10 MB |
+| `422` | The uploaded file has no extractable text |
 | `500` | Unhandled error (logged server-side) |
 
 ## 2. Health and statistics
@@ -146,8 +148,35 @@ on this route; field-by-field merging only exists in the legacy DTO.
 
 ### `DELETE /api/jobs/:id`
 
-`204` without body. Artifacts fall via `ON DELETE CASCADE`; runs become orphans with
+`204` without body. By default artifacts fall via `ON DELETE CASCADE` and runs become orphans with
 `job_id = NULL` (intentional behavior — see [ADR-0002](./adr/0002-document-shaped-model.md)).
+With `?purge=true` (used by the dashboard's "Excluir") the runs are deleted, the artifact rows are
+removed and the generated kit folders are deleted from disk — the application is gone for good.
+
+### `POST /api/jobs/:id/apply-confirm`
+
+Records that the user applied manually. The app never submits a form, so the body must carry an
+explicit `approved: true`; omitted or `false` answers `400` and leaves the job untouched.
+
+```json
+{
+  "approved": true,
+  "note": "Applied through the recruiter form.",
+  "channel": "Recruiter",
+  "appliedEmails": ["you@example.com", "recruiter@example.com"]
+}
+```
+
+Effects on the job:
+
+- `status: "applied"`, `applyMethod: "manual"`, `appliedAt` as ISO 8601 UTC.
+- `channel`: the body → the job's channel → `portal`, lowercased and capped at **30** chars.
+- `appliedEmails`: accepts an array or a comma/semicolon/newline string; trims, drops blanks and
+  duplicates and keeps the first **10**.
+- `applyNote`: capped at **500** chars.
+
+Responds `200 { "success": true, "job": { ... } }`; `404` for an unknown job. The legacy UI keeps
+`POST /api/applications/:id/apply-confirm` with the v1 envelope (§5).
 
 ## 4. Runs — `/api/runs`
 
@@ -237,6 +266,179 @@ uses the queue. Loads the **enabled** PT/EN targets of the stack and returns the
 When `applicationId` is informed, the job's `fit` is updated (rating, dimensions, analysis).
 `400` when `jobText` is empty or no enabled base resume exists.
 
+## 4.1 Kit generation — `POST /api/generate-kit`
+
+Native async kit generation (Phase 3/4). Accepts an existing `processId` or a fresh source
+(`url`, `rawText` or `jobSnapshot`) and answers **`202 { "runId": "proc_..." }`**. The same FIFO
+worker scrapes when needed, builds the kit prompt from the enabled target and writes the
+artifacts:
+
+- valid kit → stage `done`, job updated, artifact rows created;
+- a blocking question → stage `needs_input` with `llmQuestion` (at most **2 rounds**);
+- exhausted validation retries (2 fix prompts) → stage `failed` with `error`, resumable.
+
+```json
+{
+  "processId": "proc_1",
+  "language": "en",
+  "languagePreference": "en",
+  "stack": "ruby",
+  "fitConfirmed": false,
+  "jobSnapshot": null,
+  "artifacts": ["cv_pdf", "cv_html", "cover_letter_pdf", "cover_letter_html", "email_text", "recruiter_note", "linkedin_note", "job_posting", "other"]
+}
+```
+
+`artifacts` is optional and uses the `ARTIFACT_KINDS` vocabulary; when omitted every kind is
+written. The HTML that feeds a PDF is rendered in place and removed again if its HTML variant was
+not selected.
+
+Gates answer `409` **before** reaching the queue and the LLM:
+
+| Situation | Response |
+|---|---|
+| No explicit language | `needsLanguageConfirmation: true` + hint |
+| `fit.rating < 50` or eligibility failed without `fitConfirmed` | `needsFitConfirmation: true` (+ `eligibilityBlocked`, `fitRating`) |
+| The posting explicitly requires another language | `needsLanguageConfirmation: true` + `jobRequiredLanguage` |
+
+`fit.rating === 50` proceeds, and a mere detection divergence does not block. Replaying a
+`needs_input` run without a new answer returns the same question and makes **zero** LLM calls.
+
+## 4.2 Interactive queue — `GET /api/runs/:id/question` and `POST /api/runs/:id/respond`
+
+```json
+// GET /api/runs/proc_1/question
+{
+  "runId": "proc_1",
+  "processId": "proc_1",
+  "question": {
+    "question": "Which PostgreSQL version did you run in production?",
+    "options": ["PostgreSQL 12", "PostgreSQL 14"],
+    "blockingField": "postgres_version",
+    "kind": "missing_fact",
+    "inferences": [],
+    "rawExcerpt": ""
+  },
+  "needsInputRounds": 1
+}
+```
+
+`404` when the run does not exist or has no pending question.
+
+```json
+// POST /api/runs/proc_1/respond
+{
+  "answer": "PostgreSQL 14",
+  "approvedInferences": ["Kubernetes"],
+  "rejectedInferences": ["Terraform"],
+  "coverLetterGuidance": null,
+  "includeCoverInCv": "auto"
+}
+```
+
+Answers **`202 { "runId": "proc_1" }`** and resumes generation in the same checkpoint. Errors:
+
+| Code | When |
+|---|---|
+| `404` | Unknown run, or the run is not waiting |
+| `409` | The run is not in `needs_input` |
+| `400` | Empty answer for a `missing_fact` question |
+| `400` | Approval of an inference the LLM did not offer (only `confidence: "high"`) |
+
+`clarificationHistory` keeps the **last 2** entries, each answer capped at **2000** chars.
+
+## 4.3 Regeneration — `POST /api/jobs/:id/regenerate`
+
+Answers **`202 { "runId": "proc_..." }`**. Re-scrapes the posting (or reuses `job_posting.md`)
+and rebuilds the kit in a new `_N` folder, preserving `id`, `status`, `appliedAt` and `createdAt`
+while inheriting the application questions, the recruiter message and the missing extras.
+Accepts the same optional `artifacts` list as `POST /api/generate-kit`; the UI uses it to create
+a single file that was left out of the original kit.
+
+`404` for an unknown job, `400` without a snapshot or pasted text, `409` when the required
+language conflicts with the explicit one.
+
+## 4.4 Base resume upload — `POST /api/profiles/:stack/:language/upload`
+
+`multipart/form-data` with the file in the `resumeFile` field, up to **10 MB**. PDFs are read with
+`pdftotext -layout` (`poppler-utils`); `.txt`, `.md` and `.html` are read as UTF-8. The upload
+stays in memory (nothing is written to disk) and only the extracted text is persisted:
+
+```json
+{
+  "sourceFile": "curriculo.pdf",
+  "language": "pt-br",
+  "stack": "ruby",
+  "extractedAt": "2026-11-15T12:00:00.000Z",
+  "rawLength": 4821,
+  "rawText": "..."
+}
+```
+
+The profile's `enabled` and `extraPrompt` are preserved. `400` without a file or with an invalid
+stack/language, `413` above 10 MB, `422` when nothing can be extracted.
+
+## 4.5 Application questions — `POST /api/jobs/:id/questions`
+
+Scrapes the application form (Greenhouse, Lever, Workable or generic), separates the standard
+fields from the company questions, categorizes them (`upload`, `personal`, `legal`, `demographic`,
+`custom`) and writes `application_questions.json` in the job folder. Synchronous, needs Chromium.
+
+```json
+{
+  "success": true,
+  "platform": "greenhouse",
+  "questions": [
+    {
+      "id": "q_years",
+      "label": "How many years of Rails experience?",
+      "type": "select",
+      "required": true,
+      "options": ["1-3", "3-5"],
+      "name": "question_1",
+      "category": "custom"
+    }
+  ],
+  "standardFields": [{ "id": "email", "label": "Email", "type": "email" }],
+  "questionsUrl": "/applications/acme_engineer/application_questions.json"
+}
+```
+
+`404` for an unknown job, `400` without a URL, `400` when the job has no kit folder yet.
+
+## 4.6 Post-response chat — `POST /api/jobs/:id/chat`
+
+Free conversation about a job **after** the pipeline answered. Synchronous (the handler awaits the
+LLM and returns the whole reply), like `/questions`; it does not go through the 202
+queue. See [ADR-0011](./adr/0011-post-response-chat.md).
+
+```json
+{ "message": "Resuma o fit." }
+```
+
+```json
+{
+  "success": true,
+  "reply": "Aderência alta, com um gap em Kubernetes.",
+  "chat": [
+    { "role": "user", "content": "Resuma o fit.", "at": "2026-11-15T12:00:00.000Z" },
+    { "role": "assistant", "content": "Aderência alta, com um gap em Kubernetes.", "at": "2026-11-15T12:00:01.000Z" }
+  ]
+}
+```
+
+- **Context:** the latest `jobSnapshot.content` (scraped posting), the fit (rating, dimensions,
+  strengths, gaps, analysis) and the last **12** turns. The zero-lies instruction and the skill's
+  safety protocol are always injected in the system prompt.
+- **Persistence:** the thread lives in `jobs.chat_history`, one per job, so it survives fit/kit
+  reruns and `regenerate`.
+- **Gates:** `404` unknown job, `400` blank message, `409` when there is neither a snapshot nor a
+  fit.
+- **Failures:** a failed LLM call persists nothing and answers a generic `500`; provider errors
+  are redacted (`sk-…`, `key=…`) before they can reach the client.
+- Quick actions in the UI are just predefined messages sent to this route; they never rewrite
+  artifacts (that remains `POST /api/jobs/:id/regenerate`).
+
 ## 5. Legacy compatibility
 
 These routes exist so the legacy UI keeps working during the migration. They
@@ -293,6 +495,18 @@ Responds `{ "success": true, "application": { ... } }`.
 
 Responds `{ "success": true, "message": "Candidatura removida com sucesso" }`.
 
+### `POST /api/applications/:id/apply-confirm`
+
+v1 shim for the manual confirmation. It delegates to the same helper as
+`POST /api/jobs/:id/apply-confirm`, so it writes the same `jobs` columns and enforces the same
+`approved: true` lock. The envelope keeps the v1 shape:
+
+```json
+{ "success": true, "application": { "id": "app_1", "status": "applied", "applyMethod": "manual", "applyNote": "...", "date": "15/11/2026" } }
+```
+
+`404` for an unknown application, `400` without the explicit approval.
+
 ### `GET /api/processes`
 
 Lists **only runs with `stage != "done"`** — that's what the legacy panel shows as pending
@@ -314,7 +528,7 @@ Responds `{ "success": true }`.
 | GET | `/api/base-resumes` | `{ "pt-br": { exists, language, sourceFile, updatedAt, charCount, preview }, ... }` |
 | GET | `/api/pdf-theme` | `{ success, theme }` |
 | PUT | `/api/pdf-theme` | validates `#RRGGBB`; returns the theme normalized to uppercase |
-| GET | `/api/candidate-data` | `{ success, candidate }` |
+| GET | `/api/candidate-data` | `{ success, candidate }` — contact fields derived from the base resume text, with the saved form filling the blanks |
 | PUT | `/api/candidate-data` | derives `firstName`/`lastName` from `fullName` |
 
 ## 6. Profiles (targets) and settings
@@ -430,17 +644,19 @@ curl http://localhost:3344/api/applications
 open http://localhost:3344/cv/app_1
 ```
 
-## 9. What doesn't exist yet
+## 9. Pipeline parity
 
-The remaining heavy pipeline routes still live only in the legacy server:
+The v1 pipeline is ported end to end: async `POST /api/fit-check`, deterministic
+`POST /api/evaluate-fit`, Playwright scraping, the hybrid fit engine, the LLM fit check,
+`POST /api/generate-kit`, the interactive queue, `POST /api/jobs/:id/regenerate` and the base
+resume upload. The LLM client, the skill prompt loader and `/api/llm-config` live in
+`src/pipeline/`.
 
-- `POST /api/generate-kit` (`process-job`)
-- base resume upload/extraction
-- kit regeneration (`/api/jobs/:id/regenerate`)
-- interactive queue (`GET /api/runs/:id/question`, `POST /api/runs/:id/respond`)
+Intentionally **not** ported (see [roadmap.md](./roadmap.md)):
 
-Phase 2 already ships in v2: async `POST /api/fit-check`, deterministic
-`POST /api/evaluate-fit`, Playwright scraping, the hybrid fit engine and the LLM fit check.
-The LLM client, the skill prompt loader and `/api/llm-config` live in `src/pipeline/`. See
-[architecture.md §7](./architecture.md#7-pipeline-llm-and-skills), the step plan in
-`.plans/pipeline-port-v1-v2.md` and the phase goals in [roadmap.md](./roadmap.md).
+- `render_pdf.mjs` page counting (cosmetic wrapper);
+- `calculateFitHybridSync`, which is broken in v1;
+- automated form submission (the app never clicks Submit; apply confirmation is manual).
+
+See [architecture.md §7](./architecture.md#7-pipeline-llm-and-skills) and the phase goals in
+[roadmap.md](./roadmap.md).

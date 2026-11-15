@@ -53,6 +53,9 @@ export interface Job {
   appliedAt: string | null;
   fit: Fit | null;
   appliedEmails: string[];
+  applyNote: string | null;
+  applyMethod: string;
+  chatHistory: ChatMessage[];
   coverLetterGuidance: string | null;
   coverInCvRequired: boolean | null;
   coverInCvReason: string | null;
@@ -62,6 +65,13 @@ export interface Job {
   fitConfirmed: boolean | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** One turn of the post-response conversation (`jobs.chat_history`). */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  at: string;
 }
 
 export interface JobSnapshot {
@@ -127,6 +137,64 @@ export interface ClarificationEntry {
   at: string;
 }
 
+/** Body accepted by `POST /api/runs/:id/respond` (D6). */
+export interface RespondInput {
+  answer?: string;
+  approvedInferences?: string[];
+  rejectedInferences?: string[];
+  coverLetterGuidance?: string;
+  includeCoverInCv?: string | boolean;
+}
+
+export interface RespondResponse {
+  runId: string;
+}
+
+/** `POST /api/profiles/:stack/:language/upload` (v1 response shape). */
+export interface ResumeUploadResponse {
+  success: boolean;
+  message: string;
+  fileName: string;
+  charCount: number;
+}
+
+/** Body of `POST /api/fit-check` (202). */
+export interface FitCheckInput {
+  url?: string;
+  rawText?: string;
+  extraQuestions?: string;
+  recruiterMessage?: string;
+  languagePreference?: 'auto' | 'pt-br' | 'en';
+  stack?: string;
+  processId?: string;
+  jobSnapshot?: JobSnapshot;
+}
+
+/** Body of `POST /api/generate-kit` (202). */
+export interface GenerateKitInput {
+  processId?: string;
+  url?: string;
+  rawText?: string;
+  extraQuestions?: string;
+  recruiterMessage?: string;
+  language?: 'auto' | 'pt-br' | 'en';
+  languagePreference?: 'auto' | 'pt-br' | 'en';
+  stack?: string;
+  jobSnapshot?: JobSnapshot;
+  fitConfirmed?: boolean;
+  userAnswer?: string;
+  approvedInferences?: string[];
+  rejectedInferences?: string[];
+  coverLetterGuidance?: string;
+  includeCoverInCv?: string | boolean;
+  /** Artifact kinds to write; omitted means every kind. */
+  artifacts?: string[];
+}
+
+export interface EnqueuedRun {
+  runId: string;
+}
+
 export interface Artifact {
   id: string;
   jobId: string;
@@ -154,6 +222,66 @@ export interface JobDetailResponse {
   job: Job;
   runs: Run[];
   artifacts: Artifact[];
+}
+
+export type AtsPlatform = 'greenhouse' | 'lever' | 'workable' | 'generic';
+
+export type QuestionCategory =
+  | 'upload'
+  | 'personal'
+  | 'legal'
+  | 'demographic'
+  | 'custom';
+
+export interface ApplicationQuestion {
+  id: string;
+  label: string;
+  type: string;
+  required: boolean;
+  options: string[] | null;
+  name: string;
+  category: QuestionCategory;
+}
+
+export interface StandardField {
+  id: string;
+  label: string;
+  type: string;
+  required: boolean;
+  options: string[] | null;
+  name: string;
+}
+
+export interface QuestionsResponse {
+  success: boolean;
+  platform: AtsPlatform;
+  questions: ApplicationQuestion[];
+  standardFields: StandardField[];
+  questionsUrl: string;
+}
+
+/** Body of `POST /api/jobs/:id/apply-confirm` (D1). */
+export interface ApplyConfirmInput {
+  approved: true;
+  note?: string;
+  channel?: string;
+  appliedEmails?: string[];
+}
+
+export interface ApplyConfirmResponse {
+  success: boolean;
+  job: Job;
+}
+
+/** Body of `POST /api/jobs/:id/chat` (D3). */
+export interface ChatInput {
+  message: string;
+}
+
+export interface ChatResponse {
+  success: boolean;
+  reply: string;
+  chat: ChatMessage[];
 }
 
 export interface JobFilters {
@@ -207,6 +335,36 @@ export interface NewProfile {
   content?: ProfileContent;
   enabled?: boolean;
   extraPrompt?: string | null;
+}
+
+export const LLM_PROVIDERS = [
+  'gemini',
+  'openai',
+  'openai-compatible',
+  'nvidia',
+  'anthropic',
+] as const;
+
+export type LlmProvider = (typeof LLM_PROVIDERS)[number];
+
+/** `GET /api/llm-config`: the key is only ever exposed as `maskedKey` (D4). */
+export interface LlmConfigView {
+  provider: LlmProvider;
+  model: string;
+  baseUrl: string;
+  temperature: number | '';
+  top_p: number | '';
+  maxTokens: number | '';
+  hasKey: boolean;
+  maskedKey: string;
+}
+
+/** Partial update; an omitted field is preserved (an empty `apiKey` too). */
+export interface LlmConfigPatch {
+  provider?: LlmProvider;
+  apiKey?: string;
+  model?: string;
+  baseUrl?: string;
 }
 
 export const EXTRA_PROMPT_MAX_LENGTH = 8000;

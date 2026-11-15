@@ -9,10 +9,11 @@ v2 is a **local-first** application with three blocks:
 3. **Persistence** — SQLite for structured data and the filesystem for generated artifacts
    (PDF, HTML, TXT).
 
-The pipeline is being ported slice by slice. Phase 2 is done: **Playwright scraping**, the
-**deterministic hybrid fit**, the **LLM fit check** and the **async run queue** live in
-`src/pipeline/` and are exposed by v2. Kit generation, PDF rendering and the interactive queue
-still run in the previous server. v2 is today the source of truth for job, run and artifact data.
+The pipeline is being ported slice by slice. Phases 1–5 are done: **Playwright scraping**, the
+**deterministic hybrid fit**, the **LLM fit check**, the **async run queue**, **kit generation with
+PDF output**, the **interactive queue** and the **base resume upload** live in `src/pipeline/` and
+are exposed by v2. The React UI drives checkpoints and pipeline entrypoints; the previous server
+remains available on port `3333` only as a fallback.
 
 ## 2. Context
 
@@ -161,7 +162,8 @@ sequenceDiagram
 ## 7. Pipeline: LLM and skills
 
 The pipeline modules live in `src/pipeline/` and consume the skill assets in `skills/`.
-Phase 2 wired the fit path end to end; Phase 3 (kit + PDF) is still in the previous server.
+All phases are wired end to end: fit check, kit generation, PDF/ATS output and the interactive
+queue.
 
 ```mermaid
 flowchart LR
@@ -178,17 +180,18 @@ flowchart LR
     FITENGINE["Hybrid fit engine - deterministic"]
     SCRAPE["Playwright scrape"]
     QUEUE["FIFO run queue"]
+    KITGEN["Kit generation - kit/generate"]
+    PDF["PDF + ATS layer - pdf.ts"]
+    RESUME["Resume text extraction - pdftotext"]
   end
 
   subgraph ROUTES["HTTP routes"]
     FIT["POST /api/fit-check - 202"]
     EVAL["POST /api/evaluate-fit - sync"]
-    KIT["POST /api/generate-kit - Phase 4"]
-  end
-
-  subgraph PLANNED["Planned flow - Phase 3/4"]
-    ARTIFACTS["Kit + PDF artifacts"]
-    INTERACTIVE["Interactive queue /question /respond"]
+    KIT["POST /api/generate-kit - 202"]
+    QA["/api/runs/:id/question + /respond"]
+    REGEN["POST /api/jobs/:id/regenerate - 202"]
+    UPLOAD["POST /api/profiles/:stack/:language/upload"]
   end
 
   SKILL --> LOADER
@@ -196,18 +199,21 @@ flowchart LR
   PROMPTS --> CLIENT
   CONFIG --> CLIENT
   FIT --> QUEUE
+  KIT --> QUEUE
+  REGEN --> QUEUE
+  QA --> QUEUE
+  UPLOAD --> RESUME
   QUEUE --> SCRAPE
   QUEUE --> CLIENT
+  QUEUE --> KITGEN
+  KITGEN --> PDF
   EVAL --> FITENGINE
   CLIENT --> STORE["runs + jobs"]
+  KITGEN --> STORE
   QUEUE --> STORE
-  KIT -.-> QUEUE
-  QUEUE -.-> ARTIFACTS
-  QUEUE -.-> INTERACTIVE
-  TEMPLATES -.->|"PDF phase"| ARTIFACTS
+  KITGEN --> ARTIFACTS["Kit + PDF artifacts"]
+  TEMPLATES --> PDF
 ```
-
-Solid edges are wired; dotted edges are planned.
 
 | Module | Responsibility |
 |---|---|
@@ -219,18 +225,32 @@ Solid edges are wired; dotted edges are planned.
 | `src/pipeline/scrape/job.ts` | Greenhouse API-first scrape, Playwright fallback, injectable browser |
 | `src/pipeline/fit/**` | Port of the v1 hybrid engine: semantic similarity, temporal experience, evidence and final calibration |
 | `src/pipeline/kit/fit.ts` | `checkJobFit()` — LLM fit check with the skill framework and the enabled target's `extraPrompt` |
+| `src/pipeline/kit/generate.ts` | Pure kit generation steps: job resolution, target resume, deterministic pre-pass, prompt, tolerant JSON parse and validator retry (max 2 fix prompts) |
+| `src/pipeline/kit/slug.ts` | `getCandidateFileSlug()` from `settings.candidate_form`, name sanitizing and role truncation |
+| `src/pipeline/kit/suggestions.ts` | Deterministic question/answer suggestions (no LLM) |
+| `src/pipeline/kit/validate.ts` | Resume/content validators: coverage, hallucination, cliché, ammo, accent and layout |
+| `src/pipeline/kit/artifacts.ts` | Writes the kit folder (`applications/<company>_<role>[_N]`) and records rows in `artifacts` |
+| `src/pipeline/pdf.ts` | Chromium `page.pdf` (A4, 15 mm, `printBackground`) plus `pdftotext -layout` → `_ats_layer.txt` and `atsCompatible` |
+| `src/pipeline/resume-text.ts` | `createResumeTextExtractor()` — `pdftotext` for PDFs, UTF-8 for text files; injectable in tests |
+| `src/pipeline/candidate-data.ts` | `extractCandidateFromTexts()` / `candidateFromStore()` — contact data derived from the base resume |
+| `src/pipeline/apply/assistant.ts` | Browser contract and Chromium launcher shared by the application-question extractor |
+| `src/pipeline/apply/questions.ts` | `scrapeApplicationQuestions()` — one DOM walk plus pure platform detection, standard-field mapping and categorisation |
+| `src/pipeline/apply/confirm.ts` | `confirmApplication()` — manual apply confirmation behind the `approved: true` lock; sanitizes channel, note and e-mails |
+| `src/pipeline/chat.ts` | `respondToChat()` — synchronous, grounded post-response chat; persists the thread per job and redacts provider errors |
 | `src/pipeline/queue.ts` | FIFO queue, one pipeline execution at a time |
 | `src/pipeline/service.ts` | Wires store, loader, LLM, scraper and queue; injectable in tests |
-| `src/api/routes/pipeline.ts` | `POST /api/fit-check` (202) and `POST /api/evaluate-fit` (sync) |
+| `src/api/routes/pipeline.ts` | `POST /api/fit-check`, `/api/evaluate-fit`, `/api/generate-kit`, `/api/runs/:id/question`, `/api/runs/:id/respond`, `/api/jobs/:id/regenerate`, `/api/jobs/:id/questions` and `/api/jobs/:id/chat` |
 | `src/domain/llm.ts` | Provider enum, defaults, `llmConfigPatchSchema` and the public (masked) config shape |
-| `src/api/routes/meta.ts` | `GET/PUT/POST /api/llm-config`; the key is never returned |
+| `src/api/routes/meta.ts` | `GET/PUT/POST /api/llm-config`, the profile/target CRUD and the base resume upload; the key is never returned |
 
-Flow today (Phase 2): `POST /api/fit-check` validates the body, creates a `queued` run and answers
+Flow today: `POST /api/fit-check` validates the body, creates a `queued` run and answers
 `202 {runId}` → the FIFO worker scrapes (or reuses a snapshot), builds the enabled target's system
 prompt → calls `createLlmClient().call(prompt, system)` → persists the checkpoint on `runs`
-(`fit-checked`, `scrape-thin` or `failed`). `POST /api/evaluate-fit` bypasses both the queue and the
-LLM and runs the deterministic engine. Planned for Phase 3/4: kit generation, PDF and checkpoints.
-The full port map is in `.plans/pipeline-port-v1-v2.md`; the current surface is in
+(`fit-checked`, `scrape-thin` or `failed`). `POST /api/generate-kit` reuses that checkpoint, asks
+for a missing fact when the kit cannot be grounded (`needs_input`, at most 2 rounds), validates the
+returned HTML (max 2 fix prompts), renders the PDF and records the artifacts. `POST
+/api/evaluate-fit` bypasses both the queue and the LLM and runs the deterministic engine. The full
+port map is in the phase history under `.plans/`; the current surface is in
 [api.md](./api.md) and the phase goals in [roadmap.md](./roadmap.md).
 
 ## 8. Import of existing data
@@ -290,21 +310,26 @@ repositories.
 |---|---|---|
 | Simplicity | One Node process, one SQLite file, no infrastructure | Doesn't scale to multiple concurrent users |
 | Portability | Repositories + JSON columns + ISO + `owner_id` | The compatibility DTO still couples the old UI |
-| Testability | 134 backend tests + 28 frontend tests; temporary database and Supertest | PDF generation and kit generation are not covered yet |
+| Testability | 325 backend tests + 53 frontend tests; temporary database, Supertest and injected browser/LLM/`pdftotext` stubs | No real Chromium, network or `pdftotext` in the suite |
 | Security | Zod validation, path traversal blocked, LLM key masked by the API | No authentication; assumes local use |
 | Performance | Indexes on status, date, company and job_id; WAL | No cache; N+1 when listing artifacts per job |
 | Observability | Error logs in the global handler; health check | No metrics or tracing |
 
 ## 11. Known limits
 
-- Scraping, deterministic fit and LLM fit-check are ported; **kit generation, PDF rendering and
-  the interactive queue** still live in the previous server (Phases 3–4).
+- The whole pipeline is ported: scraping, deterministic fit, LLM fit-check, kit generation, PDF
+  rendering, the interactive queue, regeneration and base resume upload.
+- The React job detail also exposes the question extraction, the manual apply
+  confirmation and the post-response chat (synchronous, grounded on the posting + fit).
+- The chat thread is stored per job and only the last 12 turns reach the prompt; the column itself
+  is not pruned yet.
 - The queue is in-process and lost on restart; only `runs` already persisted survive.
 - There is no authentication; `owner_id` exists but is always `local`.
 - The `/api/applications` listing runs one artifact query per job (N+1). For 16 jobs it's
   irrelevant; it will be solved with an aggregate endpoint or `IN (...)`.
-- The old UI still calls processing routes that only exist on the previous server.
-- React covers dashboard, detail, admin and app settings.
+- The old UI still calls its own processing routes; retiring it depends on the roadmap checklist.
+- React covers dashboard, detail, admin, app settings, the interactive checkpoint, the pipeline
+  entrypoints, question extraction, apply confirmation and the post-response chat.
 
 ## 12. Related decisions
 
@@ -316,3 +341,6 @@ repositories.
 - [ADR-0006 — Artifacts on the filesystem](./adr/0006-artifacts-on-the-filesystem.md)
 - [ADR-0007 — Zod at the boundary](./adr/0007-zod-at-the-http-boundary.md)
 - [ADR-0008 — Vitest and Supertest](./adr/0008-vitest-supertest.md)
+- [ADR-0009 — Configurable targets](./adr/0009-configurable-targets.md)
+- [ADR-0010 — Asynchronous pipeline](./adr/0010-async-pipeline.md)
+- [ADR-0011 — Synchronous post-response chat](./adr/0011-post-response-chat.md)

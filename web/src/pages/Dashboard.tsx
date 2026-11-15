@@ -1,9 +1,11 @@
 import { useDeferredValue, useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useJobs, useStats } from '../api/hooks';
-import { JOB_STATUSES, type JobStatus } from '../api/types';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useJobs, useRuns, useStats, useDeleteJob } from '../api/hooks';
+import { JOB_STATUSES, type JobStatus, type Run } from '../api/types';
 import { StatCard } from '../components/StatCard';
-import { StatusBadge } from '../components/StatusBadge';
+import { JobStatusSelect } from '../components/JobStatusSelect';
+import { InterruptedRuns } from '../components/InterruptedRuns';
+import { NewJobModal } from '../components/NewJobModal';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateMessage';
 import { STATUS_LABELS, fitTone, formatDate, formatFit } from '../lib/format';
 
@@ -20,6 +22,9 @@ function parsePage(value: string | null): number {
 
 export function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [newJobOpen, setNewJobOpen] = useState(false);
+  const [resumeRunId, setResumeRunId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const query = searchParams.get('q') ?? '';
   const status = parseStatus(searchParams.get('status'));
   const page = parsePage(searchParams.get('page'));
@@ -49,6 +54,8 @@ export function Dashboard() {
   }, [deferredQuery, query, setSearchParams]);
 
   const stats = useStats();
+  const runs = useRuns();
+  const deleteJob = useDeleteJob();
   const jobs = useJobs({
     q: deferredQuery || undefined,
     status: status || undefined,
@@ -77,6 +84,23 @@ export function Dashboard() {
     setSearchParams({});
   }
 
+  function continueRun(run: Run) {
+    if (run.jobId) {
+      navigate(`/jobs/${run.jobId}`);
+      return;
+    }
+    setResumeRunId(run.id);
+    setNewJobOpen(true);
+  }
+
+  function removeJob(jobId: string, label: string) {
+    const confirmed = window.confirm(
+      `Excluir definitivamente "${label}"? Isso apaga a vaga, os processos e os arquivos gerados. Não dá para desfazer.`,
+    );
+    if (!confirmed) return;
+    deleteJob.mutate(jobId);
+  }
+
   function goToPage(nextPage: number) {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
@@ -98,7 +122,29 @@ export function Dashboard() {
             Acompanhe candidaturas, fits e os artefatos gerados pelo pipeline.
           </p>
         </div>
+
+        <div className="link-row">
+          <button
+            type="button"
+            className="button"
+            onClick={() => setNewJobOpen(true)}
+          >
+            ✨ Nova vaga com IA
+          </button>
+        </div>
       </div>
+
+      {newJobOpen ? (
+        <NewJobModal
+          key={resumeRunId ?? 'new-job'}
+          open
+          initialRunId={resumeRunId}
+          onClose={() => {
+            setNewJobOpen(false);
+            setResumeRunId(null);
+          }}
+        />
+      ) : null}
 
       <section className="stats-grid" aria-label="Estatísticas">
         <StatCard
@@ -125,6 +171,8 @@ export function Dashboard() {
           tone={fitTone(average) === 'high' ? 'good' : 'warn'}
         />
       </section>
+
+      <InterruptedRuns runs={runs.data ?? []} onContinue={continueRun} />
 
       <section className="panel">
         <div className="panel-header">
@@ -176,6 +224,14 @@ export function Dashboard() {
           />
         ) : null}
 
+        {deleteJob.error ? (
+          <p className="inline-error" role="alert">
+            {deleteJob.error instanceof Error
+              ? deleteJob.error.message
+              : 'Não foi possível excluir a vaga.'}
+          </p>
+        ) : null}
+
         {jobs.data && jobs.data.items.length === 0 ? (
           <EmptyState
             title="Nenhuma vaga encontrada"
@@ -205,6 +261,7 @@ export function Dashboard() {
                   <th scope="col">Fit</th>
                   <th scope="col">Aplicada em</th>
                   <th scope="col">Canal</th>
+                  <th scope="col">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -221,7 +278,7 @@ export function Dashboard() {
                       </Link>
                     </td>
                     <td>
-                      <StatusBadge status={job.status} />
+                      <JobStatusSelect job={job} />
                     </td>
                     <td>
                       <span className={`fit-pill tone-${fitTone(job.fit?.rating)}`}>
@@ -230,6 +287,18 @@ export function Dashboard() {
                     </td>
                     <td className="nowrap">{formatDate(job.appliedAt ?? job.createdAt)}</td>
                     <td className="nowrap muted">{job.channel ?? '—'}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="button ghost button-small"
+                        disabled={deleteJob.isPending}
+                        onClick={() =>
+                          removeJob(job.id, `${job.company} — ${job.role}`)
+                        }
+                      >
+                        Excluir
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

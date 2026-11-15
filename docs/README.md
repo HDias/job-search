@@ -9,10 +9,13 @@ migration history and next steps.
 |---|---|---|
 | 0 | Data model, normalization and import of existing JSON files | ✅ Complete |
 | 1 | SQLite + Drizzle, repositories, REST API and UI compatibility | ✅ Complete |
-| 2 | React frontend (Vite + TS + TanStack Query) | 🚧 Dashboard, detail, admin and app settings done |
+| 2 | React frontend (Vite + TS + TanStack Query) | ✅ Complete |
+| 3 | Pipeline port: scrape, fit, kit + PDF, interactive queue, upload | ✅ Complete |
+| 4 | Application cycle: apply confirmation, extração de perguntas in React, post-response chat | ✅ Complete |
 
 **Current numbers:** 16 jobs, 34 runs (17 orphans), 97 artifacts, 4 profiles and 2 settings
-imported; 103 backend tests + 28 frontend tests; API and SPA on port `3344`, Vite on `5173`.
+imported; 325 backend tests + 53 frontend tests; API and SPA on port `3344`, Vite on `5173`.
+The v1 app remains on `3333` as a fallback until its UI is retired (see [roadmap.md](./roadmap.md)).
 
 ## Where to start
 

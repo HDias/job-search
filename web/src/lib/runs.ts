@@ -1,4 +1,4 @@
-import type { Run } from '../api/types';
+import type { LlmQuestion, Run } from '../api/types';
 
 const FINISHED_STAGES = new Set(['done', 'failed']);
 
@@ -24,5 +24,23 @@ export function pendingConfirmation(
   if (!runs) return null;
   if (runs.some((run) => run.needsLanguageConfirmation)) return 'language';
   if (runs.some((run) => run.needsFitConfirmation)) return 'fit';
+  return null;
+}
+
+export interface PendingQuestion {
+  run: Run;
+  question: LlmQuestion;
+}
+
+/** Run that is blocked on a human answer (`needs_input`, D6). */
+export function pendingQuestion(
+  runs: Run[] | undefined,
+): PendingQuestion | null {
+  if (!runs) return null;
+  for (const run of runs) {
+    if (run.stage === 'needs_input' && run.llmQuestion) {
+      return { run, question: run.llmQuestion };
+    }
+  }
   return null;
 }

@@ -1,19 +1,26 @@
 import { Link, useParams } from 'react-router-dom';
 import { ApiError } from '../api/client';
-import { useJob, useUpdateJob } from '../api/hooks';
+import { useJob, useRespondToRun, useUpdateJob } from '../api/hooks';
 import { JOB_STATUSES, type JobStatus } from '../api/types';
 import { ArtifactList } from '../components/ArtifactList';
+import { ApplyActions } from '../components/ApplyActions';
+import { ApplyConfirm } from '../components/ApplyConfirm';
+import { ChatPanel } from '../components/ChatPanel';
+import { CheckpointPanel } from '../components/CheckpointPanel';
 import { FitPanel } from '../components/FitPanel';
+import { JobChannelEditor } from '../components/JobChannelEditor';
+import { PipelineActions } from '../components/PipelineActions';
 import { RunList } from '../components/RunList';
 import { StatusBadge } from '../components/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateMessage';
 import { STATUS_LABELS, formatDate } from '../lib/format';
-import { hasActiveRuns, pendingConfirmation } from '../lib/runs';
+import { hasActiveRuns, pendingConfirmation, pendingQuestion } from '../lib/runs';
 
 export function JobDetail() {
   const { id } = useParams<{ id: string }>();
   const jobQuery = useJob(id);
   const updateJob = useUpdateJob();
+  const respond = useRespondToRun(id ?? null);
 
   if (jobQuery.isLoading) {
     return <LoadingState label="Carregando vaga…" />;
@@ -48,6 +55,8 @@ export function JobDetail() {
   const { job, runs, artifacts } = jobQuery.data;
   const live = hasActiveRuns(runs);
   const pending = pendingConfirmation(runs);
+  const waiting = pendingQuestion(runs);
+  const latestRun = runs[0] ?? null;
 
   return (
     <div className="page">
@@ -69,50 +78,125 @@ export function JobDetail() {
           </div>
         </div>
 
-        <div className="detail-actions">
-          <label className="field">
-            <span>Status da candidatura</span>
-            <select
-              value={job.status}
-              disabled={updateJob.isPending}
-              onChange={(event) =>
-                updateJob.mutate({
-                  id: job.id,
-                  patch: { status: event.target.value as JobStatus },
-                })
-              }
-            >
-              {JOB_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-          </label>
+        <label className="field detail-status">
+          <span>Status da candidatura</span>
+          <select
+            value={job.status}
+            disabled={updateJob.isPending}
+            onChange={(event) =>
+              updateJob.mutate({
+                id: job.id,
+                patch: { status: event.target.value as JobStatus },
+              })
+            }
+          >
+            {JOB_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
+        </label>
+      </header>
 
-          <div className="link-row">
-            {job.vacancyUrl ? (
-              <a className="button ghost" href={job.vacancyUrl} target="_blank" rel="noreferrer">
-                Ver vaga
-              </a>
-            ) : null}
-            {job.applyUrl && job.applyUrl !== job.vacancyUrl ? (
-              <a className="button ghost" href={job.applyUrl} target="_blank" rel="noreferrer">
-                Abrir candidatura
-              </a>
-            ) : null}
+      {updateJob.isError ? (
+        <p className="inline-error" role="alert">
+          {updateJob.error instanceof Error
+            ? updateJob.error.message
+            : 'Não foi possível atualizar o status.'}
+        </p>
+      ) : null}
+      {updateJob.isSuccess ? (
+        <p className="inline-ok">Status atualizado.</p>
+      ) : null}
+
+      <section className="panel next-steps" aria-label="Próximos passos">
+        <div className="panel-header">
+          <h2>Próximos passos</h2>
+          <span className="muted">siga na ordem; cada etapa libera a seguinte</span>
+        </div>
+
+        <div className="steps-grid">
+          <div className="step">
+            <span className="step-number" aria-hidden="true">
+              1
+            </span>
+            <div className="step-body">
+              <h3>Analise e prepare o material</h3>
+              <p className="muted">
+                Rode o fit-check para ver a compatibilidade da vaga e, se fizer
+                sentido, gere o currículo, a carta e a mensagem ao recrutador.
+              </p>
+              <PipelineActions job={job} run={latestRun} />
+            </div>
           </div>
 
-          {updateJob.isError ? (
-            <p className="inline-error" role="alert">
-              {updateJob.error instanceof Error
-                ? updateJob.error.message
-                : 'Não foi possível atualizar o status.'}
-            </p>
-          ) : null}
-          {updateJob.isSuccess ? <p className="inline-ok">Status atualizado.</p> : null}
+          <div className="step">
+            <span className="step-number" aria-hidden="true">
+              2
+            </span>
+            <div className="step-body">
+              <h3>Candidate-se no site</h3>
+              <p className="muted">
+                Abra o anúncio para enviar sua candidatura. Se quiser ajuda, o
+                app pré-preenche o formulário — nada é enviado automaticamente.
+              </p>
+              <div className="link-row">
+                {job.vacancyUrl ? (
+                  <a
+                    className="button ghost"
+                    href={job.vacancyUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Ver vaga
+                  </a>
+                ) : null}
+                {job.applyUrl && job.applyUrl !== job.vacancyUrl ? (
+                  <a
+                    className="button ghost"
+                    href={job.applyUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Abrir candidatura
+                  </a>
+                ) : null}
+              </div>
+              <ApplyActions
+                job={job}
+                hasKit={artifacts.some((artifact) => artifact.kind === 'cv_pdf')}
+              />
+            </div>
+          </div>
+
+          <div className="step">
+            <span className="step-number" aria-hidden="true">
+              3
+            </span>
+            <div className="step-body">
+              <h3>Registre a candidatura</h3>
+              <p className="muted">
+                Depois de enviar pelo site, marque aqui para acompanhar o status
+                no dashboard.
+              </p>
+              <ApplyConfirm job={job} />
+            </div>
+          </div>
         </div>
-      </header>
+      </section>
+
+      {waiting ? (
+        <CheckpointPanel
+          question={waiting.question}
+          rounds={waiting.run.needsInputRounds}
+          pending={respond.isPending}
+          error={respond.error instanceof Error ? respond.error.message : null}
+          onRespond={(input) =>
+            respond.mutate({ runId: waiting.run.id, input })
+          }
+        />
+      ) : null}
 
       {pending ? (
         <div className="notice" role="status">
@@ -129,11 +213,16 @@ export function JobDetail() {
       <div className="detail-grid">
         <div className="detail-main">
           <FitPanel fit={job.fit} />
+          <ChatPanel job={job} />
           <RunList runs={runs} />
         </div>
 
         <aside className="detail-side">
-          <ArtifactList jobId={job.id} artifacts={artifacts} />
+          <ArtifactList
+            jobId={job.id}
+            artifacts={artifacts}
+            busy={live}
+          />
 
           <section className="panel">
             <div className="panel-header">
@@ -155,9 +244,11 @@ export function JobDetail() {
                   {job.languageConfirmation ? ` (${job.languageConfirmation})` : ''}
                 </dd>
               </div>
-              <div>
+              <div className="summary-wide">
                 <dt>Canal</dt>
-                <dd>{job.channel ?? '—'}</dd>
+                <dd>
+                  <JobChannelEditor job={job} />
+                </dd>
               </div>
               <div>
                 <dt>Criada em</dt>
