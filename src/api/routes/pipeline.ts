@@ -85,6 +85,16 @@ const generateKitSchema = z
     },
   );
 
+const prefillSchema = z.object({
+  applyUrl: z.string().trim().optional(),
+  candidateData: z.record(z.string(), z.unknown()).optional(),
+  headed: z.boolean().optional(),
+});
+
+const questionsSchema = z.object({
+  applyUrl: z.string().trim().optional(),
+});
+
 const regenerateSchema = z.object({
   languagePreference: z.enum(['auto', 'pt-br', 'en']).optional(),
   stack: z.string().trim().min(1).optional(),
@@ -403,6 +413,58 @@ export function createPipelineRouter(
     });
     pipeline.enqueueGenerateKit(plan.run.id, plan.payload);
     res.status(202).json({ runId: plan.run.id });
+  });
+
+  router.post('/jobs/:id/prefill', async (req, res) => {
+    const body = parseBody(prefillSchema, req.body ?? {});
+    const outcome = await pipeline.prefill(req.params.id, body);
+
+    if (outcome.status === 'not_found') {
+      throw new HttpError(404, 'Vaga não encontrada');
+    }
+    if (outcome.status === 'no_url') {
+      throw new HttpError(
+        400,
+        'Informe a URL do formulário de candidatura (applyUrl).',
+      );
+    }
+    if (outcome.status === 'no_pdf') {
+      throw new HttpError(
+        400,
+        'PDF do currículo não encontrado para anexar.',
+      );
+    }
+
+    res.json({ success: true, prefill: outcome.prefill });
+  });
+
+  router.post('/jobs/:id/questions', async (req, res) => {
+    const body = parseBody(questionsSchema, req.body ?? {});
+    const outcome = await pipeline.scrapeQuestions(req.params.id, body);
+
+    if (outcome.status === 'not_found') {
+      throw new HttpError(404, 'Vaga não encontrada');
+    }
+    if (outcome.status === 'no_url') {
+      throw new HttpError(
+        400,
+        'Informe a URL do formulário de candidatura (applyUrl).',
+      );
+    }
+    if (outcome.status === 'no_folder') {
+      throw new HttpError(
+        400,
+        'Gere o kit antes de extrair as perguntas da candidatura.',
+      );
+    }
+
+    res.json({
+      success: true,
+      platform: outcome.result.platform,
+      questions: outcome.result.questions,
+      standardFields: outcome.result.standardFields,
+      questionsUrl: outcome.questionsUrl,
+    });
   });
 
   router.post('/jobs/:id/regenerate', (req, res) => {
