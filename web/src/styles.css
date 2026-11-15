@@ -890,6 +890,69 @@ a:focus-visible {
   font-size: 0.82rem;
 }
 
+/* ----------------------------- checkpoint ---------------------------- */
+
+.checkpoint {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.checkpoint-question {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.checkpoint-options,
+.checkpoint-inferences .link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip-option {
+  cursor: pointer;
+  font-size: 0.82rem;
+  padding: 5px 10px;
+}
+
+.chip-option[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: rgba(56, 189, 248, 0.5);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.checkpoint-inferences {
+  gap: 10px;
+}
+
+.checkpoint-inferences li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+}
+
+.checkpoint-inferences .button[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.pipeline-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pipeline-actions .muted {
+  font-size: 0.78rem;
+}
+
 .run-url {
   font-size: 0.8rem;
   word-break: break-all;

@@ -127,6 +127,54 @@ export interface ClarificationEntry {
   at: string;
 }
 
+/** Body accepted by `POST /api/runs/:id/respond` (D6). */
+export interface RespondInput {
+  answer?: string;
+  approvedInferences?: string[];
+  rejectedInferences?: string[];
+  coverLetterGuidance?: string;
+  includeCoverInCv?: string | boolean;
+}
+
+export interface RespondResponse {
+  runId: string;
+}
+
+/** Body of `POST /api/fit-check` (202). */
+export interface FitCheckInput {
+  url?: string;
+  rawText?: string;
+  extraQuestions?: string;
+  recruiterMessage?: string;
+  languagePreference?: 'auto' | 'pt-br' | 'en';
+  stack?: string;
+  processId?: string;
+  jobSnapshot?: JobSnapshot;
+}
+
+/** Body of `POST /api/generate-kit` (202). */
+export interface GenerateKitInput {
+  processId?: string;
+  url?: string;
+  rawText?: string;
+  extraQuestions?: string;
+  recruiterMessage?: string;
+  language?: 'auto' | 'pt-br' | 'en';
+  languagePreference?: 'auto' | 'pt-br' | 'en';
+  stack?: string;
+  jobSnapshot?: JobSnapshot;
+  fitConfirmed?: boolean;
+  userAnswer?: string;
+  approvedInferences?: string[];
+  rejectedInferences?: string[];
+  coverLetterGuidance?: string;
+  includeCoverInCv?: string | boolean;
+}
+
+export interface EnqueuedRun {
+  runId: string;
+}
+
 export interface Artifact {
   id: string;
   jobId: string;
@@ -207,6 +255,36 @@ export interface NewProfile {
   content?: ProfileContent;
   enabled?: boolean;
   extraPrompt?: string | null;
+}
+
+export const LLM_PROVIDERS = [
+  'gemini',
+  'openai',
+  'openai-compatible',
+  'nvidia',
+  'anthropic',
+] as const;
+
+export type LlmProvider = (typeof LLM_PROVIDERS)[number];
+
+/** `GET /api/llm-config`: the key is only ever exposed as `maskedKey` (D4). */
+export interface LlmConfigView {
+  provider: LlmProvider;
+  model: string;
+  baseUrl: string;
+  temperature: number | '';
+  top_p: number | '';
+  maxTokens: number | '';
+  hasKey: boolean;
+  maskedKey: string;
+}
+
+/** Partial update; an omitted field is preserved (an empty `apiKey` too). */
+export interface LlmConfigPatch {
+  provider?: LlmProvider;
+  apiKey?: string;
+  model?: string;
+  baseUrl?: string;
 }
 
 export const EXTRA_PROMPT_MAX_LENGTH = 8000;

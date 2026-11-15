@@ -7,12 +7,16 @@ import {
 import { api } from './client';
 import type {
   CandidateData,
+  FitCheckInput,
+  GenerateKitInput,
   Job,
   JobDetailResponse,
   JobFilters,
+  LlmConfigPatch,
   NewProfile,
   PdfTheme,
   ProfilePatch,
+  RespondInput,
 } from './types';
 import { hasActiveRuns } from '../lib/runs';
 
@@ -153,6 +157,70 @@ export function useSaveCandidateData() {
     mutationFn: (candidate: CandidateData) => api.saveCandidateData(candidate),
     onSuccess: (data) => {
       queryClient.setQueryData(['candidate-data'], data);
+    },
+  });
+}
+
+/**
+ * Answers an interactive checkpoint (`needs_input`). On success the run goes
+ * back to `generating`, so the cached job is refetched and polling resumes.
+ */
+export function useRespondToRun(jobId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ runId, input }: { runId: string; input: RespondInput }) =>
+      api.respondToRun(runId, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      void queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
+  });
+}
+
+export function useLlmConfig() {
+  return useQuery({
+    queryKey: ['llm-config'],
+    queryFn: api.llmConfig,
+  });
+}
+
+export function useSaveLlmConfig() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (patch: LlmConfigPatch) => api.saveLlmConfig(patch),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['llm-config'] });
+    },
+  });
+}
+
+/** Enqueues a fit-check for a job and lets the existing polling pick it up. */
+export function useFitCheck(jobId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: FitCheckInput) => api.fitCheck(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      void queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
+  });
+}
+
+/** Enqueues a kit generation/regeneration for a job (D2: 202 + polling). */
+export function useGenerateKit(jobId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: GenerateKitInput) => api.generateKit(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      void queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
   });
 }

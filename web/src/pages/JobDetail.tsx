@@ -1,19 +1,22 @@
 import { Link, useParams } from 'react-router-dom';
 import { ApiError } from '../api/client';
-import { useJob, useUpdateJob } from '../api/hooks';
+import { useJob, useRespondToRun, useUpdateJob } from '../api/hooks';
 import { JOB_STATUSES, type JobStatus } from '../api/types';
 import { ArtifactList } from '../components/ArtifactList';
+import { CheckpointPanel } from '../components/CheckpointPanel';
 import { FitPanel } from '../components/FitPanel';
+import { PipelineActions } from '../components/PipelineActions';
 import { RunList } from '../components/RunList';
 import { StatusBadge } from '../components/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateMessage';
 import { STATUS_LABELS, formatDate } from '../lib/format';
-import { hasActiveRuns, pendingConfirmation } from '../lib/runs';
+import { hasActiveRuns, pendingConfirmation, pendingQuestion } from '../lib/runs';
 
 export function JobDetail() {
   const { id } = useParams<{ id: string }>();
   const jobQuery = useJob(id);
   const updateJob = useUpdateJob();
+  const respond = useRespondToRun(id ?? null);
 
   if (jobQuery.isLoading) {
     return <LoadingState label="Carregando vaga…" />;
@@ -48,6 +51,8 @@ export function JobDetail() {
   const { job, runs, artifacts } = jobQuery.data;
   const live = hasActiveRuns(runs);
   const pending = pendingConfirmation(runs);
+  const waiting = pendingQuestion(runs);
+  const latestRun = runs[0] ?? null;
 
   return (
     <div className="page">
@@ -103,6 +108,8 @@ export function JobDetail() {
             ) : null}
           </div>
 
+          <PipelineActions job={job} run={latestRun} />
+
           {updateJob.isError ? (
             <p className="inline-error" role="alert">
               {updateJob.error instanceof Error
@@ -113,6 +120,18 @@ export function JobDetail() {
           {updateJob.isSuccess ? <p className="inline-ok">Status atualizado.</p> : null}
         </div>
       </header>
+
+      {waiting ? (
+        <CheckpointPanel
+          question={waiting.question}
+          rounds={waiting.run.needsInputRounds}
+          pending={respond.isPending}
+          error={respond.error instanceof Error ? respond.error.message : null}
+          onRespond={(input) =>
+            respond.mutate({ runId: waiting.run.id, input })
+          }
+        />
+      ) : null}
 
       {pending ? (
         <div className="notice" role="status">

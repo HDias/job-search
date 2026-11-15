@@ -1,15 +1,22 @@
 import type {
   BaseResumeMap,
   CandidateData,
+  EnqueuedRun,
+  FitCheckInput,
+  GenerateKitInput,
   Job,
   JobDetailResponse,
   JobFilters,
   JobList,
   JobStats,
+  LlmConfigPatch,
+  LlmConfigView,
   NewProfile,
   PdfTheme,
   Profile,
   ProfilePatch,
+  RespondInput,
+  RespondResponse,
 } from './types';
 
 export class ApiError extends Error {
@@ -109,4 +116,33 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(candidate),
     }),
+
+  fitCheck: (input: FitCheckInput) =>
+    request<EnqueuedRun>('/api/fit-check', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  generateKit: (input: GenerateKitInput) =>
+    request<EnqueuedRun>('/api/generate-kit', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  llmConfig: () => request<LlmConfigView>('/api/llm-config'),
+
+  saveLlmConfig: (patch: LlmConfigPatch) =>
+    request<{ success: boolean; message: string }>('/api/llm-config', {
+      method: 'PUT',
+      body: JSON.stringify(patch),
+    }),
+
+  respondToRun: (runId: string, input: RespondInput) =>
+    request<RespondResponse>(
+      `/api/runs/${encodeURIComponent(runId)}/respond`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    ),
 };

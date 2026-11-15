@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   useCandidateData,
+  useLlmConfig,
   usePdfTheme,
   useSaveCandidateData,
+  useSaveLlmConfig,
   useSavePdfTheme,
 } from '../api/hooks';
-import type { CandidateData } from '../api/types';
+import { LLM_PROVIDERS, type CandidateData, type LlmProvider } from '../api/types';
 import { ErrorState, LoadingState } from '../components/StateMessage';
 
 const DEFAULT_RUBY = '#B56A6A';
@@ -27,12 +29,20 @@ const CANDIDATE_FIELDS: Array<{
 export function Admin() {
   const pdfTheme = usePdfTheme();
   const candidate = useCandidateData();
+  const llmConfig = useLlmConfig();
   const savePdfTheme = useSavePdfTheme();
   const saveCandidate = useSaveCandidateData();
+  const saveLlm = useSaveLlmConfig();
 
   const [rubyAccent, setRubyAccent] = useState(DEFAULT_RUBY);
   const [phpAccent, setPhpAccent] = useState(DEFAULT_PHP);
   const [form, setForm] = useState<CandidateData>({});
+  const [llmForm, setLlmForm] = useState<{
+    provider: LlmProvider;
+    model: string;
+    baseUrl: string;
+    apiKey: string;
+  }>({ provider: 'gemini', model: '', baseUrl: '', apiKey: '' });
 
   useEffect(() => {
     const theme = pdfTheme.data?.theme;
@@ -44,6 +54,18 @@ export function Admin() {
     if (candidate.data?.candidate) setForm(candidate.data.candidate);
   }, [candidate.data]);
 
+  useEffect(() => {
+    const config = llmConfig.data;
+    if (!config) return;
+    // The key never comes back from the API, so the field always starts empty.
+    setLlmForm({
+      provider: config.provider,
+      model: config.model,
+      baseUrl: config.baseUrl ?? '',
+      apiKey: '',
+    });
+  }, [llmConfig.data]);
+
   function saveTheme(ruby: string, php: string) {
     savePdfTheme.mutate({
       ruby: { accent: ruby },
@@ -53,6 +75,20 @@ export function Admin() {
 
   function updateForm(field: keyof CandidateData, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function saveLlmConfig() {
+    const apiKey = llmForm.apiKey.trim();
+    saveLlm.mutate(
+      {
+        provider: llmForm.provider,
+        model: llmForm.model.trim(),
+        baseUrl: llmForm.baseUrl.trim(),
+        // An empty field preserves the stored key (D4).
+        ...(apiKey ? { apiKey } : {}),
+      },
+      { onSuccess: () => setLlmForm((current) => ({ ...current, apiKey: '' })) },
+    );
   }
 
   return (
@@ -236,6 +272,129 @@ export function Admin() {
                 {saveCandidate.error instanceof Error
                   ? saveCandidate.error.message
                   : 'Não foi possível salvar os dados.'}
+              </p>
+            ) : null}
+          </>
+        ) : null}
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Inteligência artificial</h2>
+          <span className="muted">provedor, modelo e chave de API</span>
+        </div>
+        <p className="muted">
+          A chave fica apenas no banco local e nunca é devolvida pela API: aqui
+          aparece só a versão mascarada. Deixe o campo vazio para manter a chave
+          atual.
+        </p>
+
+        {llmConfig.isLoading ? <LoadingState label="Carregando configuração…" /> : null}
+
+        {llmConfig.isError ? (
+          <ErrorState
+            message={
+              llmConfig.error instanceof Error
+                ? llmConfig.error.message
+                : 'Erro desconhecido'
+            }
+            onRetry={() => void llmConfig.refetch()}
+          />
+        ) : null}
+
+        {llmConfig.data ? (
+          <>
+            <p className="muted" role="status">
+              {llmConfig.data.hasKey ? (
+                <>
+                  Chave configurada ·{' '}
+                  <code>{llmConfig.data.maskedKey}</code>
+                </>
+              ) : (
+                'Nenhuma chave configurada'
+              )}
+            </p>
+
+            <div className="form-grid">
+              <label className="field">
+                <span>Provedor</span>
+                <select
+                  value={llmForm.provider}
+                  onChange={(event) =>
+                    setLlmForm((current) => ({
+                      ...current,
+                      provider: event.target.value as LlmProvider,
+                    }))
+                  }
+                >
+                  {LLM_PROVIDERS.map((provider) => (
+                    <option key={provider} value={provider}>
+                      {provider}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="field">
+                <span>Modelo</span>
+                <input
+                  type="text"
+                  value={llmForm.model}
+                  onChange={(event) =>
+                    setLlmForm((current) => ({ ...current, model: event.target.value }))
+                  }
+                />
+              </label>
+
+              <label className="field">
+                <span>Base URL</span>
+                <input
+                  type="text"
+                  value={llmForm.baseUrl}
+                  placeholder="opcional"
+                  onChange={(event) =>
+                    setLlmForm((current) => ({ ...current, baseUrl: event.target.value }))
+                  }
+                />
+              </label>
+
+              <label className="field">
+                <span>Nova chave de API</span>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={llmForm.apiKey}
+                  placeholder={
+                    llmConfig.data.hasKey
+                      ? llmConfig.data.maskedKey
+                      : 'cole a chave do provedor'
+                  }
+                  onChange={(event) =>
+                    setLlmForm((current) => ({ ...current, apiKey: event.target.value }))
+                  }
+                />
+              </label>
+            </div>
+
+            <div className="admin-actions">
+              <button
+                type="button"
+                className="button"
+                disabled={saveLlm.isPending}
+                onClick={saveLlmConfig}
+              >
+                {saveLlm.isPending ? 'Salvando…' : 'Salvar configuração de IA'}
+              </button>
+            </div>
+
+            {saveLlm.isSuccess ? (
+              <p className="inline-ok">Configuração de IA salva.</p>
+            ) : null}
+            {saveLlm.isError ? (
+              <p className="inline-error" role="alert">
+                {saveLlm.error instanceof Error
+                  ? saveLlm.error.message
+                  : 'Não foi possível salvar a configuração.'}
               </p>
             ) : null}
           </>
