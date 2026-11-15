@@ -584,7 +584,8 @@ a:focus-visible {
 /* --------------------------- status select --------------------------- */
 
 .status-select {
-  appearance: none;
+  width: auto;
+  min-width: 128px;
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 4px 10px;
