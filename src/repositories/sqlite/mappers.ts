@@ -1,6 +1,8 @@
 import type { Artifact } from '../../domain/artifact.js';
 import {
+  chatMessageSchema,
   fitSchema,
+  type ChatMessage,
   type Fit,
   type Job,
   type Language,
@@ -78,6 +80,15 @@ function nullify<T>(value: T | undefined | null): T | null {
   return value ?? null;
 }
 
+/** Keeps only well-formed turns so a corrupted JSON blob cannot break the UI. */
+export function parseChatHistory(value: unknown): ChatMessage[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    const parsed = chatMessageSchema.safeParse(entry);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
+
 export function rowToJob(row: JobRow): Job {
   return {
     id: row.id,
@@ -94,6 +105,9 @@ export function rowToJob(row: JobRow): Job {
     appliedAt: row.appliedAt,
     fit: parseFit(row.fitJson),
     appliedEmails: Array.isArray(row.appliedEmails) ? row.appliedEmails : [],
+    applyNote: row.applyNote,
+    applyMethod: row.applyMethod ?? 'manual',
+    chatHistory: parseChatHistory(row.chatHistory),
     coverLetterGuidance: row.coverLetterGuidance,
     coverInCvRequired: row.coverInCvRequired,
     coverInCvReason: row.coverInCvReason,
@@ -125,6 +139,9 @@ export function jobToRow(job: Job): NewJobRow {
     fitAnalysis: fit?.analysis ?? null,
     fitJson: fit,
     appliedEmails: job.appliedEmails,
+    applyNote: nullify(job.applyNote),
+    applyMethod: job.applyMethod || 'manual',
+    chatHistory: job.chatHistory.length > 0 ? job.chatHistory : null,
     coverLetterGuidance: nullify(job.coverLetterGuidance),
     coverInCvRequired: nullify(job.coverInCvRequired),
     coverInCvReason: nullify(job.coverInCvReason),

@@ -1,0 +1,1 @@
+ALTER TABLE `jobs` ADD `chat_history` text;

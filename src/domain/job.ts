@@ -44,6 +44,27 @@ export const fitSchema = z.object({
 });
 export type Fit = z.infer<typeof fitSchema>;
 
+export const CHAT_ROLES = ['user', 'assistant'] as const;
+export type ChatRole = (typeof CHAT_ROLES)[number];
+
+/** One turn of the post-response conversation (`jobs.chat_history`). */
+export interface ChatMessage {
+  role: ChatRole;
+  content: string;
+  /** ISO 8601 timestamp of when the turn was appended. */
+  at: string;
+}
+
+export const chatMessageSchema = z.object({
+  role: z.enum(CHAT_ROLES),
+  content: z.string().min(1),
+  at: z.string(),
+});
+
+export const APPLY_NOTE_MAX_LENGTH = 500;
+export const APPLIED_EMAILS_MAX = 10;
+export const APPLY_CHANNEL_MAX_LENGTH = 30;
+
 /**
  * Formato "document-shaped": os dados aninhados da análise ficam em um único
  * objeto JSON. Isso evita normalização excessiva.
@@ -63,6 +84,12 @@ export interface Job {
   appliedAt: string | null;
   fit: Fit | null;
   appliedEmails: string[];
+  /** Free-text note written on manual confirmation. */
+  applyNote: string | null;
+  /** How the application was submitted (`manual` for the confirmed flow). */
+  applyMethod: string;
+  /** Post-response conversation thread (per job, survives reruns). */
+  chatHistory: ChatMessage[];
   coverLetterGuidance: string | null;
   coverInCvRequired: boolean | null;
   coverInCvReason: string | null;
@@ -95,6 +122,9 @@ const newJobBaseSchema = z.object({
   appliedAt: z.string().datetime().nullable().optional(),
   fit: fitSchema.nullable().optional(),
   appliedEmails: z.array(z.string()).default([]),
+  applyNote: z.string().nullable().optional(),
+  applyMethod: z.string().trim().min(1).default('manual'),
+  chatHistory: z.array(chatMessageSchema).default([]),
   coverLetterGuidance: z.string().nullable().optional(),
   coverInCvRequired: z.boolean().nullable().optional(),
   coverInCvReason: z.string().nullable().optional(),
@@ -112,6 +142,19 @@ export type NewJob = z.input<typeof newJobBaseSchema> & {
 
 export const jobPatchSchema = newJobBaseSchema.partial();
 export type JobPatch = z.input<typeof jobPatchSchema>;
+
+/**
+ * Body of `POST /api/jobs/:id/apply-confirm`. `approved` is enforced again by
+ * `confirmApplication` because the human-in-the-loop lock requires strictly
+ * `true` (omitted or `false` must answer 400).
+ */
+export const applyConfirmInputSchema = z.object({
+  approved: z.boolean().optional(),
+  note: z.string().nullable().optional(),
+  channel: z.string().nullable().optional(),
+  appliedEmails: z.union([z.array(z.string()), z.string()]).optional(),
+});
+export type ApplyConfirmInput = z.input<typeof applyConfirmInputSchema>;
 
 export interface JobFilter {
   ownerId?: string;

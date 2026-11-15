@@ -53,6 +53,9 @@ export interface Job {
   appliedAt: string | null;
   fit: Fit | null;
   appliedEmails: string[];
+  applyNote: string | null;
+  applyMethod: string;
+  chatHistory: ChatMessage[];
   coverLetterGuidance: string | null;
   coverInCvRequired: boolean | null;
   coverInCvReason: string | null;
@@ -62,6 +65,13 @@ export interface Job {
   fitConfirmed: boolean | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** One turn of the post-response conversation (`jobs.chat_history`). */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  at: string;
 }
 
 export interface JobSnapshot {

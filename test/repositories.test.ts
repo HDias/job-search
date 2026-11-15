@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { Fit } from '../src/domain/job.js';
+import type { ChatMessage, Fit } from '../src/domain/job.js';
 import { createTestStore } from './helpers.js';
 
 let ctx: ReturnType<typeof createTestStore>;
@@ -65,8 +65,48 @@ describe('SqliteJobRepository', () => {
     expect(job.appliedAt).toBeNull();
     expect(job.fit).toBeNull();
     expect(job.appliedEmails).toEqual([]);
+    expect(job.applyNote).toBeNull();
+    expect(job.applyMethod).toBe('manual');
+    expect(job.chatHistory).toEqual([]);
     expect(job.hasRecruiterMessage).toBe(false);
     expect(job.hasQuestions).toBe(false);
+  });
+
+  it('persiste os campos do apply-confirm e o histórico de chat', () => {
+    const { store } = ctx;
+    const chat: ChatMessage[] = [
+      {
+        role: 'user',
+        content: 'Resuma o fit.',
+        at: '2026-11-15T10:00:00.000Z',
+      },
+      {
+        role: 'assistant',
+        content: 'Aderência alta, sem gaps críticos.',
+        at: '2026-11-15T10:00:05.000Z',
+      },
+    ];
+
+    const job = store.jobs.create({
+      company: 'Acme',
+      role: 'Backend',
+      applyNote: 'Applied through the portal.',
+      applyMethod: 'manual',
+      chatHistory: chat,
+    });
+
+    expect(job.applyNote).toBe('Applied through the portal.');
+    expect(job.applyMethod).toBe('manual');
+    expect(job.chatHistory).toEqual(chat);
+
+    const updated = store.jobs.update(job.id, {
+      applyNote: 'Updated note',
+      chatHistory: [...chat, { ...chat[0]!, content: 'E os gaps?' }],
+    });
+
+    expect(store.jobs.get(job.id)?.applyNote).toBe('Updated note');
+    expect(updated?.chatHistory).toHaveLength(3);
+    expect(updated?.chatHistory?.[2]?.content).toBe('E os gaps?');
   });
 
   it('preserva createdAt/updatedAt recebidos na importação', () => {

@@ -7,7 +7,7 @@ import {
   text,
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
-import type { Fit } from '../domain/job.js';
+import type { ChatMessage, Fit } from '../domain/job.js';
 import type {
   ClarificationEntry,
   JobSnapshot,
@@ -38,6 +38,12 @@ export const jobs = sqliteTable(
     fitAnalysis: text('fit_analysis'),
     fitJson: text('fit_json', { mode: 'json' }).$type<Fit>(),
     appliedEmails: text('applied_emails', { mode: 'json' }).$type<string[]>(),
+    /** Free-text note written when the user confirms the application manually. */
+    applyNote: text('apply_note'),
+    /** How the application was submitted (v1: `applyMethod`). */
+    applyMethod: text('apply_method').notNull().default('manual'),
+    /** Chat thread kept per job (document-shaped JSON, like `applied_emails`). */
+    chatHistory: text('chat_history', { mode: 'json' }).$type<ChatMessage[]>(),
     coverLetterGuidance: text('cover_letter_guidance'),
     coverInCvRequired: integer('cover_in_cv_required', { mode: 'boolean' }),
     coverInCvReason: text('cover_in_cv_reason'),
