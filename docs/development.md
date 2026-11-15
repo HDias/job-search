@@ -7,6 +7,7 @@
 | Node.js | 24.13.0 | Defined in `.tool-versions` |
 | pnpm | 11.3.0 | `packageManager` is not honored; see section 3 |
 | Python 3 | optional | Only if you want to redo the bulk adjustments made during the migration |
+| `pdftotext` | `poppler-utils` | Extracts text from uploaded PDF resumes; without it PDF upload answers `422` |
 
 If you use `asdf`:
 
@@ -22,6 +23,9 @@ cd job-search-v2
 pnpm install
 # Playwright browser used by the scraping step (not downloaded by pnpm install):
 pnpm exec playwright install chromium
+
+# PDF text extraction for base resume upload (Debian/Ubuntu):
+sudo apt install poppler-utils
 ```
 
 On first install, pnpm compiles `better-sqlite3` and `esbuild` from source. This is allowed in

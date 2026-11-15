@@ -51,7 +51,7 @@ Alignment assessment between candidate and job. Contains `rating` (0–100), `an
 `eligibility`, `languageGate` and `logisticsNote`.
 
 **Hybrid fit**
-Previous engine that combines deterministic rules with an LLM. Not ported yet.
+Engine that combines deterministic rules with LLM signals to score fit; ported to `src/pipeline/fit/`.
 
 ## J
 
@@ -91,8 +91,8 @@ Field present in `jobs` to prepare for multi-user. Today it is always `local`.
 
 **Pipeline**
 Sequence that turns a job URL into an application kit: scrape → fit → generate kit → write
-artifacts. Only the LLM client, its configuration and the skill prompt loader are ported; the
-steps themselves still run in the previous server.
+artifacts. Fully ported to `src/pipeline/`; checkpoints are rows in `runs` and the generated
+files are recorded in `artifacts`.
 
 **Profile**
 Base resume per stack (`ruby`, `php`) and language (`pt-br`, `en`). Keeps the original JSON in

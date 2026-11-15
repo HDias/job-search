@@ -14,6 +14,7 @@ and **is not rewritten** — when a decision changes, another ADR is created tha
 | [0007](./0007-zod-at-the-http-boundary.md) | Zod at the HTTP boundary | Accepted |
 | [0008](./0008-vitest-supertest.md) | Vitest + Supertest | Accepted |
 | [0009](./0009-configurable-targets.md) | Configurable targets in `profiles` | Accepted |
+| [0010](./0010-async-pipeline.md) | Asynchronous pipeline in v2 | Accepted |
 
 ## Format
 

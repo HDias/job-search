@@ -27,7 +27,7 @@ web/
 │   │   ├── types.ts        # mirror of the domain types
 │   │   ├── client.ts       # fetch + ApiError + query string
 │   │   └── hooks.ts        # useStats, useJobs, useJob, useUpdateJob
-│   ├── components/         # Layout, badges, fit, runs, artifacts, states
+│   ├── components/         # Layout, badges, fit, runs, artifacts, checkpoint, pipeline actions
 │   ├── lib/format.ts       # dates, fit, bytes, labels and URLs
 │   ├── pages/              # Dashboard, JobDetail, Admin, AppSettings, NotFound
 │   └── test/               # setup and renderWithProviders
@@ -40,7 +40,7 @@ web/
 |---|---|---|
 | `/` | Dashboard | `GET /api/stats` + `GET /api/jobs` (filters in the query string) |
 | `/jobs/:id` | Job detail | `GET /api/jobs/:id` |
-| `/admin` | PDF appearance and form data | `GET/PUT` of pdf-theme and candidate-data |
+| `/admin` | PDF appearance, form data and LLM configuration | `GET/PUT` of pdf-theme and candidate-data, `GET/PUT /api/llm-config` |
 | `/admin/settings` | App Settings (targets and base resumes) | `GET/POST/PUT/DELETE` of profiles |
 | `*` | Not found | — |
 
@@ -64,7 +64,7 @@ flowchart LR
 - `useJobs(filters)` → key `['jobs', filters]`, with `keepPreviousData` so the table doesn't flash
   when filtering
 - `useJob(id)` → key `['job', id]`; refetches every **4 s** while there is an active run (stage
-  different from `done`/`error`) or a pending confirmation
+  different from `done`/`failed`, which includes `needs_input`) or a pending confirmation
 - `useUpdateJob` → `PATCH /api/jobs/:id`; on success updates the detail cache and invalidates
   `['jobs']` and `['stats']`
 - `useProfiles` → `GET /api/profiles` (targets, including `enabled` and `extraPrompt`)
@@ -73,6 +73,13 @@ flowchart LR
   (all three mutations invalidate `['profiles']` and `['base-resumes']`)
 - `usePdfTheme` / `useSavePdfTheme` → `GET/PUT /api/pdf-theme`
 - `useCandidateData` / `useSaveCandidateData` → `GET/PUT /api/candidate-data`
+- `useLlmConfig` / `useSaveLlmConfig` → `GET/PUT /api/llm-config`; the key is only ever rendered
+  as `maskedKey` and an empty field preserves the stored key
+- `useRespondToRun(jobId)` → `POST /api/runs/:id/respond`, then invalidates `['job', jobId]`,
+  `['jobs']` and `['stats']` so polling resumes
+- `useFitCheck(jobId)` / `useGenerateKit(jobId)` → `POST /api/fit-check` / `/api/generate-kit`;
+  both answer `202 { runId }` and the mutations only invalidate the caches, the detail polling
+  picks the run up
 
 HTTP errors become an `ApiError` with `status` and the backend's message. The detail page uses the
 `404` status to distinguish "job not found" from a generic failure.
@@ -92,6 +99,8 @@ HTTP errors become an `ApiError` with `status` and the backend's message. The de
 | `Admin` | PDF appearance, form data and link to App Settings |
 | `AppSettings` | New-target form and a list of cards per stack × language |
 | `TargetCard` | Base resume, extra instructions, activation and removal of a target |
+| `CheckpointPanel` | `needs_input` question: suggested options, approve/reject inferences and the answer |
+| `PipelineActions` | "Rodar fit-check" and "Gerar kit" entrypoints, disabled without a source or a run |
 
 `ArtifactList` deduplicates by `kind` (keeping the most recent) and sorts by relevance. The links
 use the backend viewers:
@@ -147,7 +156,13 @@ They cover:
 - Detail: fit, runs, artifacts, status change via `PATCH`, updating indicator and `404`.
 - App Settings: listing, creation (`POST`), saving resume + `extraPrompt` in a single `PUT`,
   deactivation, removal (`DELETE`) and duplicate error (`409`).
-- Admin: link to App Settings, saving PDF colors and saving form data.
+- Admin: link to App Settings, saving PDF colors, saving form data, and the LLM panel (masked key
+  only).
+- Checkpoint (`JobCheckpoint.test.tsx`): renders the pending question and options, answers a
+  missing fact and refetches the job, blocks an empty answer, approves/rejects inferences and
+  shows the API error without losing the answer.
+- Pipeline actions (`JobPipelineActions.test.tsx`): fit-check and generate-kit payloads, cache
+  invalidation, the disabled state without a source and the `409` gate message.
 
 `fetch` is mocked per test; there is no need to run the API. See [testing.md](./testing.md).
 
@@ -162,13 +177,12 @@ They cover:
 - **Configurable targets in App Settings.** Each target is a row in `profiles` (`stack × language`),
   editable in the UI: base resume, extra instructions, enable/disable and remove. Full description
   in [ADR-0009](./adr/0009-configurable-targets.md).
-- **Admin edits text, not PDF.** Upload with PDF extraction depends on the previous pipeline; in v2
-  the page accepts `.txt`, `.md` and `.html` (read in the browser) or pasted text, and saves via
-  `PUT /api/profiles/:stack/:language`.
+- **Base resume upload stays in the API.** `POST /api/profiles/:stack/:language/upload` accepts
+  multipart up to 10 MB, extracts PDF text with `pdftotext` and persists only the text; the UI
+  keeps offering text/`.txt`/`.md`/`.html` editing through `PUT /api/profiles/:stack/:language`.
 
 ## 10. Next steps
 
-1. Checkpoint response inside v2 (depends on porting the pipeline).
-2. Optimistic status updates.
-3. Resume upload with PDF extraction (depends on the pipeline).
-4. Retire the old UI for good and remove the compatibility routes.
+1. Optimistic status updates.
+2. Upload control for the new base resume endpoint.
+3. Retire the old UI for good and remove the compatibility routes (roadmap §3).

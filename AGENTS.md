@@ -84,8 +84,9 @@ There is no lint, formatter, CI or pre-commit configured. The commands above are
 
 - `useJob` polls every 4 s while a run is active; dashboard filters/page live in the URL — keep
   them there when adding views.
-- Resume editing is text-based (`.txt`/`.md`/`.html` or pasted). There is no PDF upload or
-  extraction in this app.
+- Resume editing in the UI is text-based (`.txt`/`.md`/`.html` or pasted). The API also accepts a
+  multipart upload (`POST /api/profiles/:stack/:language/upload`, 10 MB) and extracts PDF text with
+  `pdftotext`; tests inject the extractor and never spawn the binary.
 
 ## Conventions
 

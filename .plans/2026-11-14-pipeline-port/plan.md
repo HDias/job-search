@@ -306,10 +306,11 @@ pnpm build:web                        # a partir da Fase 2
       atualizado; 3 testes portados verdes; 0 regressões.
 - [x] Fase 4: `generate-kit`, `question`/`respond` e `regenerate` funcionando; gates 409/400
       cobertos; replay sem LLM; rounds ≤ 2; compat `/api/processes` intacta.
-- [ ] Fase 5: upload de currículo; checkpoint e painel de LLM no React; docs + ADR-0010.
-- [ ] Chave de LLM nunca exposta (`hasKey`/`maskedKey`); nenhum SQL aplicado editado.
-- [ ] `pnpm typecheck && pnpm test && pnpm typecheck:web && pnpm test:web && pnpm build:web`
-      verdes.
+- [x] Fase 5: upload de currículo; checkpoint, painel de LLM e entrypoints no React; docs + ADR-0010
+      (T5.7/T5.9 explicitly registered as backlog).
+- [x] Chave de LLM nunca exposta (`hasKey`/`maskedKey`); nenhum SQL aplicado editado.
+- [x] `pnpm typecheck && pnpm test && pnpm typecheck:web && pnpm test:web && pnpm build:web`
+      verdes (285 backend tests / 28 files, 39 frontend tests / 8 files).
 - [ ] Critério do roadmap §3: UI antiga pode ser aposentada.
 
 ## Execution status
@@ -328,12 +329,12 @@ O executor marca cada item ao concluir. Um checkbox por tarefa.
 - [x] T4.3 — `POST /api/jobs/:id/regenerate` — `pnpm test -- test/pipeline-regenerate.test.ts` green (404 unknown job, 409 language conflict, 400 without snapshot/pasted text, job `id/status/appliedAt/createdAt` preserved across regeneration with language moved to the posting-required one, old `application_questions.json` + suggestions JSON/MD + recruiter origin copied into the new `_2` folder with `hasQuestions`/`hasRecruiterMessage` set, pasted-text regeneration works without a snapshot); `pnpm typecheck` exit 0.
 - [x] T4.4 — compat shims — `pnpm test -- test/pipeline-compat.test.ts` green (`GET /api/processes/:id/question` returns the v1 `{ processId, question, needsInputRounds }`; `POST /api/processes/:id/respond` answers the same run, appends history and returns `202 { success, processId, runId }`; v1 error messages preserved; `PATCH /api/processes/:id` writes the same `runs` columns as `PUT`); `pnpm typecheck` exit 0.
 - [x] T4.5 — `test/pipeline-request-gates.test.ts` — gate matrix green: generate-kit (missing language, fit < 50, failed eligibility, explicit language conflict, 400 empty body), question/respond (404 unknown, 404 non-pending, 409 non-waiting, 400 empty answer, 400 inference not offered), regenerate (404 unknown job, 400 no source, 409 language conflict); the LLM stub would throw if a gate reached the queue. Full suite **271 tests / 26 files**, no real Chromium or network; `pnpm typecheck && pnpm test` exit 0.
-- [ ] T5.1 — deps `multer` + `@types/multer`
-- [ ] T5.2 — `POST /api/profiles/:stack/:language/upload`
-- [ ] T5.3 — React checkpoint no `JobDetail`
-- [ ] T5.4 — React painel LLM no Admin
-- [ ] T5.5 — React entrypoint fit-check/geração
-- [ ] T5.6 — `candidate-data` (`extractCandidateFromBase`)
-- [ ] T5.7 — (opcional) pre-fill dry-run + `scrape_application_questions`
-- [ ] T5.8 — docs + ADR-0010
-- [ ] T5.9 — aposentar UI v1
+- [x] T5.1 — deps `multer` + `@types/multer` — added `multer@^2.5.0` (runtime) and `@types/multer@^2.3.0` (dev) to `package.json`/lockfile; `pnpm typecheck` exit 0.
+- [x] T5.2 — `POST /api/profiles/:stack/:language/upload` — `pnpm test -- test/pipeline-upload.test.ts` green (multipart `resumeFile` field, text resume stored with the exact `{sourceFile, language, stack, extractedAt, rawLength, rawText}` content, PDF routed through an injected `pdftotext` runner with the raw bytes, existing `enabled`/`extraPrompt` preserved on replacement, 413 above 10 MB with no profile written, 400 without a file, 400 for invalid stack/language, 422 when extraction throws or yields blank text, `createResumeTextExtractor` sends only `.pdf` to `pdftotext`); uploads stay in memory (no `fs` state) and nothing is spawned in the suite; `pnpm typecheck && pnpm test` → 279 tests / 27 files, 0 regressions.
+- [x] T5.3 — React checkpoint no `JobDetail` — `pnpm test:web -- JobCheckpoint` green (renders the question and the suggested options, answers a missing fact and refetches `['job', id]` so the panel disappears, disables submit while the answer is empty, approves/rejects inferred skills into `approvedInferences`/`rejectedInferences`, shows the API error without losing the chosen answer); `pnpm typecheck:web` exit 0.
+- [x] T5.4 — React painel LLM no Admin — `pnpm test:web -- Admin` green (renders the masked `maskedKey` only, never the full key in the DOM, saves provider/model without resending an empty key, sends a newly typed key); `pnpm typecheck:web` exit 0.
+- [x] T5.5 — React entrypoint fit-check/geração — `pnpm test:web -- JobPipelineActions` green (fit-check posts the vacancy URL + process/stack and refetches the job so polling picks up the 202, generate-kit posts the latest `processId`, both actions disabled without a source, the 409 gate message is surfaced); `pnpm typecheck:web && pnpm test:web && pnpm build:web` exit 0.
+- [x] T5.6 — `candidate-data` (`extractCandidateFromBase`) — `pnpm test -- test/candidate-data.test.ts` green (email/phone/LinkedIn/GitHub and the header name from `profiles.content.rawText`, section headings and role titles skipped, first value across the ruby→php profile order wins, saved `candidate_form` fills only the blanks, empty saved strings do not erase extracted values, empty shape with neither source); name regex no longer swallows the next line; `pnpm typecheck` exit 0.
+- [~] T5.7 — (opcional) pre-fill dry-run + `scrape_application_questions` — **backlog by decision (D11):** both are standalone v1 scripts outside `processJob`, so parity does not depend on them. Registered in `docs/roadmap.md`.
+- [x] T5.8 — docs + ADR-0010 — `docs/api.md` (kit, question/respond, regenerate, upload, 413/422 and the parity section), `docs/architecture.md` (phase status, module table and flow), `docs/frontend.md` (checkpoint, LLM panel, pipeline actions, upload note), `docs/testing.md` (new suites and the Chromium/`pdftotext` rows), `docs/roadmap.md` (Phase 3 and backlog), `docs/README.md`, `docs/security.md`, `docs/development.md` (`poppler-utils`), `docs/glossary.md` and `AGENTS.md`; `docs/adr/0010-async-pipeline.md` added and indexed in `docs/adr/README.md`.
+- [~] T5.9 — aposentar UI v1 — **not executed:** no React screen calls `/api/applications` (checked with `grep -rn "/api/applications" web/src` → 0 hits), but retiring v1 still needs an upload control in the SPA and the removal of the `/api/applications` + `/api/processes` compatibility routes. Registered as backlog in `docs/roadmap.md`; the compatibility DTOs stay untouched per AGENTS.md.
