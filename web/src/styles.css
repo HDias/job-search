@@ -368,6 +368,13 @@ input::placeholder {
   color: #64748b;
 }
 
+/* The option list is painted by the OS with its own background, so the tone
+   colours used on the closed select would be unreadable there. */
+select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
 input:focus,
 select:focus,
 textarea:focus,
