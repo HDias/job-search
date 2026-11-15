@@ -15,10 +15,25 @@ export interface FitCheckPayload {
   stack?: string | null;
 }
 
+/** Payload of `POST /api/generate-kit`; gates already ran in the route. */
+export interface GenerateKitPayload extends FitCheckPayload {
+  language?: string | null;
+  fitConfirmed?: boolean;
+  userAnswer?: string | null;
+  approvedInferences?: string[];
+  rejectedInferences?: string[];
+  needsInputRounds?: number;
+  coverLetterGuidance?: string | null;
+  includeCoverInCv?: string | boolean | null;
+  jobSnapshot?: Record<string, unknown> | null;
+  /** Regeneration: copy extras the new folder did not produce. */
+  regenerateFromFolder?: string | null;
+}
+
 export interface QueueTask {
   kind: QueueTaskKind;
   runId: string;
-  payload: FitCheckPayload | Record<string, unknown>;
+  payload: FitCheckPayload | GenerateKitPayload | Record<string, unknown>;
 }
 
 export type QueueTaskHandler = (task: QueueTask) => Promise<void>;

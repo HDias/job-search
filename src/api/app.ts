@@ -35,6 +35,7 @@ export function createApp(options: CreateAppOptions): Express {
     createPipelineService({
       store,
       skillsDir: options.skillsDir ?? path.resolve('skills'),
+      applicationsDir,
     });
   const app = express();
 
@@ -58,7 +59,7 @@ export function createApp(options: CreateAppOptions): Express {
   app.use('/api/runs', createRunsRouter(store));
   app.use('/api', createPipelineRouter(store, pipeline));
   app.use('/api', createMetaRouter(store));
-  app.use('/api', createCompatRouter(store));
+  app.use('/api', createCompatRouter(store, pipeline));
 
   if (applicationsDir) {
     app.use('/applications', express.static(applicationsDir));

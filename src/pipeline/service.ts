@@ -1,10 +1,18 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { createLlmClient, type LlmClient } from './llm/client.js';
 import { checkJobFit, type FitCheckDeps, type FitCheckResult } from './kit/fit.js';
 import { evaluateFit, type EvaluateFitInput, type EvaluateFitResult } from './fit/evaluate.js';
 import { createSkillLoader } from './skills/loader.js';
-import { createRunQueue, type FitCheckPayload, type RunQueue } from './queue.js';
+import {
+  createRunQueue,
+  type FitCheckPayload,
+  type GenerateKitPayload,
+  type RunQueue,
+} from './queue.js';
 import { createFitCheckRunner } from './runs/fit-check.js';
+import { createGenerateKitRunner } from './runs/generate-kit.js';
+import type { PdfRenderer } from './kit/artifacts.js';
 import type { ScrapeBrowser, ScrapeDeps } from './scrape/job.js';
 import type { Store } from '../repositories/types.js';
 
@@ -21,12 +29,17 @@ export interface PipelineServiceDeps {
   scrapeDeps?: ScrapeDeps;
   /** Shared Chromium instance (queue worker). */
   browser?: ScrapeBrowser;
+  /** Where kit folders are written (defaults to the v1 `applications/`). */
+  applicationsDir?: string;
+  /** Injected in tests so PDF rendering never launches Chromium. */
+  renderPdf?: PdfRenderer;
 }
 
 export interface PipelineService {
   queue: RunQueue;
   evaluateFit(input: EvaluateFitInput): EvaluateFitResult;
   enqueueFitCheck(runId: string, payload: FitCheckPayload): void;
+  enqueueGenerateKit(runId: string, payload: GenerateKitPayload): void;
   checkFit(input: FitCheckPayload): Promise<FitCheckResult>;
 }
 
@@ -63,6 +76,20 @@ export function createPipelineService(
         await runner(task);
         return;
       }
+      if (task.kind === 'generate-kit') {
+        const runner = createGenerateKitRunner({
+          store,
+          llm,
+          loader,
+          applicationsDir:
+            deps.applicationsDir ??
+            process.env.APPLICATIONS_DIR ??
+            path.resolve('..', 'job-search', 'applications'),
+          renderPdf: deps.renderPdf,
+        });
+        await runner(task);
+        return;
+      }
       throw new Error(`Tarefa de pipeline não suportada: ${task.kind}`);
     },
     {
@@ -84,6 +111,8 @@ export function createPipelineService(
     evaluateFit: (input) => evaluateFit(store, input),
     enqueueFitCheck: (runId, payload) =>
       queue.enqueue({ kind: 'fit-check', runId, payload }),
+    enqueueGenerateKit: (runId, payload) =>
+      queue.enqueue({ kind: 'generate-kit', runId, payload }),
     checkFit,
   };
 }
